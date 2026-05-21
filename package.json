@@ -1,0 +1,24 @@
+{
+  "name": "code",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TranThanhPhu39/Blockchain-based-Escrow-for-Second-hand-Transactions.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/TranThanhPhu39/Blockchain-based-Escrow-for-Second-hand-Transactions/issues"
+  },
+  "homepage": "https://github.com/TranThanhPhu39/Blockchain-based-Escrow-for-Second-hand-Transactions#readme"
+}
