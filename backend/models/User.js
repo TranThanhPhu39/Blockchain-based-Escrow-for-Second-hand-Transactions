@@ -82,7 +82,6 @@ userSchema.pre('save', async function (next) {
   // 12 rounds ≈ 250ms → đủ chậm để brute force khó, đủ nhanh cho user
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
-  next(); // Gọi next() để tiếp tục quá trình lưu
 });
 
 // ==================== INSTANCE METHODS ====================

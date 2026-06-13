@@ -27,9 +27,10 @@ module.exports = {
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : []
     }
   },
-  etherscan: {
-    apiKey: {
-      polygonAmoy: POLYGONSCAN_API_KEY || ""
-    }
+   etherscan: {
+    apiKey: POLYGONSCAN_API_KEY || ""
+  },
+  sourcify: {
+    enabled: false
   }
 };

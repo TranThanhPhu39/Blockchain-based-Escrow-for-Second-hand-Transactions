@@ -3,6 +3,8 @@ const path = require("path");
 const hre = require("hardhat");
 
 async function main() {
+  console.log("PRIVATE_KEY loaded:", process.env.PRIVATE_KEY ? process.env.PRIVATE_KEY.substring(0, 6) + "..." : "UNDEFINED");
+  console.log("RPC_URL loaded:", process.env.AMOY_RPC_URL || "UNDEFINED");
   const [deployer, demoBuyer] = await hre.ethers.getSigners();
   const networkName = hre.network.name;
   const configuredToken = process.env.ESCROW_TOKEN_ADDRESS;

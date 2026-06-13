@@ -12,6 +12,8 @@
 const errorMiddleware = (err, req, res, next) => {
   // Lấy statusCode từ response nếu đã set, không thì dùng 500
   // Controller thường set res.status(400) trước khi throw error
+  console.error('🔴 ERROR STACK:', err.stack); // thêm dòng này
+  console.error('🔴 ERROR MESSAGE:', err.message); 
   let statusCode = err.statusCode || (res.statusCode !== 200 ? res.statusCode : 500);
   let message = err.message || 'Internal Server Error';
 
