@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-Backend của dự án **Blockchain-based Escrow for Second-hand Transactions** được xây dựng bằng:
+Backend của dự án **Decentralized Service Escrow Platform** được xây dựng bằng:
 
 - Node.js
 - Express.js
@@ -15,8 +15,8 @@ Backend của dự án **Blockchain-based Escrow for Second-hand Transactions** 
 Backend chịu trách nhiệm:
 
 - Xác thực người dùng
-- Quản lý escrow
-- Upload bằng chứng
+- Quản lý escrow (service contract)
+- Upload bằng chứng công việc
 - Xử lý tranh chấp
 - Gửi thông báo
 - Đồng bộ dữ liệu blockchain
@@ -30,59 +30,57 @@ Backend chịu trách nhiệm:
 backend/
 ├── package.json
 ├── server.js
+├── app.js
 ├── .env
 ├── .gitignore
 │
-├── src/
-│   ├── app.js
-│   │
-│   ├── config/
-│   │   ├── db.js
-│   │   ├── cloudinary.js
-│   │   └── blockchain.js
-│   │
-│   ├── models/
-│   │   ├── User.js
-│   │   ├── Escrow.js
-│   │   ├── Dispute.js
-│   │   ├── TransactionLog.js
-│   │   └── Notification.js
-│   │
-│   ├── routes/
-│   │   ├── auth.routes.js
-│   │   ├── escrow.routes.js
-│   │   ├── dispute.routes.js
-│   │   ├── upload.routes.js
-│   │   ├── transaction.routes.js
-│   │   └── notification.routes.js
-│   │
-│   ├── controllers/
-│   │   ├── auth.controller.js
-│   │   ├── escrow.controller.js
-│   │   ├── dispute.controller.js
-│   │   ├── upload.controller.js
-│   │   ├── transaction.controller.js
-│   │   └── notification.controller.js
-│   │
-│   ├── middleware/
-│   │   ├── auth.middleware.js
-│   │   ├── role.middleware.js
-│   │   ├── error.middleware.js
-│   │   └── upload.middleware.js
-│   │
-│   ├── services/
-│   │   ├── blockchain.service.js
-│   │   ├── eventListener.service.js
-│   │   ├── notification.service.js
-│   │   └── fileStorage.service.js
-│   │
-│   ├── utils/
-│   │   ├── generateToken.js
-│   │   ├── asyncHandler.js
-│   │   └── constants.js
-│   │
-│   └── abi/
-│       └── EscrowContract.json
+├── config/
+│   ├── db.js
+│   ├── cloudinary.js
+│   └── blockchain.js
+│
+├── models/
+│   ├── User.js
+│   ├── Escrow.js
+│   ├── Dispute.js
+│   ├── TransactionLog.js
+│   └── Notification.js
+│
+├── routes/
+│   ├── auth.routes.js
+│   ├── escrow.routes.js
+│   ├── dispute.routes.js
+│   ├── upload.routes.js
+│   ├── transaction.routes.js
+│   └── notification.routes.js
+│
+├── controllers/
+│   ├── auth.controller.js
+│   ├── escrow.controller.js
+│   ├── dispute.controller.js
+│   ├── upload.controller.js
+│   ├── transaction.controller.js
+│   └── notification.controller.js
+│
+├── middleware/
+│   ├── auth.middleware.js
+│   ├── role.middleware.js
+│   ├── error.middleware.js
+│   └── upload.middleware.js
+│
+├── services/
+│   ├── blockchain.service.js
+│   ├── eventListener.service.js
+│   ├── notification.service.js
+│   └── fileStorage.service.js
+│
+├── utils/
+│   ├── generateToken.js
+│   ├── asyncHandler.js
+│   └── constants.js
+│
+└── abi/
+    └── EscrowContract.json
 ```
 
 ---
@@ -116,15 +114,15 @@ Escrow Model - MongoDB
 | Folder/File | Vai trò |
 |---|---|
 | `server.js` | Khởi động backend server |
-| `src/app.js` | Cấu hình Express app, middleware, routes |
-| `src/config/` | Cấu hình database, Cloudinary, blockchain |
-| `src/models/` | Định nghĩa MongoDB schemas |
-| `src/routes/` | Khai báo API endpoints |
-| `src/controllers/` | Xử lý request/response |
-| `src/middleware/` | Middleware xác thực, phân quyền, upload, lỗi |
-| `src/services/` | Xử lý business logic, blockchain, notification, file storage |
-| `src/utils/` | Hàm tiện ích dùng chung |
-| `src/abi/` | Lưu ABI của smart contract |
+| `app.js` | Cấu hình Express app, middleware, routes |
+| `config/` | Cấu hình database, Cloudinary, blockchain |
+| `models/` | Định nghĩa MongoDB schemas |
+| `routes/` | Khai báo API endpoints |
+| `controllers/` | Xử lý request/response |
+| `middleware/` | Middleware xác thực, phân quyền, upload, lỗi |
+| `services/` | Xử lý business logic, blockchain, notification, file storage |
+| `utils/` | Hàm tiện ích dùng chung |
+| `abi/` | Lưu ABI của smart contract |
 
 ---
 
@@ -143,7 +141,7 @@ Backend 1 phụ trách:
 - Khởi tạo server và kết nối MongoDB
 - Authentication
 - User Management
-- Escrow APIs
+- Escrow APIs (Service Contract)
 - JWT Authentication Middleware
 - Role-based Authorization
 
@@ -151,21 +149,21 @@ Backend 1 phụ trách:
 
 ```text
 server.js
-src/config/db.js
+config/db.js
 
-src/models/
+models/
 ├── User.js
 └── Escrow.js
 
-src/routes/
+routes/
 ├── auth.routes.js
 └── escrow.routes.js
 
-src/controllers/
+controllers/
 ├── auth.controller.js
 └── escrow.controller.js
 
-src/middleware/
+middleware/
 ├── auth.middleware.js
 └── role.middleware.js
 ```
@@ -173,22 +171,25 @@ src/middleware/
 #### APIs Implemented
 
 ```http
-POST /api/auth/register
-POST /api/auth/login
-GET  /api/auth/me
+POST  /api/auth/register
+POST  /api/auth/login
+GET   /api/auth/me
+PATCH /api/auth/wallet
 
 POST  /api/escrows
 GET   /api/escrows
 GET   /api/escrows/:id
-PATCH /api/escrows/:id/shipping
+PATCH /api/escrows/:id/submit
+PATCH /api/escrows/:id/approve
 ```
 
 #### Expected Output
 
-- User đăng ký / đăng nhập
-- Buyer tạo escrow
-- Buyer/Seller xem danh sách escrow
-- Seller cập nhật thông tin giao hàng
+- User (client/freelancer) đăng ký / đăng nhập
+- Client tạo escrow (service contract)
+- Client/Freelancer xem danh sách escrow
+- Freelancer submit deliverable link
+- Client approve công việc → trigger release funds
 
 ---
 
@@ -198,36 +199,35 @@ PATCH /api/escrows/:id/shipping
 
 Backend 2 phụ trách:
 
-- Upload file
-- Lưu ảnh sản phẩm, ảnh giao hàng, bằng chứng
+- Upload file (bằng chứng công việc, ảnh deliverable)
 - Dispute APIs
 - Notification APIs
 
 #### Files Responsible
 
 ```text
-src/models/
+models/
 ├── Dispute.js
 └── Notification.js
 
-src/routes/
+routes/
 ├── dispute.routes.js
 ├── upload.routes.js
 └── notification.routes.js
 
-src/controllers/
+controllers/
 ├── dispute.controller.js
 ├── upload.controller.js
 └── notification.controller.js
 
-src/config/
+config/
 └── cloudinary.js
 
-src/services/
+services/
 ├── fileStorage.service.js
 └── notification.service.js
 
-src/middleware/
+middleware/
 └── upload.middleware.js
 ```
 
@@ -248,9 +248,9 @@ PATCH /api/notifications/:id/read
 
 #### Expected Output
 
-- Buyer mở tranh chấp
-- Buyer upload bằng chứng
-- Seller phản hồi tranh chấp
+- Client mở tranh chấp khi không hài lòng
+- Client/Freelancer upload bằng chứng
+- Freelancer phản hồi tranh chấp
 - Admin xem và xử lý dispute
 - User nhận thông báo trong app
 
@@ -271,23 +271,23 @@ Backend 3 phụ trách:
 #### Files Responsible
 
 ```text
-src/config/
+config/
 └── blockchain.js
 
-src/models/
+models/
 └── TransactionLog.js
 
-src/routes/
+routes/
 └── transaction.routes.js
 
-src/controllers/
+controllers/
 └── transaction.controller.js
 
-src/services/
+services/
 ├── blockchain.service.js
 └── eventListener.service.js
 
-src/abi/
+abi/
 └── EscrowContract.json
 ```
 
@@ -296,7 +296,7 @@ src/abi/
 ```javascript
 getEscrowStatus(escrowId)
 releaseFunds(escrowId)
-refundBuyer(escrowId)
+refundClient(escrowId)
 ```
 
 #### Events Listened
@@ -306,7 +306,7 @@ EscrowCreated
 FundsDeposited
 DisputeRaised
 FundsReleased
-BuyerRefunded
+ClientRefunded
 AutoReleased
 ```
 
@@ -317,7 +317,7 @@ AutoReleased
 | `FundsDeposited` | `LOCKED` |
 | `DisputeRaised` | `DISPUTED` |
 | `FundsReleased` | `RELEASED` |
-| `BuyerRefunded` | `REFUNDED` |
+| `ClientRefunded` | `REFUNDED` |
 
 #### TransactionLog Format
 
@@ -350,7 +350,8 @@ Tất cả backend phải dùng thống nhất bộ status sau:
 ```text
 CREATED
 LOCKED
-SHIPPED
+IN_PROGRESS
+SUBMITTED
 DISPUTED
 RELEASED
 REFUNDED
@@ -362,7 +363,7 @@ CANCELLED
 ## 7. Integration Workflow
 
 ```text
-Backend 1 tạo escrow trong database
+Backend 1: Client tạo escrow trong database
 ↓
 Frontend gọi smart contract deposit
 ↓
@@ -370,19 +371,19 @@ Backend 3 nghe event FundsDeposited
 ↓
 Backend 3 cập nhật Escrow.status = LOCKED
 ↓
-Backend 1 cho Seller xem escrow đã LOCKED
+Backend 1 cho Freelancer xem escrow đã LOCKED
 ↓
-Seller cập nhật shipping info
+Freelancer thực hiện công việc và submit deliverable link
 ↓
-Buyer confirm hoặc mở dispute
+Client review và approve hoặc mở dispute
 ↓
-Backend 2 lưu dispute và evidence
+Backend 2 lưu dispute và evidence nếu có
 ↓
 Admin xử lý dispute
 ↓
 Backend 3 gọi smart contract refund/release
 ↓
-Backend 3 nghe event
+Backend 3 nghe event → cập nhật status
 ↓
 Backend 2 gửi notification
 ```
@@ -429,6 +430,7 @@ npm run dev
 PORT=5000
 MONGO_URI=
 JWT_SECRET=
+AUTO_RELEASE_DAYS=7
 
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=

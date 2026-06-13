@@ -40,10 +40,10 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: Object.values(USER_ROLES), // ['buyer', 'seller', 'admin']
-        message: 'Role must be buyer, seller or admin',
+        values: Object.values(USER_ROLES), // ['client', 'freelancer', 'admin']
+        message: 'Role must be client, freelancer or admin',
       },
-      default: USER_ROLES.BUYER, // Mặc định là buyer khi đăng ký
+      default: USER_ROLES.CLIENT, // Mặc định là client khi đăng ký
     },
 
     // ---- Blockchain ----

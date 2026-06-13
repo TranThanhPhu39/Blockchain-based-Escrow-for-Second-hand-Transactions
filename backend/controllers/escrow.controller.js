@@ -4,8 +4,8 @@
 // Backend 1 chịu trách nhiệm:
 // - Tạo escrow record trong DB
 // - Xem danh sách và chi tiết escrow
-// - Seller update shipping info
-// - Buyer confirm delivery
+// - Freelancer submit deliverable
+// - Client approve work (xác nhận công việc hoàn thành)
 //
 // Status LOCKED được set bởi Backend 3 (blockchain event listener)
 // khi nhận được event FundsDeposited từ smart contract
@@ -18,53 +18,54 @@ const asyncHandler = require('../utils/asyncHandler');
 
 // ==================== POST /api/escrows ====================
 /**
- * Buyer tạo escrow mới
- * Body: { sellerWalletAddress, itemName, itemDescription, amount }
+ * Client tạo escrow mới (job posting)
+ * Body: { freelancerWalletAddress, serviceName, jobDescription, amount, deadline? }
  * Response: { success, escrow }
  */
 const createEscrow = asyncHandler(async (req, res) => {
-  const { sellerWalletAddress, itemName, itemDescription, amount } = req.body;
+  const { freelancerWalletAddress, serviceName, jobDescription, amount, deadline } = req.body;
 
   // Validate required fields
-  if (!sellerWalletAddress || !itemName || !amount) {
+  if (!freelancerWalletAddress || !serviceName || !amount) {
     res.status(400);
-    throw new Error('sellerWalletAddress, itemName, and amount are required');
+    throw new Error('freelancerWalletAddress, serviceName, and amount are required');
   }
 
-  // Tìm seller bằng wallet address
-  // Buyer nhập wallet address của seller khi tạo escrow
-  const seller = await User.findOne({
-    walletAddress: sellerWalletAddress.toLowerCase(),
+  // Tìm freelancer bằng wallet address
+  // Client nhập wallet address của freelancer khi tạo escrow
+  const freelancer = await User.findOne({
+    walletAddress: freelancerWalletAddress.toLowerCase(),
   });
 
-  if (!seller) {
+  if (!freelancer) {
     res.status(404);
-    throw new Error('Seller with this wallet address not found. Seller must register first.');
+    throw new Error('Freelancer with this wallet address not found. Freelancer must register first.');
   }
 
-  // Buyer và seller không được là cùng 1 người
+  // Client và freelancer không được là cùng 1 người
   // _id.equals() dùng cho ObjectId comparison (không dùng ===)
-  if (seller._id.equals(req.user._id)) {
+  if (freelancer._id.equals(req.user._id)) {
     res.status(400);
-    throw new Error('Buyer and seller cannot be the same person');
+    throw new Error('Client and freelancer cannot be the same person');
   }
 
   // Tạo escrow document trong MongoDB
   // Lúc này chưa có tiền — smart contract chưa được gọi
   // Frontend sẽ gọi smart contract deposit SAU KHI nhận escrow._id
   const escrow = await Escrow.create({
-    buyer: req.user._id,
-    seller: seller._id,
-    itemName,
-    itemDescription,
+    client: req.user._id,
+    freelancer: freelancer._id,
+    serviceName,
+    jobDescription,
     amount,
+    deadline: deadline ? new Date(deadline) : undefined,
     status: ESCROW_STATUS.CREATED,
   });
 
   // Populate để trả về thông tin đầy đủ ngay
   const populatedEscrow = await Escrow.findById(escrow._id)
-    .populate('buyer', 'name email walletAddress')
-    .populate('seller', 'name email walletAddress');
+    .populate('client', 'name email walletAddress')
+    .populate('freelancer', 'name email walletAddress');
 
   res.status(201).json({
     success: true,
@@ -89,9 +90,9 @@ const getEscrows = asyncHandler(async (req, res) => {
     // Admin thấy tất cả escrows
     if (status) filter.status = status;
   } else {
-    // Buyer/Seller chỉ thấy escrows mà họ tham gia
-    // $or: điều kiện HOẶC — là buyer HOẶC là seller
-    filter.$or = [{ buyer: req.user._id }, { seller: req.user._id }];
+    // Client/Freelancer chỉ thấy escrows mà họ tham gia
+    // $or: điều kiện HOẶC — là client HOẶC là freelancer
+    filter.$or = [{ client: req.user._id }, { freelancer: req.user._id }];
     if (status) filter.status = status;
   }
 
@@ -103,8 +104,8 @@ const getEscrows = asyncHandler(async (req, res) => {
   // Thay vì chờ query 1 xong rồi mới query 2, chạy đồng thời
   const [escrows, total] = await Promise.all([
     Escrow.find(filter)
-      .populate('buyer', 'name email walletAddress')
-      .populate('seller', 'name email walletAddress')
+      .populate('client', 'name email walletAddress')
+      .populate('freelancer', 'name email walletAddress')
       .sort({ createdAt: -1 })   // Sắp xếp mới nhất trước (-1 = descending)
       .limit(parseInt(limit))
       .skip(skip),
@@ -129,20 +130,20 @@ const getEscrows = asyncHandler(async (req, res) => {
  */
 const getEscrowById = asyncHandler(async (req, res) => {
   const escrow = await Escrow.findById(req.params.id)
-    .populate('buyer', 'name email walletAddress')
-    .populate('seller', 'name email walletAddress');
+    .populate('client', 'name email walletAddress')
+    .populate('freelancer', 'name email walletAddress');
 
   if (!escrow) {
     res.status(404);
     throw new Error('Escrow not found');
   }
 
-  // Kiểm tra quyền truy cập: chỉ buyer, seller, hoặc admin
-  const isBuyer = escrow.buyer._id.equals(req.user._id);
-  const isSeller = escrow.seller._id.equals(req.user._id);
+  // Kiểm tra quyền truy cập: chỉ client, freelancer, hoặc admin
+  const isClient = escrow.client._id.equals(req.user._id);
+  const isFreelancer = escrow.freelancer._id.equals(req.user._id);
   const isAdmin = req.user.role === USER_ROLES.ADMIN;
 
-  if (!isBuyer && !isSeller && !isAdmin) {
+  if (!isClient && !isFreelancer && !isAdmin) {
     res.status(403);
     throw new Error('You are not authorized to view this escrow');
   }
@@ -150,18 +151,18 @@ const getEscrowById = asyncHandler(async (req, res) => {
   res.json({ success: true, escrow });
 });
 
-// ==================== PATCH /api/escrows/:id/shipping ====================
+// ==================== PATCH /api/escrows/:id/submit ====================
 /**
- * Seller cập nhật thông tin shipping
- * Body: { carrier, trackingNumber, estimatedDelivery? }
+ * Freelancer submit deliverable (nộp bài)
+ * Body: { deliverableUrl, workProof?, note? }
  * Response: { success, escrow }
  */
-const updateShipping = asyncHandler(async (req, res) => {
-  const { carrier, trackingNumber, estimatedDelivery } = req.body;
+const submitDeliverable = asyncHandler(async (req, res) => {
+  const { deliverableUrl, workProof, note } = req.body;
 
-  if (!carrier || !trackingNumber) {
+  if (!deliverableUrl) {
     res.status(400);
-    throw new Error('carrier and trackingNumber are required');
+    throw new Error('deliverableUrl is required');
   }
 
   const escrow = await Escrow.findById(req.params.id);
@@ -171,56 +172,56 @@ const updateShipping = asyncHandler(async (req, res) => {
     throw new Error('Escrow not found');
   }
 
-  // Chỉ seller của escrow này được update
-  if (!escrow.seller.equals(req.user._id)) {
+  // Chỉ freelancer của escrow này được submit
+  if (!escrow.freelancer.equals(req.user._id)) {
     res.status(403);
-    throw new Error('Only the seller can update shipping information');
+    throw new Error('Only the freelancer can submit deliverables');
   }
 
-  // Chỉ update khi đang ở LOCKED (buyer đã deposit tiền)
-  // Nếu CREATED: buyer chưa trả tiền, seller không nên gửi hàng
-  if (escrow.status !== ESCROW_STATUS.LOCKED) {
+  // Chỉ submit khi đang ở LOCKED hoặc IN_PROGRESS
+  // (client đã deposit tiền)
+  if (escrow.status !== ESCROW_STATUS.LOCKED && escrow.status !== ESCROW_STATUS.IN_PROGRESS) {
     res.status(400);
     throw new Error(
-      `Cannot update shipping when escrow status is '${escrow.status}'. Escrow must be LOCKED.`
+      `Cannot submit deliverable when escrow status is '${escrow.status}'. Escrow must be LOCKED or IN_PROGRESS.`
     );
   }
 
-  // Cập nhật shipping info và chuyển status sang SHIPPED
-  escrow.shippingInfo = {
-    carrier,
-    trackingNumber,
-    shippedAt: new Date(),
-    estimatedDelivery: estimatedDelivery ? new Date(estimatedDelivery) : undefined,
+  // Cập nhật deliverable info và chuyển status sang SUBMITTED
+  escrow.deliverableInfo = {
+    deliverableUrl,
+    workProof,
+    submittedAt: new Date(),
+    note,
   };
-  escrow.status = ESCROW_STATUS.SHIPPED;
+  escrow.status = ESCROW_STATUS.SUBMITTED;
 
-  // Auto release sau X ngày nếu buyer không confirm
+  // Auto release sau X ngày nếu client không approve
   const autoReleaseDays = parseInt(process.env.AUTO_RELEASE_DAYS) || 7;
   escrow.autoReleaseAt = new Date(Date.now() + autoReleaseDays * 24 * 60 * 60 * 1000);
 
   await escrow.save();
 
   const updatedEscrow = await Escrow.findById(escrow._id)
-    .populate('buyer', 'name email walletAddress')
-    .populate('seller', 'name email walletAddress');
+    .populate('client', 'name email walletAddress')
+    .populate('freelancer', 'name email walletAddress');
 
   res.json({
     success: true,
-    message: 'Shipping information updated. Escrow status changed to SHIPPED.',
+    message: 'Deliverable submitted. Waiting for client approval.',
     escrow: updatedEscrow,
   });
 });
 
-// ==================== PATCH /api/escrows/:id/confirm ====================
+// ==================== PATCH /api/escrows/:id/approve ====================
 /**
- * Buyer xác nhận đã nhận hàng → trigger release funds
+ * Client approve công việc → trigger release funds cho freelancer
  * Response: { success, escrow }
  *
  * Lưu ý: Việc thực sự release tiền trên blockchain được thực hiện bởi Backend 3
  * Ở đây chỉ đánh dấu intent trong DB, Backend 3 sẽ gọi smart contract
  */
-const confirmDelivery = asyncHandler(async (req, res) => {
+const approveWork = asyncHandler(async (req, res) => {
   const escrow = await Escrow.findById(req.params.id);
 
   if (!escrow) {
@@ -228,17 +229,17 @@ const confirmDelivery = asyncHandler(async (req, res) => {
     throw new Error('Escrow not found');
   }
 
-  // Chỉ buyer mới được confirm
-  if (!escrow.buyer.equals(req.user._id)) {
+  // Chỉ client mới được approve
+  if (!escrow.client.equals(req.user._id)) {
     res.status(403);
-    throw new Error('Only the buyer can confirm delivery');
+    throw new Error('Only the client can approve work');
   }
 
-  // Chỉ confirm khi đang ở SHIPPED
-  if (escrow.status !== ESCROW_STATUS.SHIPPED) {
+  // Chỉ approve khi đang ở SUBMITTED
+  if (escrow.status !== ESCROW_STATUS.SUBMITTED) {
     res.status(400);
     throw new Error(
-      `Cannot confirm delivery when escrow status is '${escrow.status}'. Escrow must be SHIPPED.`
+      `Cannot approve work when escrow status is '${escrow.status}'. Escrow must be SUBMITTED.`
     );
   }
 
@@ -250,7 +251,7 @@ const confirmDelivery = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: 'Delivery confirmed. Funds will be released to seller.',
+    message: 'Work approved. Funds will be released to freelancer.',
     escrow,
   });
 });
@@ -259,6 +260,6 @@ module.exports = {
   createEscrow,
   getEscrows,
   getEscrowById,
-  updateShipping,
-  confirmDelivery,
+  submitDeliverable,
+  approveWork,
 };
