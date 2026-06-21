@@ -26,6 +26,21 @@
 // vào việc listener có bắt được event hay không. Listener vẫn cần chạy
 // để cập nhật status (LOCKED, RELEASED, ...), nhưng việc tìm escrow theo
 // escrowIdOnChain sẽ luôn thành công ngay từ đầu.
+//
+// ⚠️ FIX (approveWork desync):
+// Trước đây approveWork() set escrow.status = RELEASED NGAY LÚC client
+// gọi API, trước khi tiền thực sự được release on-chain. Vấn đề: việc
+// release tiền thật (confirmDelivery() on-chain) phải do Client tự ký
+// qua wallet của họ (không qua backend) — nếu Client gọi API approve rồi
+// sau đó không/chưa ký giao dịch on-chain (từ chối ký, hết gas, mất kết
+// nối...), DB sẽ ghi nhận sai là "đã release" trong khi tiền vẫn còn kẹt
+// trong contract.
+//
+// → Giải pháp: approveWork() giờ chỉ set status → APPROVED (đánh dấu ý
+// định, KHÔNG khẳng định tiền đã chuyển). Chỉ khi eventListener.service.js
+// nhận được event FundsReleased thật từ chain (handleFundsReleased), status
+// mới được set thành RELEASED. Nguyên tắc giống FIX escrowIdOnChain ở trên:
+// trạng thái DB chỉ nên là "chắc chắn đúng" khi đã được xác nhận on-chain.
 // ============================================================
 
 const Escrow = require('../models/Escrow');
@@ -262,11 +277,18 @@ const submitDeliverable = asyncHandler(async (req, res) => {
 
 // ==================== PATCH /api/escrows/:id/approve ====================
 /**
- * Client approve công việc → trigger release funds cho freelancer
+ * Client approve công việc → đánh dấu Ý ĐỊNH release funds cho freelancer
  * Response: { success, escrow }
  *
- * Lưu ý: Việc thực sự release tiền trên blockchain được thực hiện bởi Backend 3
- * Ở đây chỉ đánh dấu intent trong DB, Backend 3 sẽ gọi smart contract
+ * ⚠️ FIX (approveWork desync): status chỉ chuyển sang APPROVED ở đây,
+ * KHÔNG phải RELEASED. Đây chỉ là bước đánh dấu Client đồng ý — việc
+ * release tiền thật trên blockchain vẫn cần Client tự ký confirmDelivery()
+ * on-chain qua wallet của họ (không qua backend). Status chỉ chuyển
+ * thành RELEASED khi eventListener.service.js (handleFundsReleased)
+ * nhận được event FundsReleased thật từ smart contract — tức khi tiền
+ * đã thực sự được chuyển. Tránh trường hợp Client approve qua API rồi
+ * không/chưa ký giao dịch on-chain (từ chối ký, hết gas, mất kết nối...)
+ * khiến DB ghi nhận sai "đã release" trong khi tiền vẫn còn kẹt trong contract.
  */
 const approveWork = asyncHandler(async (req, res) => {
   const escrow = await Escrow.findById(req.params.id);
@@ -290,15 +312,16 @@ const approveWork = asyncHandler(async (req, res) => {
     );
   }
 
-  // Đánh dấu để Backend 3 biết cần release
-  // Backend 3 sẽ gọi smart contract releaseFunds(escrowIdOnChain)
-  // Sau khi smart contract emit FundsReleased event, Backend 3 update status → RELEASED
-  escrow.status = ESCROW_STATUS.RELEASED;
+  // Đánh dấu ý định approve — CHƯA xác nhận tiền đã release on-chain.
+  // Client vẫn cần tự gọi confirmDelivery(escrowIdOnChain) qua wallet
+  // của họ. eventListener.service.js sẽ tự cập nhật status → RELEASED
+  // khi event FundsReleased thật được emit từ contract.
+  escrow.status = ESCROW_STATUS.APPROVED;
   await escrow.save();
 
   res.json({
     success: true,
-    message: 'Work approved. Funds will be released to freelancer.',
+    message: 'Work approved. Please confirm delivery on-chain via your wallet to release funds to the freelancer.',
     escrow,
   });
 });
