@@ -9,12 +9,51 @@
 //
 // Status LOCKED được set bởi Backend 3 (blockchain event listener)
 // khi nhận được event FundsDeposited từ smart contract
+//
+// ⚠️ FIX (escrowIdOnChain):
+// Trước đây escrowIdOnChain CHỈ được set bởi Backend 3 (event listener)
+// khi nhận event EscrowCreated/FundsDeposited từ blockchain. Vấn đề:
+// nếu listener bỏ lỡ event đó (rớt kết nối, lỗi filter, server restart
+// giữa lúc xử lý...), escrow trong DB sẽ KHÔNG BAO GIỜ có escrowIdOnChain,
+// nên mọi event on-chain sau này (FundsDeposited, FundsReleased, ...)
+// không tìm được escrow tương ứng trong DB → bị log "not found" và bỏ qua.
+//
+// → Giải pháp: set escrowIdOnChain NGAY LÚC TẠO escrow trong createEscrow,
+// bằng cách encode escrow._id (ObjectId, 12 byte) sang bytes32 (pad thêm
+// 20 byte số 0 ở cuối — đúng theo cách contract/frontend đang dùng
+// escrow._id làm escrowId khi gọi createEscrow() on-chain).
+// Như vậy DB luôn biết TRƯỚC escrowId on-chain sẽ là gì, không phụ thuộc
+// vào việc listener có bắt được event hay không. Listener vẫn cần chạy
+// để cập nhật status (LOCKED, RELEASED, ...), nhưng việc tìm escrow theo
+// escrowIdOnChain sẽ luôn thành công ngay từ đầu.
 // ============================================================
 
 const Escrow = require('../models/Escrow');
 const User = require('../models/User');
 const { ESCROW_STATUS, USER_ROLES } = require('../utils/constants');
 const asyncHandler = require('../utils/asyncHandler');
+
+// ============================================================
+// FIX: Encode MongoDB ObjectId (12 byte / 24 hex char) sang bytes32
+// (32 byte / 64 hex char) bằng cách pad thêm 20 byte số 0 ở bên phải.
+//
+// Đây là CÙNG quy tắc mà services/eventListener.service.js đang dùng
+// để decode escrowId on-chain ngược lại — chỉ là chiều ngược lại.
+// Ví dụ: ObjectId "6a361d618f4227c1b149ddd3" (24 hex char)
+//     → "0x6a361d618f4227c1b149ddd30000000000000000000000000000000000000000"
+//        (64 hex char sau "0x", tức 32 byte)
+//
+// QUAN TRỌNG: nếu frontend/contract dùng quy tắc encode KHÁC (ví dụ pad
+// bên trái thay vì bên phải, hoặc dùng ethers.zeroPadValue/hexlify khác
+// cách này), phải sửa hàm này để khớp 100% với cách frontend gọi
+// createEscrow() on-chain — nếu không, escrowIdOnChain set ở đây sẽ
+// không khớp với escrowId thật mà contract emit ra.
+// ============================================================
+const objectIdToBytes32 = (objectId) => {
+  const hex = objectId.toString(); // 24 hex char
+  const padded = hex.padEnd(64, '0'); // pad thêm '0' bên phải cho đủ 64 hex char (32 byte)
+  return `0x${padded}`.toLowerCase();
+};
 
 // ==================== POST /api/escrows ====================
 /**
@@ -61,6 +100,14 @@ const createEscrow = asyncHandler(async (req, res) => {
     deadline: deadline ? new Date(deadline) : undefined,
     status: ESCROW_STATUS.CREATED,
   });
+
+  // FIX: set escrowIdOnChain NGAY LÚC TẠO, không chờ event listener.
+  // escrow._id vừa được Mongo sinh ra ở Escrow.create() phía trên,
+  // nên ta encode nó sang bytes32 rồi lưu lại — đảm bảo escrow này
+  // LUÔN tìm được qua escrowIdOnChain ngay từ khi vừa tạo, dù listener
+  // có bắt được event on-chain hay không.
+  escrow.escrowIdOnChain = objectIdToBytes32(escrow._id);
+  await escrow.save();
 
   // Populate để trả về thông tin đầy đủ ngay
   const populatedEscrow = await Escrow.findById(escrow._id)

@@ -23,7 +23,8 @@ const escrowSchema = new mongoose.Schema(
       lowercase: true, // Ethereum address nên lowercase
     },
     escrowIdOnChain: {
-      type: Number,
+      type:String,
+      lowercase: true,
       // ID của escrow trên smart contract (uint256)
       // Dùng để tham chiếu khi gọi contract functions
     },

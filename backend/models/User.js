@@ -68,12 +68,12 @@ const userSchema = new mongoose.Schema(
 // Áp dụng cho cả tạo mới (create) và cập nhật (save)
 // PHẢI dùng function thường (không dùng arrow function)
 // Lý do: arrow function không có 'this', còn ở đây 'this' trỏ đến document đang được lưu
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
   // isModified('password'): kiểm tra xem field password có bị thay đổi không
   // Tại sao cần check? Vì pre('save') chạy mỗi lần gọi .save()
   // Ví dụ: nếu user update name, không nên hash lại password
   // Nếu không check: password đã hash sẽ bị hash tiếp → không bao giờ login được
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) return;
 
   // genSalt(12): tạo salt với 12 rounds
   // Salt là chuỗi ngẫu nhiên thêm vào password trước khi hash
@@ -82,7 +82,6 @@ userSchema.pre('save', async function (next) {
   // 12 rounds ≈ 250ms → đủ chậm để brute force khó, đủ nhanh cho user
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
-  next(); // Gọi next() để tiếp tục quá trình lưu
 });
 
 // ==================== INSTANCE METHODS ====================
