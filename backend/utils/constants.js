@@ -9,18 +9,19 @@
 
 const ESCROW_STATUS = {
   CREATED: 'CREATED',    // Escrow vừa được tạo trong DB, chưa có tiền
-  LOCKED: 'LOCKED',      // Buyer đã deposit tiền vào smart contract
-  SHIPPED: 'SHIPPED',    // Seller đã gửi hàng, có tracking number
-  DISPUTED: 'DISPUTED',  // Buyer raise dispute, đang chờ admin giải quyết
-  RELEASED: 'RELEASED',  // Giao dịch hoàn tất, tiền release cho seller
-  REFUNDED: 'REFUNDED',  // Buyer được hoàn tiền (dispute thắng hoặc cancel)
+  LOCKED: 'LOCKED',      // Client đã deposit tiền vào smart contract
+  IN_PROGRESS: 'IN_PROGRESS', // Freelancer đang thực hiện công việc
+  SUBMITTED: 'SUBMITTED', // Freelancer đã submit deliverable, chờ client approve
+  DISPUTED: 'DISPUTED',  // Client raise dispute, đang chờ admin giải quyết
+  RELEASED: 'RELEASED',  // Giao dịch hoàn tất, tiền release cho freelancer
+  REFUNDED: 'REFUNDED',  // Client được hoàn tiền (dispute thắng hoặc cancel)
   CANCELLED: 'CANCELLED',// Escrow bị hủy trước khi lock
 };
 
 const USER_ROLES = {
-  BUYER: 'buyer',   // Người mua hàng
-  SELLER: 'seller', // Người bán hàng
-  ADMIN: 'admin',   // Quản trị viên / Juror giải quyết dispute
+  CLIENT: 'client',         // Người thuê dịch vụ
+  FREELANCER: 'freelancer', // Người cung cấp dịch vụ
+  ADMIN: 'admin',           // Quản trị viên / Juror giải quyết dispute
 };
 
 module.exports = { ESCROW_STATUS, USER_ROLES };

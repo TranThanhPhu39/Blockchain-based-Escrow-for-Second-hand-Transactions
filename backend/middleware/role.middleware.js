@@ -6,7 +6,7 @@
 //
 // Ví dụ dùng:
 //   router.delete('/:id', protect, authorize('admin'), deleteEscrow)
-//   router.post('/', protect, authorize('buyer', 'admin'), createEscrow)
+//   router.post('/', protect, authorize('client', 'admin'), createEscrow)
 // ============================================================
 
 /**

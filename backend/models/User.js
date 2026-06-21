@@ -40,10 +40,10 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: Object.values(USER_ROLES), // ['buyer', 'seller', 'admin']
-        message: 'Role must be buyer, seller or admin',
+        values: Object.values(USER_ROLES), // ['client', 'freelancer', 'admin']
+        message: 'Role must be client, freelancer or admin',
       },
-      default: USER_ROLES.BUYER, // Mặc định là buyer khi đăng ký
+      default: USER_ROLES.CLIENT, // Mặc định là client khi đăng ký
     },
 
     // ---- Blockchain ----
@@ -68,12 +68,12 @@ const userSchema = new mongoose.Schema(
 // Áp dụng cho cả tạo mới (create) và cập nhật (save)
 // PHẢI dùng function thường (không dùng arrow function)
 // Lý do: arrow function không có 'this', còn ở đây 'this' trỏ đến document đang được lưu
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
   // isModified('password'): kiểm tra xem field password có bị thay đổi không
   // Tại sao cần check? Vì pre('save') chạy mỗi lần gọi .save()
   // Ví dụ: nếu user update name, không nên hash lại password
   // Nếu không check: password đã hash sẽ bị hash tiếp → không bao giờ login được
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) return;
 
   // genSalt(12): tạo salt với 12 rounds
   // Salt là chuỗi ngẫu nhiên thêm vào password trước khi hash
