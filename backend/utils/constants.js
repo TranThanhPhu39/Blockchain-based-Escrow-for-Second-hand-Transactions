@@ -12,8 +12,17 @@ const ESCROW_STATUS = {
   LOCKED: 'LOCKED',      // Client đã deposit tiền vào smart contract
   IN_PROGRESS: 'IN_PROGRESS', // Freelancer đang thực hiện công việc
   SUBMITTED: 'SUBMITTED', // Freelancer đã submit deliverable, chờ client approve
+  // ⚠️ FIX (approveWork desync): trạng thái trung gian — Client đã approve
+  // qua API (đánh dấu Ý ĐỊNH release), nhưng tiền on-chain CHƯA chắc đã
+  // được release thật (Client vẫn cần tự ký confirmDelivery() qua wallet).
+  // Chỉ chuyển sang RELEASED khi eventListener.service.js nhận được event
+  // FundsReleased thật từ chain (xem handleFundsReleased). Tránh để DB
+  // ghi nhận RELEASED trong khi tiền vẫn còn kẹt trong contract (ví dụ
+  // Client approve xong nhưng từ chối ký / hết gas / mất kết nối khi gọi
+  // confirmDelivery on-chain).
+  APPROVED: 'APPROVED',
   DISPUTED: 'DISPUTED',  // Client raise dispute, đang chờ admin giải quyết
-  RELEASED: 'RELEASED',  // Giao dịch hoàn tất, tiền release cho freelancer
+  RELEASED: 'RELEASED',  // Giao dịch hoàn tất, tiền release cho freelancer (đã xác nhận on-chain)
   REFUNDED: 'REFUNDED',  // Client được hoàn tiền (dispute thắng hoặc cancel)
   CANCELLED: 'CANCELLED',// Escrow bị hủy trước khi lock
 };
