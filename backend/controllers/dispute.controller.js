@@ -1,0 +1,283 @@
+// ============================================================
+// controllers/dispute.controller.js — Xử lý Disputes (Backend 2)
+//
+// QUAN TRỌNG — đọc trước khi sửa file này (xem thêm models/Dispute.js):
+//
+// 1. Escrow.status → DISPUTED đã được set SẴN bởi
+//    eventListener.service.js#handleDisputeRaised ngay khi smart
+//    contract emit event DisputeRaised (sau khi Client/Freelancer
+//    tự ký raiseDispute() qua wallet ở frontend, dùng
+//    raiseDisputeOnChain() trong lib/web3.js). Vì vậy createDispute
+//    ở đây KHÔNG tự đổi status — chỉ lưu record chi tiết bổ sung.
+//
+// 2. Luồng đúng (frontend gọi theo thứ tự):
+//    a) POST /api/uploads → lấy URL các file bằng chứng
+//    b) POST /api/disputes (route này) → tạo Dispute record DB,
+//       backend trả về dispute._id
+//    c) Frontend gọi raiseDisputeOnChain(signer, escrowIdOnChain, evidenceURI)
+//       trong lib/web3.js, với evidenceURI = URL trỏ về dispute này
+//       (ví dụ `${API_BASE_URL}/api/disputes/${dispute._id}`)
+//    d) Frontend PATCH lại dispute với raiseTxHash sau khi tx confirm
+//       (xem attachRaiseTx bên dưới) — tuỳ chọn, chỉ để audit, vì
+//       eventListener vẫn ghi nhận DisputeRaised độc lập qua TransactionLog.
+//
+// 3. resolveDispute (admin) gọi THẬT lên smart contract bằng admin
+//    wallet (xem blockchain.service.js#resolveDispute — admin wallet
+//    PHẢI là owner của contract, đã thiết lập từ lúc deploy). Đây là
+//    nơi DUY NHẤT trong toàn hệ thống mà backend tự ký giao dịch thay
+//    người dùng — vì resolveDispute có modifier onlyOwner trên contract,
+//    không thể để Client/Freelancer tự gọi.
+// ============================================================
+
+const Dispute = require('../models/Dispute');
+const Escrow = require('../models/Escrow');
+const { ESCROW_STATUS, USER_ROLES } = require('../utils/constants');
+const { resolveDispute: resolveDisputeOnChain } = require('../services/blockchain.service');
+const { createNotificationForMany } = require('../services/notification.service');
+const { NOTIFICATION_TYPES } = require('../models/Notification');
+const asyncHandler = require('../utils/asyncHandler');
+
+// ==================== POST /api/disputes ====================
+/**
+ * Tạo dispute record (chi tiết bổ sung cho 1 escrow đang tranh chấp)
+ * Body: { escrowId, reason, evidenceFiles? }
+ *   - escrowId: MongoDB ObjectId của Escrow (KHÔNG phải escrowIdOnChain)
+ *   - evidenceFiles: mảng URL đã upload qua POST /api/uploads (tuỳ chọn)
+ * Response: { success, dispute }
+ */
+const createDispute = asyncHandler(async (req, res) => {
+  const { escrowId, reason, evidenceFiles } = req.body;
+
+  if (!escrowId || !reason) {
+    res.status(400);
+    throw new Error('escrowId and reason are required');
+  }
+
+  const escrow = await Escrow.findById(escrowId);
+  if (!escrow) {
+    res.status(404);
+    throw new Error('Escrow not found');
+  }
+
+  // Chỉ client hoặc freelancer của escrow này được mở dispute
+  const isClient = escrow.client.equals(req.user._id);
+  const isFreelancer = escrow.freelancer.equals(req.user._id);
+  if (!isClient && !isFreelancer) {
+    res.status(403);
+    throw new Error('Only the client or freelancer of this escrow can raise a dispute');
+  }
+
+  if (!escrow.escrowIdOnChain) {
+    res.status(400);
+    throw new Error('This escrow does not have an on-chain ID yet. Cannot raise a dispute.');
+  }
+
+  // Không cho tạo dispute mới nếu escrow đã RELEASED/REFUNDED/CANCELLED
+  // (tiền đã xử lý xong, dispute lúc này không còn ý nghĩa)
+  const finalStates = [ESCROW_STATUS.RELEASED, ESCROW_STATUS.REFUNDED, ESCROW_STATUS.CANCELLED];
+  if (finalStates.includes(escrow.status)) {
+    res.status(400);
+    throw new Error(`Cannot raise a dispute when escrow status is '${escrow.status}'.`);
+  }
+
+  const dispute = await Dispute.create({
+    escrow: escrow._id,
+    escrowIdOnChain: escrow.escrowIdOnChain,
+    raisedBy: req.user._id,
+    reason,
+    evidenceFiles: Array.isArray(evidenceFiles) ? evidenceFiles : [],
+  });
+
+  res.status(201).json({
+    success: true,
+    message:
+      'Dispute record created. Please proceed to call raiseDispute() on-chain via your wallet to formally open the dispute.',
+    dispute,
+  });
+});
+
+// ==================== PATCH /api/disputes/:id/raise-tx ====================
+/**
+ * Gắn txHash của giao dịch raiseDispute on-chain vào dispute record
+ * (gọi sau khi frontend đã raiseDisputeOnChain() và tx confirm)
+ * Body: { raiseTxHash, evidenceURIOnChain? }
+ * Response: { success, dispute }
+ */
+const attachRaiseTx = asyncHandler(async (req, res) => {
+  const { raiseTxHash, evidenceURIOnChain } = req.body;
+
+  if (!raiseTxHash) {
+    res.status(400);
+    throw new Error('raiseTxHash is required');
+  }
+
+  const dispute = await Dispute.findById(req.params.id);
+  if (!dispute) {
+    res.status(404);
+    throw new Error('Dispute not found');
+  }
+
+  if (!dispute.raisedBy.equals(req.user._id)) {
+    res.status(403);
+    throw new Error('Only the user who raised this dispute can attach the transaction hash');
+  }
+
+  dispute.raiseTxHash = raiseTxHash;
+  if (evidenceURIOnChain) dispute.evidenceURIOnChain = evidenceURIOnChain;
+  await dispute.save();
+
+  res.json({ success: true, dispute });
+});
+
+// ==================== GET /api/disputes ====================
+/**
+ * Danh sách disputes.
+ * - Admin: xem tất cả (lọc theo status nếu có)
+ * - Client/Freelancer: chỉ xem disputes của escrow mà họ tham gia
+ * Query params: status, page, limit
+ * Response: { success, count, total, pages, currentPage, disputes }
+ */
+const getDisputes = asyncHandler(async (req, res) => {
+  const { status, page = 1, limit = 10 } = req.query;
+  const filter = {};
+  if (status) filter.status = status;
+
+  if (req.user.role !== USER_ROLES.ADMIN) {
+    // Tìm escrows mà user này tham gia, rồi lọc dispute theo các escrow đó
+    const myEscrows = await Escrow.find({
+      $or: [{ client: req.user._id }, { freelancer: req.user._id }],
+    }).select('_id');
+    filter.escrow = { $in: myEscrows.map((e) => e._id) };
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const [disputes, total] = await Promise.all([
+    Dispute.find(filter)
+      .populate('escrow', 'serviceName amount status client freelancer')
+      .populate('raisedBy', 'name email role')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(skip),
+    Dispute.countDocuments(filter),
+  ]);
+
+  res.json({
+    success: true,
+    count: disputes.length,
+    total,
+    pages: Math.ceil(total / parseInt(limit)),
+    currentPage: parseInt(page),
+    disputes,
+  });
+});
+
+// ==================== GET /api/disputes/:id ====================
+/**
+ * Chi tiết 1 dispute
+ * Response: { success, dispute }
+ */
+const getDisputeById = asyncHandler(async (req, res) => {
+  const dispute = await Dispute.findById(req.params.id)
+    .populate('escrow', 'serviceName amount status client freelancer')
+    .populate('raisedBy', 'name email role')
+    .populate('resolvedBy', 'name email role');
+
+  if (!dispute) {
+    res.status(404);
+    throw new Error('Dispute not found');
+  }
+
+  const isAdmin = req.user.role === USER_ROLES.ADMIN;
+  const isClient = dispute.escrow.client.equals(req.user._id);
+  const isFreelancer = dispute.escrow.freelancer.equals(req.user._id);
+
+  if (!isAdmin && !isClient && !isFreelancer) {
+    res.status(403);
+    throw new Error('You are not authorized to view this dispute');
+  }
+
+  res.json({ success: true, dispute });
+});
+
+// ==================== PATCH /api/disputes/:id/resolve ====================
+/**
+ * Admin xử lý tranh chấp — gọi THẬT lên smart contract (resolveDispute)
+ * bằng admin wallet, sau đó lưu lại resolution trong DB.
+ *
+ * Body: { releaseToFreelancer: boolean, resolutionNote? }
+ * Response: { success, dispute, txHash, blockNumber }
+ *
+ * LƯU Ý: Escrow.status sẽ tự chuyển RELEASED/REFUNDED khi
+ * eventListener.service.js bắt được event FundsReleased/BuyerRefunded
+ * tương ứng từ giao dịch này — không set status thủ công ở đây,
+ * giữ đúng nguyên tắc "status DB chỉ đúng khi đã xác nhận on-chain".
+ */
+const resolveDisputeController = asyncHandler(async (req, res) => {
+  if (req.user.role !== USER_ROLES.ADMIN) {
+    res.status(403);
+    throw new Error('Only admin can resolve disputes');
+  }
+
+  const { releaseToFreelancer, resolutionNote } = req.body;
+
+  if (typeof releaseToFreelancer !== 'boolean') {
+    res.status(400);
+    throw new Error('releaseToFreelancer (boolean) is required');
+  }
+
+  const dispute = await Dispute.findById(req.params.id).populate('escrow');
+  if (!dispute) {
+    res.status(404);
+    throw new Error('Dispute not found');
+  }
+
+  if (dispute.status !== 'OPEN') {
+    res.status(400);
+    throw new Error(`This dispute has already been resolved (status: ${dispute.status})`);
+  }
+
+  // Gọi THẬT lên smart contract — admin wallet (owner) ký transaction
+  // Có thể revert nếu escrow không ở trạng thái DISPUTED on-chain,
+  // hoặc admin wallet không phải owner của contract (xem error message
+  // gốc từ ethers.js sẽ được error.middleware.js trả về cho client).
+  const { txHash, blockNumber } = await resolveDisputeOnChain(
+    dispute.escrowIdOnChain,
+    releaseToFreelancer
+  );
+
+  dispute.status = releaseToFreelancer ? 'RESOLVED_RELEASE' : 'RESOLVED_REFUND';
+  dispute.releaseToFreelancer = releaseToFreelancer;
+  dispute.resolutionNote = resolutionNote;
+  dispute.resolvedBy = req.user._id;
+  dispute.resolveTxHash = txHash;
+  dispute.resolvedAt = new Date();
+  await dispute.save();
+
+  // Báo cho cả client và freelancer của escrow này biết kết quả
+  const escrow = dispute.escrow;
+  await createNotificationForMany([escrow.client, escrow.freelancer], {
+    type: NOTIFICATION_TYPES.DISPUTE_RESOLVED,
+    title: 'Dispute Resolved',
+    message: releaseToFreelancer
+      ? `The dispute for "${escrow.serviceName}" has been resolved. Funds will be released to the freelancer.`
+      : `The dispute for "${escrow.serviceName}" has been resolved. Funds will be refunded to the client.`,
+    escrow: escrow._id,
+  });
+
+  res.json({
+    success: true,
+    message: 'Dispute resolved on-chain. Escrow status will update once the transaction is indexed.',
+    dispute,
+    txHash,
+    blockNumber,
+  });
+});
+
+module.exports = {
+  createDispute,
+  attachRaiseTx,
+  getDisputes,
+  getDisputeById,
+  resolveDispute: resolveDisputeController,
+};
