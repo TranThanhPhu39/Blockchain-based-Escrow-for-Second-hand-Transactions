@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
@@ -598,6 +598,55 @@ function routeHash(route) {
   return route === "landing" ? "#/" : `#/${route}`;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+async function apiRequest(path, { token, ...options } = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {})
+  };
+
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || `Request failed with status ${response.status}`);
+  }
+
+  return data;
+}
+
+function normalizeRole(value) {
+  const role = String(value || "").toLowerCase();
+  return role.includes("freelancer") ? "freelancer" : "client";
+}
+
+function shortAddress(address) {
+  if (!address) return "Wallet";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function formatEscrowAmount(amount) {
+  if (!amount) return "0 USDT";
+  return String(amount).toUpperCase().includes("USDT") ? amount : `${amount} USDT`;
+}
+
+function escrowStatusKey(status) {
+  const key = String(status || "CREATED").toLowerCase();
+  if (key === "created") return "created";
+  if (key === "locked") return "locked";
+  if (key === "submitted") return "submitted";
+  if (key === "released") return "released";
+  if (key === "refunded") return "refunded";
+  if (key === "disputed") return "open";
+  return "pending";
+}
+
 function useStoredState(key, fallback) {
   const [value, setValue] = useState(() => {
     if (typeof window === "undefined") return fallback;
@@ -735,6 +784,19 @@ function SelectInput({ theme, ...props }) {
 
 function TextArea({ theme, ...props }) {
   return <textarea className={classNames("min-h-28 rounded-lg border px-3 py-3 text-sm transition", theme.input)} {...props} />;
+}
+
+function InlineMessage({ message, theme, tone = "danger" }) {
+  if (!message) return null;
+  const toneClass = tone === "success"
+    ? "border-emerald-300/25 bg-emerald-400/12 text-emerald-400"
+    : "border-rose-300/25 bg-rose-400/12 text-rose-300";
+
+  return (
+    <div className={classNames("rounded-lg border px-3 py-2 text-sm font-bold", toneClass)}>
+      {message}
+    </div>
+  );
 }
 
 function SectionTitle({ eyebrow, title, children, theme }) {
@@ -1011,8 +1073,72 @@ function LandingPage({ c, theme, language, navigate }) {
   );
 }
 
-function AuthPage({ type, c, theme, navigate, addToast }) {
+function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentUser, setWallet }) {
   const isLogin = type === "login";
+  const [status, setStatus] = useState({ loading: false, message: "" });
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const password = String(form.get("password") || "");
+    const confirmPassword = String(form.get("confirmPassword") || "");
+
+    if (!isLogin && password !== confirmPassword) {
+      setStatus({ loading: false, message: "Password confirmation does not match." });
+      return;
+    }
+
+    setStatus({ loading: true, message: "" });
+
+    try {
+      const payload = isLogin
+        ? { email: form.get("email"), password }
+        : {
+            name: form.get("name"),
+            email: form.get("email"),
+            password,
+            role: normalizeRole(form.get("role"))
+          };
+      const auth = await apiRequest(`/api/auth/${isLogin ? "login" : "register"}`, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      let nextUser = auth.user;
+      const walletAddress = String(form.get("walletAddress") || "").trim();
+
+      if (!isLogin && walletAddress) {
+        const walletResult = await apiRequest("/api/auth/wallet", {
+          method: "PATCH",
+          token: auth.token,
+          body: JSON.stringify({ walletAddress })
+        });
+        nextUser = walletResult.user;
+      }
+
+      window.localStorage.setItem("escrowx-token", auth.token);
+      window.localStorage.setItem("escrowx-user", JSON.stringify(nextUser));
+      setApiToken(auth.token);
+      setCurrentUser(nextUser);
+
+      if (nextUser?.walletAddress) {
+        setWallet((current) => ({
+          ...current,
+          connected: true,
+          address: nextUser.walletAddress,
+          short: shortAddress(nextUser.walletAddress),
+          status: c.status.connected
+        }));
+      }
+
+      addToast("approved");
+      navigate("dashboard");
+    } catch (error) {
+      setStatus({ loading: false, message: error.message });
+      return;
+    }
+
+    setStatus({ loading: false, message: "" });
+  }
   return (
     <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
       <Card theme={theme} className="p-6">
@@ -1025,7 +1151,7 @@ function AuthPage({ type, c, theme, navigate, addToast }) {
               <Fingerprint className={classNames("h-5 w-5", theme.accentText)} />
               <p className={classNames("font-black", theme.heading)}>Smart wallet session</p>
             </div>
-            <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>MetaMask, email login, and role-based dashboards are mocked for demo flow.</p>
+            <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>Email login now uses the backend API. MetaMask can attach a wallet address to your account.</p>
           </div>
           <div className={classNames("rounded-lg border p-4", theme.soft)}>
             <div className="flex items-center gap-3">
@@ -1039,40 +1165,39 @@ function AuthPage({ type, c, theme, navigate, addToast }) {
       <Card theme={theme} className="p-6">
         <form
           className="grid gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            addToast("approved");
-            navigate("dashboard");
-          }}
+          onSubmit={handleSubmit}
         >
           {!isLogin ? (
             <Field theme={theme} label={c.common.fullName} icon={User}>
-              <TextInput theme={theme} placeholder="Nguyen An" />
+              <TextInput theme={theme} name="name" placeholder="Nguyen An" required />
             </Field>
           ) : null}
           <Field theme={theme} label={c.common.email} icon={Mail}>
-            <TextInput theme={theme} type="email" placeholder="founder@escrowx.io" />
+            <TextInput theme={theme} name="email" type="email" placeholder="founder@escrowx.io" required />
           </Field>
           <Field theme={theme} label={c.common.password} icon={LockKeyhole}>
-            <TextInput theme={theme} type="password" placeholder="••••••••" />
+            <TextInput theme={theme} name="password" type="password" placeholder="password" required minLength={6} />
           </Field>
           {!isLogin ? (
             <>
               <Field theme={theme} label={c.common.confirmPassword} icon={LockKeyhole}>
-                <TextInput theme={theme} type="password" placeholder="••••••••" />
+                <TextInput theme={theme} name="confirmPassword" type="password" placeholder="password" required minLength={6} />
               </Field>
               <Field theme={theme} label={c.common.walletAddress} icon={Wallet}>
-                <TextInput theme={theme} placeholder="0x8A91...A4F2" />
+                <TextInput theme={theme} name="walletAddress" placeholder="0x8A91B4c2E7d9136f2A4F200000000000000000000" />
               </Field>
               <Field theme={theme} label={c.common.role} icon={Users}>
-                <SelectInput theme={theme} defaultValue={c.common.client}>
-                  <option>{c.common.client}</option>
-                  <option>{c.common.freelancer}</option>
+                <SelectInput theme={theme} name="role" defaultValue="client">
+                  <option value="client">{c.common.client}</option>
+                  <option value="freelancer">{c.common.freelancer}</option>
                 </SelectInput>
               </Field>
             </>
           ) : null}
-          <Button theme={theme} type="submit" icon={isLogin ? LogIn : Rocket}>{isLogin ? c.nav.login : c.nav.register}</Button>
+          <InlineMessage message={status.message} theme={theme} />
+          <Button theme={theme} type="submit" icon={isLogin ? LogIn : Rocket} disabled={status.loading}>
+            {status.loading ? "Connecting..." : isLogin ? c.nav.login : c.nav.register}
+          </Button>
           {isLogin ? <Button theme={theme} icon={Wallet} variant="secondary" onClick={() => navigate("wallet")}>{c.auth.walletMethod}</Button> : null}
         </form>
       </Card>
@@ -1080,8 +1205,25 @@ function AuthPage({ type, c, theme, navigate, addToast }) {
   );
 }
 
-function DashboardPage({ c, theme, language, navigate }) {
+function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, setSelectedEscrow, apiToken }) {
   const [tab, setTab] = useState("active");
+
+  useEffect(() => {
+    if (apiToken) refreshEscrows();
+  }, [apiToken, refreshEscrows]);
+
+  const liveRows = escrows.map((escrow) => ({
+    id: escrow._id,
+    service: escrow.serviceName,
+    freelancer: escrow.freelancer?.name || escrow.freelancer?.walletAddress || "Freelancer",
+    amount: formatEscrowAmount(escrow.amount),
+    status: escrowStatusKey(escrow.status),
+    raw: escrow
+  }));
+  const activeRows = liveRows.length ? liveRows.filter((row) => !["released", "refunded"].includes(row.status)) : null;
+  const completedRows = liveRows.length ? liveRows.filter((row) => ["released", "refunded"].includes(row.status)) : null;
+  const disputeRows = liveRows.length ? liveRows.filter((row) => row.raw.status === "DISPUTED") : null;
+
   return (
     <div className="space-y-6">
       <PageIntro title={c.dashboard.title} subtitle={c.dashboard.subtitle} theme={theme} />
@@ -1099,9 +1241,9 @@ function DashboardPage({ c, theme, language, navigate }) {
               </Button>
             ))}
           </SectionTitle>
-          {tab === "active" ? <JobsTable type="active" c={c} theme={theme} language={language} navigate={navigate} /> : null}
-          {tab === "completed" ? <JobsTable type="completed" c={c} theme={theme} language={language} navigate={navigate} /> : null}
-          {tab === "disputes" ? <JobsTable type="disputes" c={c} theme={theme} language={language} navigate={navigate} /> : null}
+          {tab === "active" ? <JobsTable type="active" rows={activeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
+          {tab === "completed" ? <JobsTable type="completed" rows={completedRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
+          {tab === "disputes" ? <JobsTable type="disputes" rows={disputeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
         </Card>
         <div className="grid gap-4">
           <Card theme={theme}>
@@ -1135,8 +1277,8 @@ function DashboardPage({ c, theme, language, navigate }) {
   );
 }
 
-function JobsTable({ type, c, theme, language, navigate }) {
-  const rows = jobs[type];
+function JobsTable({ type, rows, c, theme, language, navigate, setSelectedEscrow }) {
+  const tableRows = rows || jobs[type];
   return (
     <div className={classNames("overflow-hidden rounded-lg border", theme.border)}>
       <div className={classNames("hidden grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr] px-4 py-3 text-xs font-black uppercase tracking-[0.14em] md:grid", theme.soft, theme.faint)}>
@@ -1146,7 +1288,7 @@ function JobsTable({ type, c, theme, language, navigate }) {
         <span>{c.common.status}</span>
         <span>{c.common.action}</span>
       </div>
-      {rows.map((job) => (
+      {tableRows.map((job) => (
         <div key={job.id} className={classNames("grid gap-3 border-t px-4 py-4 md:grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr] md:items-center", theme.border)}>
           <div>
             <p className={classNames("font-black", theme.heading)}>{text(job.service, language)}</p>
@@ -1155,7 +1297,10 @@ function JobsTable({ type, c, theme, language, navigate }) {
           <p className={classNames("text-sm", theme.muted)}>{job.freelancer}</p>
           <p className={classNames("font-bold", theme.accentText)}>{job.amount}</p>
           <Badge theme={theme} tone={type === "disputes" ? "amber" : job.status === "released" ? "emerald" : "cyan"}>{c.status[job.status || job.result]}</Badge>
-          <Button theme={theme} size="sm" variant="secondary" icon={type === "disputes" ? Gavel : ReceiptText} onClick={() => navigate(type === "disputes" ? "disputes" : "details")}>
+          <Button theme={theme} size="sm" variant="secondary" icon={type === "disputes" ? Gavel : ReceiptText} onClick={() => {
+            if (job.raw) setSelectedEscrow(job.raw);
+            navigate(type === "disputes" ? "disputes" : "details");
+          }}>
             {type === "disputes" ? c.nav.disputes : c.nav.details}
           </Button>
         </div>
@@ -1173,31 +1318,63 @@ function PageIntro({ title, subtitle, theme }) {
   );
 }
 
-function CreateJobPage({ c, theme, navigate, addToast }) {
+function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows, setSelectedEscrow }) {
+  const [status, setStatus] = useState({ loading: false, message: "" });
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (!apiToken) {
+      setStatus({ loading: false, message: "Please login before creating an escrow." });
+      return;
+    }
+
+    const form = new FormData(event.currentTarget);
+    setStatus({ loading: true, message: "" });
+
+    try {
+      const result = await apiRequest("/api/escrows", {
+        method: "POST",
+        token: apiToken,
+        body: JSON.stringify({
+          serviceName: form.get("serviceName"),
+          jobDescription: form.get("jobDescription"),
+          amount: String(form.get("amount") || "").replace(/[^\d.]/g, ""),
+          deadline: form.get("deadline"),
+          freelancerWalletAddress: form.get("freelancerWalletAddress")
+        })
+      });
+      setSelectedEscrow(result.escrow);
+      await refreshEscrows();
+      addToast("deposit");
+      navigate("details");
+    } catch (error) {
+      setStatus({ loading: false, message: error.message });
+      return;
+    }
+
+    setStatus({ loading: false, message: "" });
+  }
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
       <Card theme={theme}>
         <PageIntro title={c.create.title} subtitle={c.create.subtitle} theme={theme} />
         <form
           className="mt-6 grid gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            addToast("deposit");
-            navigate("details");
-          }}
+          onSubmit={handleSubmit}
         >
           <Field theme={theme} label={c.create.serviceName} icon={Briefcase}>
-            <TextInput theme={theme} defaultValue="Landing Page Development" />
+            <TextInput theme={theme} name="serviceName" defaultValue="Landing Page Development" required />
           </Field>
           <Field theme={theme} label={c.create.description} icon={FileText}>
-            <TextArea theme={theme} defaultValue="Build a responsive Web3 landing page for a SaaS launch with pricing, FAQ, and wallet CTA." />
+            <TextArea theme={theme} name="jobDescription" defaultValue="Build a responsive Web3 landing page for a SaaS launch with pricing, FAQ, and wallet CTA." />
           </Field>
           <div className="grid gap-4 md:grid-cols-3">
             <Field theme={theme} label={c.create.budget} icon={Coins}>
-              <TextInput theme={theme} defaultValue="1,250 USDT" />
+              <TextInput theme={theme} name="amount" defaultValue="1250" required />
             </Field>
             <Field theme={theme} label={c.create.deadline} icon={Clock3}>
-              <TextInput theme={theme} type="date" defaultValue="2026-06-28" />
+              <TextInput theme={theme} name="deadline" type="date" defaultValue="2026-06-28" />
             </Field>
             <Field theme={theme} label="Token" icon={CreditCard}>
               <SelectInput theme={theme} defaultValue="USDT">
@@ -1207,9 +1384,12 @@ function CreateJobPage({ c, theme, navigate, addToast }) {
             </Field>
           </div>
           <Field theme={theme} label={c.create.freelancerWallet} icon={Wallet}>
-            <TextInput theme={theme} defaultValue="0x70A1...B9C4" />
+            <TextInput theme={theme} name="freelancerWalletAddress" placeholder="0x70A1b9c4E7d9136f2A4F200000000000000000000" required />
           </Field>
-          <Button theme={theme} type="submit" icon={Rocket}>{c.common.createEscrow}</Button>
+          <InlineMessage message={status.message} theme={theme} />
+          <Button theme={theme} type="submit" icon={Rocket} disabled={status.loading}>
+            {status.loading ? "Creating..." : c.common.createEscrow}
+          </Button>
         </form>
       </Card>
       <Card theme={theme}>
@@ -1235,16 +1415,18 @@ function CreateJobPage({ c, theme, navigate, addToast }) {
   );
 }
 
-function EscrowDetailsPage({ c, theme, navigate }) {
+function EscrowDetailsPage({ c, theme, navigate, selectedEscrow }) {
   const workflow = ["created", "deposited", "locked", "delivered", "approved", "released"];
+  const escrow = selectedEscrow;
+  const statusKey = escrowStatusKey(escrow?.status);
   return (
     <div className="space-y-6">
       <PageIntro title={c.details.title} subtitle={c.details.subtitle} theme={theme} />
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard theme={theme} icon={Briefcase} label={c.details.jobId} value="JOB-2402" detail="Landing Page Development" tone="cyan" />
-        <StatCard theme={theme} icon={CircleDollarSign} label={c.details.escrowAmount} value="1,250 USDT" detail="Polygon" tone="emerald" />
-        <StatCard theme={theme} icon={Clock3} label={c.common.deadline} value="Jun 28" detail="11 days remaining" tone="amber" />
-        <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status.locked} detail="Contract funded" tone="violet" />
+        <StatCard theme={theme} icon={Briefcase} label={c.details.jobId} value={escrow?._id ? escrow._id.slice(-8) : "JOB-2402"} detail={escrow?.serviceName || "Landing Page Development"} tone="cyan" />
+        <StatCard theme={theme} icon={CircleDollarSign} label={c.details.escrowAmount} value={formatEscrowAmount(escrow?.amount || "1250")} detail="Polygon" tone="emerald" />
+        <StatCard theme={theme} icon={Clock3} label={c.common.deadline} value={escrow?.deadline ? new Date(escrow.deadline).toLocaleDateString() : "Jun 28"} detail="Escrow deadline" tone="amber" />
+        <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status[statusKey] || escrow?.status || c.status.locked} detail={escrow ? "Backend record" : "Demo record"} tone="violet" />
       </div>
       <Card theme={theme}>
         <SectionTitle theme={theme} eyebrow={c.details.timelineNote} title={c.details.workflow}>
@@ -1257,7 +1439,7 @@ function EscrowDetailsPage({ c, theme, navigate }) {
               key={state}
               className={classNames(
                 "flex min-h-[76px] items-center justify-center rounded-lg border px-3 py-4 text-center text-[11px] font-black leading-tight break-words whitespace-normal",
-                state === "locked" ? theme.accentBg : `${theme.soft} ${theme.faint}`
+                state === statusKey ? theme.accentBg : `${theme.soft} ${theme.faint}`
               )}
             >
               {c.status[state]}
@@ -1266,10 +1448,10 @@ function EscrowDetailsPage({ c, theme, navigate }) {
         </div>
         <div className="mt-6 grid gap-3 md:grid-cols-2">
           {[
-            [c.details.client, "0x91B4...3F21"],
-            [c.details.freelancer, "0x70A1...B9C4"],
-            [c.details.contractAddress, "0xE5c8...42F9"],
-            [c.common.deadline, "2026-06-28 18:00 ICT"]
+            [c.details.client, escrow?.client?.walletAddress || escrow?.client?.name || "0x91B4...3F21"],
+            [c.details.freelancer, escrow?.freelancer?.walletAddress || escrow?.freelancer?.name || "0x70A1...B9C4"],
+            [c.details.contractAddress, escrow?.contractAddress || "Not deployed yet"],
+            [c.common.deadline, escrow?.deadline ? new Date(escrow.deadline).toLocaleString() : "2026-06-28 18:00 ICT"]
           ].map(([label, value]) => (
             <div key={label} className={classNames("rounded-lg border p-4", theme.soft)}>
               <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{label}</p>
@@ -1282,35 +1464,94 @@ function EscrowDetailsPage({ c, theme, navigate }) {
   );
 }
 
-function SubmissionPage({ c, theme, addToast }) {
+function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshEscrows, setSelectedEscrow }) {
+  const [status, setStatus] = useState({ loading: false, message: "" });
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (!apiToken || !selectedEscrow?._id) {
+      setStatus({ loading: false, message: "Please login and select an escrow first." });
+      return;
+    }
+
+    const form = new FormData(event.currentTarget);
+    setStatus({ loading: true, message: "" });
+
+    try {
+      const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/submit`, {
+        method: "PATCH",
+        token: apiToken,
+        body: JSON.stringify({
+          deliverableUrl: form.get("deliverableUrl"),
+          workProof: form.get("workProof"),
+          note: form.get("note")
+        })
+      });
+      setSelectedEscrow(result.escrow);
+      await refreshEscrows();
+      addToast("submitted");
+    } catch (error) {
+      setStatus({ loading: false, message: error.message });
+      return;
+    }
+
+    setStatus({ loading: false, message: "" });
+  }
+
   return (
     <div className="mx-auto max-w-4xl">
       <Card theme={theme}>
         <PageIntro title={c.submit.title} subtitle={c.submit.subtitle} theme={theme} />
         <form
           className="mt-6 grid gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            addToast("submitted");
-          }}
+          onSubmit={handleSubmit}
         >
           <Field theme={theme} label={c.submit.deliverableUrl} icon={Globe2}>
-            <TextInput theme={theme} defaultValue="https://figma.com/file/escrowx-landing" />
+            <TextInput theme={theme} name="deliverableUrl" defaultValue={selectedEscrow?.deliverableInfo?.deliverableUrl || "https://figma.com/file/escrowx-landing"} required />
           </Field>
           <Field theme={theme} label={c.submit.workProof} icon={UploadCloud}>
-            <TextInput theme={theme} placeholder={c.submit.proofPlaceholder} />
+            <TextInput theme={theme} name="workProof" placeholder={c.submit.proofPlaceholder} defaultValue={selectedEscrow?.deliverableInfo?.workProof || ""} />
           </Field>
           <Field theme={theme} label={c.submit.notes} icon={FileText}>
-            <TextArea theme={theme} defaultValue="Delivered responsive landing page, component library, and handoff notes for the client." />
+            <TextArea theme={theme} name="note" defaultValue={selectedEscrow?.deliverableInfo?.note || "Delivered responsive landing page, component library, and handoff notes for the client."} />
           </Field>
-          <Button theme={theme} icon={UploadCloud} type="submit">{c.common.submitWork}</Button>
+          <InlineMessage message={status.message} theme={theme} />
+          <Button theme={theme} icon={UploadCloud} type="submit" disabled={status.loading}>
+            {status.loading ? "Submitting..." : c.common.submitWork}
+          </Button>
         </form>
       </Card>
     </div>
   );
 }
 
-function ApprovalPage({ c, theme, navigate, addToast }) {
+function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, refreshEscrows, setSelectedEscrow }) {
+  const [status, setStatus] = useState({ loading: false, message: "" });
+
+  async function approveSelectedEscrow() {
+    if (!apiToken || !selectedEscrow?._id) {
+      setStatus({ loading: false, message: "Please login and select an escrow first." });
+      return;
+    }
+
+    setStatus({ loading: true, message: "" });
+
+    try {
+      const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/approve`, {
+        method: "PATCH",
+        token: apiToken
+      });
+      setSelectedEscrow(result.escrow);
+      await refreshEscrows();
+      addToast("approved");
+    } catch (error) {
+      setStatus({ loading: false, message: error.message });
+      return;
+    }
+
+    setStatus({ loading: false, message: "" });
+  }
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_0.7fr]">
       <Card theme={theme}>
@@ -1319,9 +1560,9 @@ function ApprovalPage({ c, theme, navigate, addToast }) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className={classNames("text-xl font-black", theme.heading)}>{c.approval.deliverableTitle}</p>
-              <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>Figma prototype, React repository, Lighthouse report, deployment URL.</p>
+              <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{selectedEscrow?.deliverableInfo?.deliverableUrl || "Figma prototype, React repository, Lighthouse report, deployment URL."}</p>
             </div>
-            <Badge theme={theme} tone="cyan">{c.status.submitted}</Badge>
+            <Badge theme={theme} tone="cyan">{c.status[escrowStatusKey(selectedEscrow?.status)] || c.status.submitted}</Badge>
           </div>
           <div className="mt-6">
             <div className="mb-2 flex justify-between text-sm">
@@ -1336,7 +1577,10 @@ function ApprovalPage({ c, theme, navigate, addToast }) {
         <SectionTitle theme={theme} title={c.common.action} />
         <p className={classNames("text-sm leading-6", theme.muted)}>{c.approval.approvalCopy}</p>
         <div className="mt-5 grid gap-3">
-          <Button theme={theme} icon={CheckCircle2} variant="success" onClick={() => addToast("approved")}>{c.common.approveWork}</Button>
+          <InlineMessage message={status.message} theme={theme} />
+          <Button theme={theme} icon={CheckCircle2} variant="success" onClick={approveSelectedEscrow} disabled={status.loading}>
+            {status.loading ? "Approving..." : c.common.approveWork}
+          </Button>
           <Button theme={theme} icon={AlertTriangle} variant="danger" onClick={() => {
             addToast("disputeOpened");
             navigate("disputes");
@@ -1408,10 +1652,38 @@ function DisputeCenterPage({ c, theme, addToast }) {
   );
 }
 
-function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast }) {
-  function connectWallet() {
-    setWallet({ connected: true, address: "0x8A91B4c2E7d9136f2A4F2", short: "0x8A91...A4F2", eth: "1.42", usdt: "8,430", status: c.status.connected });
-    addToast("deposit");
+function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiToken, setCurrentUser }) {
+  const [status, setStatus] = useState({ loading: false, message: "" });
+
+  async function connectWallet() {
+    if (!window.ethereum) {
+      setStatus({ loading: false, message: "MetaMask is not available in this browser." });
+      return;
+    }
+
+    setStatus({ loading: true, message: "" });
+
+    try {
+      const [address] = await window.ethereum.request({ method: "eth_requestAccounts" });
+      setWallet({ connected: true, address, short: shortAddress(address), eth: "0.00", usdt: "0", status: c.status.connected });
+
+      if (apiToken) {
+        const result = await apiRequest("/api/auth/wallet", {
+          method: "PATCH",
+          token: apiToken,
+          body: JSON.stringify({ walletAddress: address })
+        });
+        window.localStorage.setItem("escrowx-user", JSON.stringify(result.user));
+        setCurrentUser(result.user);
+      }
+
+      addToast("deposit");
+    } catch (error) {
+      setStatus({ loading: false, message: error.message });
+      return;
+    }
+
+    setStatus({ loading: false, message: "" });
   }
 
   return (
@@ -1430,9 +1702,12 @@ function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast }) {
           </div>
           <p className={classNames("mt-5 break-all font-mono text-sm", theme.text)}>{wallet.connected ? wallet.address : "0x0000...0000"}</p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Button theme={theme} icon={Wallet} onClick={connectWallet}>{c.common.connectWallet}</Button>
+            <Button theme={theme} icon={Wallet} onClick={connectWallet} disabled={status.loading}>
+              {status.loading ? "Connecting..." : c.common.connectWallet}
+            </Button>
             <Button theme={theme} icon={Fingerprint} variant="secondary" onClick={openSignModal}>{c.common.signTransaction}</Button>
           </div>
+          <InlineMessage message={status.message} theme={theme} />
         </div>
       </Card>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
