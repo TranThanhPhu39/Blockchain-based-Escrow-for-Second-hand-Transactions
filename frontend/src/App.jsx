@@ -92,8 +92,8 @@ const translations = {
       connectWallet: "Connect MetaMask",
       signTransaction: "Sign Transaction",
       createEscrow: "Create Escrow",
-      submitWork: "Submit Work",
-      approveWork: "Approve Work",
+      submitWork: "Submit Deliverables",
+      approveWork: "Approve & Release Funds",
       openDispute: "Open Dispute",
       voteRelease: "Vote Release Funds",
       voteRefund: "Vote Refund Client",
@@ -111,7 +111,8 @@ const translations = {
       service: "Service",
       action: "Action",
       contract: "Smart Contract",
-      copied: "Copied"
+      copied: "Copied",
+      markAsRead: "Mark as read"
     },
     status: {
       created: "CREATED",
@@ -135,7 +136,7 @@ const translations = {
     landing: {
       title: "Smart Escrow for Secure Freelance Payments",
       subtitle: "Client deposits stablecoins into smart contracts. Funds are automatically released when work is approved.",
-      heroEyebrow: "Web3 SaaS escrow for services",
+      heroEyebrow: "Trustless payment infrastructure for freelancers",
       metrics: [
         ["Total Escrow Volume", "$2.84M"],
         ["Active Jobs", "1,248"],
@@ -143,7 +144,7 @@ const translations = {
         ["Average Completion Time", "3.6 days"]
       ],
       howTitle: "How it works",
-      howSubtitle: "A transparent payment workflow from job creation to final settlement.",
+      howSubtitle: "Transparent by design",
       steps: [
         ["Create Service Contract", "Client defines scope, budget, deadline, and freelancer wallet."],
         ["Deposit Stablecoins", "USDT or VNDC is locked inside an escrow smart contract."],
@@ -153,7 +154,7 @@ const translations = {
       ],
       categoriesTitle: "Service categories",
       categoriesSubtitle: "Built for freelance and digital service workflows.",
-      benefitsTitle: "Why EscrowX",
+      benefitsTitle: "Why choose EscrowX",
       benefits: [
         ["Trustless payments", "Funds are locked by code before work starts."],
         ["Transparent workflow", "Every milestone has a readable contract state."],
@@ -177,7 +178,7 @@ const translations = {
         disputes: "Disputes"
       },
       feedTitle: "Live contract feed",
-      adoptionTitle: "Service demand"
+      adoptionTitle: "Service distribution"
     },
     auth: {
       loginTitle: "Access EscrowX",
@@ -186,7 +187,11 @@ const translations = {
       registerSubtitle: "Set up a client or freelancer profile with wallet-ready credentials.",
       emailMethod: "Email + Password",
       walletMethod: "MetaMask Wallet",
-      roleHelp: "Choose how you will use EscrowX first. You can switch later."
+      roleHelp: "Choose how you will use EscrowX first. You can switch later.",
+      sessionTitle: "Secure session",
+      sessionCopy: "Your credentials are handled by the backend API. Connect MetaMask to attach a wallet address to your account.",
+      escrowTitle: "Non-custodial escrow",
+      escrowCopy: "Funds remain locked in the smart contract until the work is approved or a dispute is resolved."
     },
     create: {
       title: "Create Service Escrow",
@@ -208,11 +213,11 @@ const translations = {
       escrowAmount: "Escrow Amount",
       contractAddress: "Smart Contract Address",
       workflow: "Workflow Timeline",
-      timelineNote: "Labels wrap safely on desktop and mobile."
+      timelineNote: "Contract workflow stages"
     },
     submit: {
       title: "Deliverable Submission",
-      subtitle: "Freelancer submits work proof before the client approval window begins.",
+      subtitle: "Submit your deliverables and work proof for client review.",
       deliverableUrl: "Deliverable URL",
       workProof: "Work Proof",
       notes: "Notes",
@@ -222,7 +227,7 @@ const translations = {
       title: "Approval Center",
       subtitle: "Client reviews submitted work and decides whether to release or dispute funds.",
       deliverableTitle: "Submitted deliverable",
-      qualityScore: "Review confidence",
+      qualityScore: "Delivery confidence score",
       approvalCopy: "Approving work simulates a signed release transaction to the freelancer."
     },
     dispute: {
@@ -232,12 +237,13 @@ const translations = {
       screenshots: "Screenshots",
       deliverables: "Deliverable Links",
       juryProgress: "Jury voting progress",
-      outcome: "Outcome simulation",
-      outcomeCopy: "Decision animation appears after a release or refund vote."
+      outcome: "Resolution status",
+      outcomeCopy: "Cast a vote to release funds to the freelancer or refund the client. Requires administrator authorization.",
+      adminNote: "Dispute resolution is restricted to platform administrators."
     },
     wallet: {
       title: "Wallet Integration",
-      subtitle: "Mock MetaMask connection, balances, and signing flow.",
+      subtitle: "Connect your MetaMask wallet, manage balances, and sign on-chain transactions.",
       address: "Wallet address",
       connection: "Connection status",
       balance: "Wallet Balance",
@@ -251,7 +257,7 @@ const translations = {
     },
     notifications: {
       title: "Notifications",
-      subtitle: "Toast events for escrow deposits, submissions, approvals, releases, and disputes.",
+      subtitle: "Stay updated on all escrow activity in real time.",
       triggerDemo: "Trigger demo toast",
       deposit: ["Deposit Success", "650 USDT has been locked in the service escrow contract."],
       submitted: ["Work Submitted", "Deliverables were submitted for client review."],
@@ -269,7 +275,8 @@ const translations = {
       completedJobs: "Completed Jobs",
       successRate: "Success Rate",
       verification: "Verification level",
-      security: "Security settings"
+      security: "Security settings",
+      verifications: ["MetaMask linked", "Email verified", "2FA enabled"]
     },
     footer: {
       company: "Company",
@@ -303,7 +310,7 @@ const translations = {
       signTransaction: "Ký giao dịch",
       createEscrow: "Tạo ký quỹ",
       submitWork: "Nộp sản phẩm",
-      approveWork: "Phê duyệt sản phẩm",
+      approveWork: "Phê duyệt & Giải ngân",
       openDispute: "Mở tranh chấp",
       voteRelease: "Bỏ phiếu giải ngân",
       voteRefund: "Bỏ phiếu hoàn tiền",
@@ -321,7 +328,8 @@ const translations = {
       service: "Dịch vụ",
       action: "Thao tác",
       contract: "Hợp đồng thông minh",
-      copied: "Đã sao chép"
+      copied: "Đã sao chép",
+      markAsRead: "Đánh dấu đã đọc"
     },
     status: {
       created: "ĐÃ TẠO",
@@ -345,7 +353,7 @@ const translations = {
     landing: {
       title: "Ký quỹ thông minh cho thanh toán dịch vụ freelance an toàn",
       subtitle: "Khách hàng nạp stablecoin vào hợp đồng thông minh. Tiền được tự động giải ngân khi sản phẩm được phê duyệt.",
-      heroEyebrow: "Web3 SaaS cho ký quỹ dịch vụ",
+      heroEyebrow: "Hạ tầng thanh toán phi tập trung cho freelancer",
       metrics: [
         ["Tổng giá trị ký quỹ", "2,84 triệu USD"],
         ["Công việc đang chạy", "1.248"],
@@ -353,7 +361,7 @@ const translations = {
         ["Thời gian hoàn thành trung bình", "3,6 ngày"]
       ],
       howTitle: "Cách hoạt động",
-      howSubtitle: "Quy trình thanh toán minh bạch từ lúc tạo việc đến khi tất toán.",
+      howSubtitle: "Minh bạch theo thiết kế",
       steps: [
         ["Tạo hợp đồng dịch vụ", "Khách hàng nhập phạm vi, ngân sách, hạn và ví freelancer."],
         ["Nạp stablecoin", "USDT hoặc VNDC được khóa trong hợp đồng ký quỹ."],
@@ -387,7 +395,7 @@ const translations = {
         disputes: "Tranh chấp"
       },
       feedTitle: "Luồng hợp đồng trực tiếp",
-      adoptionTitle: "Nhu cầu dịch vụ"
+      adoptionTitle: "Phân bổ dịch vụ"
     },
     auth: {
       loginTitle: "Truy cập EscrowX",
@@ -396,7 +404,11 @@ const translations = {
       registerSubtitle: "Thiết lập hồ sơ khách hàng hoặc freelancer với thông tin ví.",
       emailMethod: "Email + mật khẩu",
       walletMethod: "Ví MetaMask",
-      roleHelp: "Chọn cách bạn dùng EscrowX trước. Bạn có thể đổi sau."
+      roleHelp: "Chọn cách bạn dùng EscrowX trước. Bạn có thể đổi sau.",
+      sessionTitle: "Phiên đăng nhập bảo mật",
+      sessionCopy: "Thông tin đăng nhập được xử lý bởi backend API. Kết nối MetaMask để gắn địa chỉ ví vào tài khoản.",
+      escrowTitle: "Ký quỹ không lưu ký",
+      escrowCopy: "Tiền được khóa trong hợp đồng thông minh cho đến khi công việc được phê duyệt hoặc tranh chấp được giải quyết."
     },
     create: {
       title: "Tạo ký quỹ dịch vụ",
@@ -417,12 +429,12 @@ const translations = {
       freelancer: "Freelancer",
       escrowAmount: "Số tiền ký quỹ",
       contractAddress: "Địa chỉ hợp đồng",
-      workflow: "Timeline quy trình",
-      timelineNote: "Nhãn trạng thái tự xuống dòng trên desktop và mobile."
+      workflow: "Tiến trình hợp đồng",
+      timelineNote: "Các giai đoạn quy trình hợp đồng"
     },
     submit: {
       title: "Nộp sản phẩm",
-      subtitle: "Freelancer gửi bằng chứng trước khi khách hàng phê duyệt.",
+      subtitle: "Gửi sản phẩm và bằng chứng công việc để khách hàng xem xét.",
       deliverableUrl: "Đường dẫn sản phẩm",
       workProof: "Bằng chứng công việc",
       notes: "Ghi chú",
@@ -432,7 +444,7 @@ const translations = {
       title: "Trung tâm phê duyệt",
       subtitle: "Khách hàng xem sản phẩm và quyết định giải ngân hoặc mở tranh chấp.",
       deliverableTitle: "Sản phẩm đã nộp",
-      qualityScore: "Độ tin cậy đánh giá",
+      qualityScore: "Điểm tin cậy bàn giao",
       approvalCopy: "Phê duyệt sẽ mô phỏng giao dịch giải ngân có chữ ký cho freelancer."
     },
     dispute: {
@@ -442,12 +454,13 @@ const translations = {
       screenshots: "Ảnh chụp màn hình",
       deliverables: "Liên kết sản phẩm",
       juryProgress: "Tiến độ bỏ phiếu của hội đồng",
-      outcome: "Mô phỏng kết quả",
-      outcomeCopy: "Hiệu ứng quyết định xuất hiện sau khi bỏ phiếu giải ngân hoặc hoàn tiền."
+      outcome: "Trạng thái xử lý",
+      outcomeCopy: "Bỏ phiếu giải ngân cho freelancer hoặc hoàn tiền cho khách hàng. Yêu cầu quyền quản trị viên.",
+      adminNote: "Xử lý tranh chấp chỉ dành cho quản trị viên nền tảng."
     },
     wallet: {
       title: "Tích hợp ví",
-      subtitle: "Mô phỏng kết nối MetaMask, số dư và quy trình ký giao dịch.",
+      subtitle: "Kết nối ví MetaMask, quản lý số dư và ký giao dịch on-chain.",
       address: "Địa chỉ ví",
       connection: "Trạng thái kết nối",
       balance: "Số dư ví",
@@ -461,7 +474,7 @@ const translations = {
     },
     notifications: {
       title: "Thông báo",
-      subtitle: "Toast cho nạp tiền, nộp sản phẩm, phê duyệt, giải ngân và tranh chấp.",
+      subtitle: "Cập nhật tức thời mọi hoạt động ký quỹ của bạn.",
       triggerDemo: "Kích hoạt toast mẫu",
       deposit: ["Nạp tiền thành công", "650 USDT đã được khóa trong hợp đồng ký quỹ dịch vụ."],
       submitted: ["Đã nộp sản phẩm", "Sản phẩm đã được gửi để khách hàng xem xét."],
@@ -479,7 +492,8 @@ const translations = {
       completedJobs: "Công việc hoàn thành",
       successRate: "Tỷ lệ thành công",
       verification: "Cấp xác thực",
-      security: "Cài đặt bảo mật"
+      security: "Cài đặt bảo mật",
+      verifications: ["Đã liên kết MetaMask", "Email đã xác thực", "Đã bật 2FA"]
     },
     footer: {
       company: "Công ty",
@@ -1149,16 +1163,16 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
           <div className={classNames("rounded-lg border p-4", theme.soft)}>
             <div className="flex items-center gap-3">
               <Fingerprint className={classNames("h-5 w-5", theme.accentText)} />
-              <p className={classNames("font-black", theme.heading)}>Smart wallet session</p>
+              <p className={classNames("font-black", theme.heading)}>{c.auth.sessionTitle}</p>
             </div>
-            <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>Email login now uses the backend API. MetaMask can attach a wallet address to your account.</p>
+            <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{c.auth.sessionCopy}</p>
           </div>
           <div className={classNames("rounded-lg border p-4", theme.soft)}>
             <div className="flex items-center gap-3">
               <LockKeyhole className={classNames("h-5 w-5", theme.accentText)} />
-              <p className={classNames("font-black", theme.heading)}>Non-custodial escrow</p>
+              <p className={classNames("font-black", theme.heading)}>{c.auth.escrowTitle}</p>
             </div>
-            <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>Funds stay inside contract state until approval or dispute resolution.</p>
+            <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{c.auth.escrowCopy}</p>
           </div>
         </div>
       </Card>
@@ -1324,7 +1338,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
   async function handleSubmit(event) {
     event.preventDefault();
     if (!apiToken) {
-      setStatus({ loading: false, message: "Please login before creating an escrow." });
+      setStatus({ loading: false, message: "Please log in before creating an escrow." });
       return;
     }
 
@@ -1426,7 +1440,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow }) {
         <StatCard theme={theme} icon={Briefcase} label={c.details.jobId} value={escrow?._id ? escrow._id.slice(-8) : "JOB-2402"} detail={escrow?.serviceName || "Landing Page Development"} tone="cyan" />
         <StatCard theme={theme} icon={CircleDollarSign} label={c.details.escrowAmount} value={formatEscrowAmount(escrow?.amount || "1250")} detail="Polygon" tone="emerald" />
         <StatCard theme={theme} icon={Clock3} label={c.common.deadline} value={escrow?.deadline ? new Date(escrow.deadline).toLocaleDateString() : "Jun 28"} detail="Escrow deadline" tone="amber" />
-        <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status[statusKey] || escrow?.status || c.status.locked} detail={escrow ? "Backend record" : "Demo record"} tone="violet" />
+        <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status[statusKey] || escrow?.status || c.status.locked} detail={escrow ? "On-chain record" : "Demo data"} tone="violet" />
       </div>
       <Card theme={theme}>
         <SectionTitle theme={theme} eyebrow={c.details.timelineNote} title={c.details.workflow}>
@@ -1470,7 +1484,7 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
   async function handleSubmit(event) {
     event.preventDefault();
     if (!apiToken || !selectedEscrow?._id) {
-      setStatus({ loading: false, message: "Please login and select an escrow first." });
+      setStatus({ loading: false, message: "Please log in and select an escrow first." });
       return;
     }
 
@@ -1530,7 +1544,7 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
 
   async function approveSelectedEscrow() {
     if (!apiToken || !selectedEscrow?._id) {
-      setStatus({ loading: false, message: "Please login and select an escrow first." });
+      setStatus({ loading: false, message: "Please log in and select an escrow first." });
       return;
     }
 
@@ -1605,7 +1619,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
   async function handleCreate(event) {
     event.preventDefault();
     if (!apiToken || !selectedEscrow?._id) {
-      setStatus({ loading: false, message: "Please login and select an escrow first." });
+      setStatus({ loading: false, message: "Please log in and select an escrow first." });
       return;
     }
     const form = new FormData(event.currentTarget);
@@ -1684,7 +1698,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
                 <Button theme={theme} icon={Vote} variant="success" disabled>{c.common.voteRelease}</Button>
                 <Button theme={theme} icon={Gavel} variant="secondary" disabled>{c.common.voteRefund}</Button>
               </div>
-              <p className={classNames("mt-4 text-xs", theme.faint)}>Admin-only — dispute resolution requires contract owner wallet.</p>
+              <p className={classNames("mt-4 text-xs", theme.faint)}>{c.dispute.adminNote}</p>
             </>
           )}
         </Card>
@@ -1809,7 +1823,7 @@ function NotificationsPage({ c, theme, addToast, apiToken }) {
             <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{n.message}</p>
             {!n.isRead && (
               <Button theme={theme} size="sm" variant="secondary" className="mt-4" onClick={() => markRead(n._id)}>
-                Mark as read
+                {c.common.markAsRead}
               </Button>
             )}
           </Card>
@@ -1848,7 +1862,7 @@ function ProfilePage({ c, theme, currentUser }) {
         <Card theme={theme} className="md:col-span-3">
           <SectionTitle theme={theme} title={c.profile.security} />
           <div className="grid gap-3 md:grid-cols-3">
-            {["MetaMask linked", "Email verified", "2FA enabled"].map((item) => (
+            {c.profile.verifications.map((item) => (
               <div key={item} className={classNames("flex items-center gap-3 rounded-lg border p-3", theme.soft)}>
                 <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                 <span className={classNames("text-sm font-bold", theme.text)}>{item}</span>
