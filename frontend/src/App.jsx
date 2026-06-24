@@ -1591,11 +1591,40 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
   );
 }
 
-function DisputeCenterPage({ c, theme, addToast }) {
-  const [outcome, setOutcome] = useState(null);
-  function vote(kind) {
-    setOutcome(kind);
-    addToast(kind === "release" ? "disputeResolved" : "disputeResolved");
+function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refreshEscrows }) {
+  const [disputes, setDisputes] = useState([]);
+  const [status, setStatus] = useState({ loading: false, message: "" });
+
+  useEffect(() => {
+    if (!apiToken) return;
+    apiRequest("/api/disputes", { token: apiToken })
+      .then((data) => setDisputes(data.disputes || []))
+      .catch(() => {});
+  }, [apiToken]);
+
+  async function handleCreate(event) {
+    event.preventDefault();
+    if (!apiToken || !selectedEscrow?._id) {
+      setStatus({ loading: false, message: "Please login and select an escrow first." });
+      return;
+    }
+    const form = new FormData(event.currentTarget);
+    setStatus({ loading: true, message: "" });
+    try {
+      const result = await apiRequest("/api/disputes", {
+        method: "POST",
+        token: apiToken,
+        body: JSON.stringify({ escrowId: selectedEscrow._id, reason: form.get("reason") })
+      });
+      setDisputes((prev) => [result.dispute, ...prev]);
+      addToast("disputeOpened");
+      if (refreshEscrows) await refreshEscrows();
+      event.target.reset();
+    } catch (error) {
+      setStatus({ loading: false, message: error.message });
+      return;
+    }
+    setStatus({ loading: false, message: "" });
   }
 
   return (
@@ -1604,48 +1633,60 @@ function DisputeCenterPage({ c, theme, addToast }) {
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
         <Card theme={theme}>
           <SectionTitle theme={theme} title={c.dispute.evidence} />
-          <div className="grid gap-3 md:grid-cols-3">
-            {[
-              [FileText, c.dispute.deliverables, "https://github.com/client/job-2379"],
-              [UploadCloud, c.dispute.screenshots, "ipfs://QmAuditEvidence42"],
-              [ReceiptText, "Milestone Log", "Oracle checkpoint #18"]
-            ].map(([Icon, label, value]) => (
-              <div key={label} className={classNames("rounded-lg border p-4", theme.soft)}>
-                <Icon className={classNames("h-5 w-5", theme.accentText)} />
-                <p className={classNames("mt-3 font-black", theme.heading)}>{label}</p>
-                <p className={classNames("mt-2 break-all text-xs", theme.muted)}>{value}</p>
+          {selectedEscrow ? (
+            <form onSubmit={handleCreate} className="grid gap-4">
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-sm font-bold", theme.text)}>{selectedEscrow.serviceName}</p>
+                <p className={classNames("mt-1 text-xs", theme.faint)}>ID: {selectedEscrow._id}</p>
               </div>
-            ))}
-          </div>
-          <div className="mt-6">
-            <div className="mb-2 flex justify-between text-sm">
-              <span className={theme.text}>{c.dispute.juryProgress}</span>
-              <span className={theme.accentText}>4 / 5</span>
+              <Field theme={theme} label={c.dispute.evidence} icon={FileText}>
+                <TextArea theme={theme} name="reason" placeholder="Describe the reason for this dispute..." required />
+              </Field>
+              <InlineMessage message={status.message} theme={theme} />
+              <Button theme={theme} icon={AlertTriangle} variant="danger" type="submit" disabled={status.loading}>
+                {status.loading ? "Opening..." : c.common.openDispute}
+              </Button>
+            </form>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-3">
+              {[
+                [FileText, c.dispute.deliverables, "https://github.com/client/job-2379"],
+                [UploadCloud, c.dispute.screenshots, "ipfs://QmAuditEvidence42"],
+                [ReceiptText, "Milestone Log", "Oracle checkpoint #18"]
+              ].map(([Icon, label, value]) => (
+                <div key={label} className={classNames("rounded-lg border p-4", theme.soft)}>
+                  <Icon className={classNames("h-5 w-5", theme.accentText)} />
+                  <p className={classNames("mt-3 font-black", theme.heading)}>{label}</p>
+                  <p className={classNames("mt-2 break-all text-xs", theme.muted)}>{value}</p>
+                </div>
+              ))}
             </div>
-            <ProgressBar value={80} theme={theme} />
-          </div>
+          )}
         </Card>
         <Card theme={theme}>
           <SectionTitle theme={theme} title={c.dispute.outcome} />
-          <p className={classNames("text-sm leading-6", theme.muted)}>{c.dispute.outcomeCopy}</p>
-          <div className="mt-5 grid gap-3">
-            <Button theme={theme} icon={Vote} variant="success" onClick={() => vote("release")}>{c.common.voteRelease}</Button>
-            <Button theme={theme} icon={Gavel} variant="secondary" onClick={() => vote("refund")}>{c.common.voteRefund}</Button>
-          </div>
-          <AnimatePresence mode="wait">
-            {outcome ? (
-              <motion.div
-                key={outcome}
-                className={classNames("mt-6 rounded-lg border p-5 text-center", outcome === "release" ? "border-emerald-300/25 bg-emerald-400/12" : "border-amber-300/25 bg-amber-400/12")}
-                initial={{ opacity: 0, scale: 0.94 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.94 }}
-              >
-                <Sparkles className={classNames("mx-auto h-8 w-8", outcome === "release" ? "text-emerald-400" : "text-amber-400")} />
-                <p className={classNames("mt-3 font-black", theme.heading)}>{outcome === "release" ? c.status.released : c.status.refunded}</p>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+          {disputes.length ? (
+            <div className="grid gap-3">
+              {disputes.map((d) => (
+                <div key={d._id} className={classNames("rounded-lg border p-4", theme.soft)}>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className={classNames("text-sm font-bold", theme.text)}>{d.escrow?.serviceName || "—"}</p>
+                    <Badge theme={theme} tone={d.status === "OPEN" ? "amber" : "emerald"}>{d.status}</Badge>
+                  </div>
+                  <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{d.reason}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <p className={classNames("text-sm leading-6", theme.muted)}>{c.dispute.outcomeCopy}</p>
+              <div className="mt-5 grid gap-3">
+                <Button theme={theme} icon={Vote} variant="success" disabled>{c.common.voteRelease}</Button>
+                <Button theme={theme} icon={Gavel} variant="secondary" disabled>{c.common.voteRefund}</Button>
+              </div>
+              <p className={classNames("mt-4 text-xs", theme.faint)}>Admin-only — dispute resolution requires contract owner wallet.</p>
+            </>
+          )}
         </Card>
       </div>
     </div>
@@ -1738,13 +1779,41 @@ function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiT
   );
 }
 
-function NotificationsPage({ c, theme, addToast }) {
-  const keys = ["deposit", "submitted", "approved", "released", "disputeOpened", "disputeResolved"];
+function NotificationsPage({ c, theme, addToast, apiToken }) {
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    if (!apiToken) return;
+    apiRequest("/api/notifications", { token: apiToken })
+      .then((data) => setNotifications(data.notifications || []))
+      .catch(() => {});
+  }, [apiToken]);
+
+  async function markRead(id) {
+    try {
+      await apiRequest(`/api/notifications/${id}/read`, { method: "PATCH", token: apiToken });
+      setNotifications((prev) => prev.map((n) => n._id === id ? { ...n, isRead: true } : n));
+    } catch {}
+  }
+
+  const demoKeys = ["deposit", "submitted", "approved", "released", "disputeOpened", "disputeResolved"];
+
   return (
     <div className="space-y-6">
       <PageIntro title={c.notifications.title} subtitle={c.notifications.subtitle} theme={theme} />
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {keys.map((key) => {
+        {notifications.length ? notifications.map((n) => (
+          <Card key={n._id} theme={theme} className={classNames("p-4", !n.isRead && "ring-1 ring-cyan-400/30")}>
+            <Bell className={classNames("h-5 w-5", theme.accentText)} />
+            <p className={classNames("mt-3 font-black", theme.heading)}>{n.title}</p>
+            <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{n.message}</p>
+            {!n.isRead && (
+              <Button theme={theme} size="sm" variant="secondary" className="mt-4" onClick={() => markRead(n._id)}>
+                Mark as read
+              </Button>
+            )}
+          </Card>
+        )) : demoKeys.map((key) => {
           const [title, message] = c.notifications[key];
           return (
             <Card key={key} theme={theme} className="p-4">
@@ -1760,16 +1829,17 @@ function NotificationsPage({ c, theme, addToast }) {
   );
 }
 
-function ProfilePage({ c, theme }) {
+function ProfilePage({ c, theme, currentUser }) {
+  const initials = currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : "NA";
   return (
     <div className="grid gap-6 xl:grid-cols-[0.7fr_1fr]">
       <Card theme={theme} className="text-center">
         <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-400/12 text-3xl font-black text-cyan-300">
-          NA
+          {initials}
         </div>
-        <h1 className={classNames("mt-4 text-2xl font-black", theme.heading)}>{c.profile.name}</h1>
-        <p className={classNames("mt-1", theme.muted)}>{c.profile.role}</p>
-        <p className={classNames("mt-4 break-all font-mono text-sm", theme.accentText)}>0x8A91B4c2E7d9136f2A4F2</p>
+        <h1 className={classNames("mt-4 text-2xl font-black", theme.heading)}>{currentUser?.name || c.profile.name}</h1>
+        <p className={classNames("mt-1", theme.muted)}>{currentUser?.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) : c.profile.role}</p>
+        <p className={classNames("mt-4 break-all font-mono text-sm", theme.accentText)}>{currentUser?.walletAddress || "0x8A91B4c2E7d9136f2A4F2"}</p>
       </Card>
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard theme={theme} icon={BadgeCheck} label={c.profile.reputation} value="98/100" detail={c.profile.verification} tone="cyan" />
@@ -1926,6 +1996,8 @@ function App() {
     status: translations.en.status.disconnected
   });
   const [toasts, setToasts] = useState([]);
+  const [escrows, setEscrows] = useState([]);
+  const [selectedEscrow, setSelectedEscrow] = useState(null);
 
   const theme = useMemo(() => getTheme(themeName), [themeName]);
   const c = translations[language];
@@ -1984,6 +2056,14 @@ function App() {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }
 
+  const refreshEscrows = useCallback(async () => {
+    if (!apiToken) return;
+    try {
+      const data = await apiRequest("/api/escrows", { token: apiToken });
+      setEscrows(data.escrows || []);
+    } catch {}
+  }, [apiToken]);
+
   const pageProps = {
     c,
     theme,
@@ -1996,7 +2076,11 @@ function App() {
     apiToken,
     setApiToken,
     currentUser,
-    setCurrentUser
+    setCurrentUser,
+    escrows,
+    refreshEscrows,
+    selectedEscrow,
+    setSelectedEscrow
   };
 
   const pages = {
