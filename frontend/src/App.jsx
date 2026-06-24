@@ -1912,6 +1912,11 @@ function App() {
   const [route, setRoute] = useState(getInitialRoute);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
+  const [apiToken, setApiToken] = useState(() => window.localStorage.getItem("escrowx-token") || null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const raw = window.localStorage.getItem("escrowx-user");
+    try { return raw ? JSON.parse(raw) : null; } catch { return null; }
+  });
   const [wallet, setWallet] = useState({
     connected: false,
     address: "",
@@ -1938,6 +1943,12 @@ function App() {
   useEffect(() => {
     setWallet((current) => ({ ...current, status: current.connected ? c.status.connected : c.status.disconnected }));
   }, [c.status.connected, c.status.disconnected]);
+
+  useEffect(() => {
+    if (currentUser?.walletAddress) {
+      setWallet((w) => ({ ...w, connected: true, address: currentUser.walletAddress, short: shortAddress(currentUser.walletAddress) }));
+    }
+  }, []);
 
   function navigate(nextRoute) {
     const nextHash = routeHash(nextRoute);
@@ -1981,7 +1992,11 @@ function App() {
     addToast,
     wallet,
     setWallet,
-    openSignModal: () => setSignOpen(true)
+    openSignModal: () => setSignOpen(true),
+    apiToken,
+    setApiToken,
+    currentUser,
+    setCurrentUser
   };
 
   const pages = {
