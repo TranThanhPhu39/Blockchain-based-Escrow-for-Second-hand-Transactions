@@ -13,6 +13,10 @@ const morgan = require('morgan');
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const escrowRoutes = require('./routes/escrow.routes');
+const disputeRoutes = require('./routes/dispute.routes');
+const notificationRoutes = require('./routes/notification.routes');
+const transactionRoutes = require('./routes/transaction.routes');
+const uploadRoutes = require('./routes/upload.routes');
 
 // Import error handler (phải đặt CUỐI CÙNG)
 const errorMiddleware = require('./middleware/error.middleware');
@@ -52,8 +56,12 @@ app.use(express.urlencoded({ extended: false }));
 
 // ==================== ROUTES ====================
 // Prefix /api/ là convention để phân biệt API endpoint với các route khác
-app.use('/api/auth', authRoutes);      // → auth.routes.js xử lý
-app.use('/api/escrows', escrowRoutes); // → escrow.routes.js xử lý
+app.use('/api/auth', authRoutes);                 // → auth.routes.js xử lý
+app.use('/api/escrows', escrowRoutes);            // → escrow.routes.js xử lý
+app.use('/api/disputes', disputeRoutes);          // → dispute.routes.js xử lý (Backend 2)
+app.use('/api/notifications', notificationRoutes); // → notification.routes.js xử lý (Backend 2)
+app.use('/api/transactions', transactionRoutes);  // → transaction.routes.js xử lý (Backend 2)
+app.use('/api/uploads', uploadRoutes);            // → upload.routes.js xử lý (Backend 2)
 
 // Health check endpoint — dùng để kiểm tra server còn sống không
 // Frontend, DevOps, monitoring tools hay gọi endpoint này
@@ -66,6 +74,11 @@ app.get('/health', (req, res) => {
 // Express nhận ra đây là error handler vì có 4 tham số: (err, req, res, next)
 // Khi bất kỳ middleware/controller nào gọi next(error) hoặc throw error,
 // Express sẽ nhảy thẳng tới đây, bỏ qua các middleware còn lại
+//
+// LƯU Ý: multer (xem middleware/upload.middleware.js) cũng throw error
+// qua next(error) khi file sai loại hoặc vượt quá giới hạn kích thước,
+// nên error.middleware.js cũng sẽ xử lý đúng các lỗi đó (multer error
+// có field `code` như 'LIMIT_FILE_SIZE', hiển thị qua err.message).
 app.use(errorMiddleware);
 
 module.exports = app;

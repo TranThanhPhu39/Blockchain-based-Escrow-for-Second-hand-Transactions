@@ -1,0 +1,34 @@
+// ============================================================
+// routes/dispute.routes.js — Định nghĩa các dispute endpoints
+// Mount vào /api/disputes trong app.js
+// ============================================================
+
+const express = require('express');
+const {
+  createDispute,
+  attachRaiseTx,
+  getDisputes,
+  getDisputeById,
+  resolveDispute,
+} = require('../controllers/dispute.controller');
+const { protect } = require('../middleware/auth.middleware');
+const { authorize } = require('../middleware/role.middleware');
+
+const router = express.Router();
+
+// POST /api/disputes — Client/Freelancer tạo dispute record (kiểm tra quyền trong controller)
+router.post('/', protect, createDispute);
+
+// GET /api/disputes — Xem danh sách (admin xem tất cả, user thường chỉ xem dispute liên quan đến mình)
+router.get('/', protect, getDisputes);
+
+// GET /api/disputes/:id — Xem chi tiết (kiểm tra quyền trong controller)
+router.get('/:id', protect, getDisputeById);
+
+// PATCH /api/disputes/:id/raise-tx — Gắn txHash sau khi raiseDispute on-chain confirm
+router.patch('/:id/raise-tx', protect, attachRaiseTx);
+
+// PATCH /api/disputes/:id/resolve — Admin xử lý tranh chấp (gọi resolveDispute on-chain)
+router.patch('/:id/resolve', protect, authorize('admin'), resolveDispute);
+
+module.exports = router;
