@@ -57,43 +57,21 @@ const objectIdToBytes32 = (objectId) => {
 
 // ==================== POST /api/escrows ====================
 /**
- * Client tạo escrow mới (job posting)
- * Body: { freelancerWalletAddress, serviceName, jobDescription, amount, deadline? }
+ * Client đăng hợp đồng mới (chưa có freelancer)
+ * Body: { serviceName, jobDescription, amount, deadline? }
  * Response: { success, escrow }
  */
 const createEscrow = asyncHandler(async (req, res) => {
-  const { freelancerWalletAddress, serviceName, jobDescription, amount, deadline } = req.body;
+  const { serviceName, jobDescription, amount, deadline } = req.body;
 
-  // Validate required fields
-  if (!freelancerWalletAddress || !serviceName || !amount) {
+  if (!serviceName || !amount) {
     res.status(400);
-    throw new Error('freelancerWalletAddress, serviceName, and amount are required');
+    throw new Error('serviceName and amount are required');
   }
 
-  // Tìm freelancer bằng wallet address
-  // Client nhập wallet address của freelancer khi tạo escrow
-  const freelancer = await User.findOne({
-    walletAddress: freelancerWalletAddress.toLowerCase(),
-  });
-
-  if (!freelancer) {
-    res.status(404);
-    throw new Error('Freelancer with this wallet address not found. Freelancer must register first.');
-  }
-
-  // Client và freelancer không được là cùng 1 người
-  // _id.equals() dùng cho ObjectId comparison (không dùng ===)
-  if (freelancer._id.equals(req.user._id)) {
-    res.status(400);
-    throw new Error('Client and freelancer cannot be the same person');
-  }
-
-  // Tạo escrow document trong MongoDB
-  // Lúc này chưa có tiền — smart contract chưa được gọi
-  // Frontend sẽ gọi smart contract deposit SAU KHI nhận escrow._id
+  // Tạo listing — freelancer chưa được gán, sẽ được gán khi lockEscrow
   const escrow = await Escrow.create({
     client: req.user._id,
-    freelancer: freelancer._id,
     serviceName,
     jobDescription,
     amount,
@@ -303,10 +281,66 @@ const approveWork = asyncHandler(async (req, res) => {
   });
 });
 
+// ==================== GET /api/escrows/available ====================
+/**
+ * Freelancer xem danh sách hợp đồng chưa có người nhận
+ * Response: { success, count, escrows }
+ */
+const getAvailableEscrows = asyncHandler(async (req, res) => {
+  const escrows = await Escrow.find({
+    status: ESCROW_STATUS.CREATED,
+    freelancer: null,
+    client: { $ne: req.user._id },
+  })
+    .populate('client', 'name email walletAddress')
+    .sort({ createdAt: -1 });
+
+  res.json({ success: true, count: escrows.length, escrows });
+});
+
+// ==================== PATCH /api/escrows/:id/lock ====================
+/**
+ * Freelancer nhận việc — gán bản thân vào escrow
+ * Response: { success, escrow }
+ */
+const lockEscrow = asyncHandler(async (req, res) => {
+  const escrow = await Escrow.findById(req.params.id);
+
+  if (!escrow) {
+    res.status(404);
+    throw new Error('Escrow not found');
+  }
+
+  if (escrow.status !== ESCROW_STATUS.CREATED || escrow.freelancer) {
+    res.status(400);
+    throw new Error('This job is no longer available');
+  }
+
+  if (escrow.client.equals(req.user._id)) {
+    res.status(400);
+    throw new Error('Client cannot accept their own contract');
+  }
+
+  escrow.freelancer = req.user._id;
+  await escrow.save();
+
+  const updatedEscrow = await Escrow.findById(escrow._id)
+    .populate('client', 'name email walletAddress')
+    .populate('freelancer', 'name email walletAddress');
+
+  res.json({
+    success: true,
+    message: 'Job accepted. Waiting for client to deposit funds.',
+    escrow: updatedEscrow,
+  });
+});
+
 module.exports = {
   createEscrow,
   getEscrows,
   getEscrowById,
+  getAvailableEscrows,
+  lockEscrow,
   submitDeliverable,
   approveWork,
 };

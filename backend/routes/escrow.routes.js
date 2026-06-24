@@ -11,6 +11,8 @@ const {
   createEscrow,
   getEscrows,
   getEscrowById,
+  getAvailableEscrows,
+  lockEscrow,
   submitDeliverable,
   approveWork,
 } = require('../controllers/escrow.controller');
@@ -19,19 +21,25 @@ const { authorize } = require('../middleware/role.middleware');
 
 const router = express.Router();
 
-// POST /api/escrows — Tạo escrow (chỉ client)
+// POST /api/escrows — Client đăng hợp đồng
 router.post('/', protect, authorize('client'), createEscrow);
 
-// GET /api/escrows — Xem danh sách (client, freelancer, admin đều xem được)
+// GET /api/escrows — Xem danh sách của user hiện tại
 router.get('/', protect, getEscrows);
 
-// GET /api/escrows/:id — Xem chi tiết (kiểm tra quyền trong controller)
+// GET /api/escrows/available — Danh sách hợp đồng chưa có freelancer (đặt trước /:id)
+router.get('/available', protect, authorize('freelancer', 'admin'), getAvailableEscrows);
+
+// GET /api/escrows/:id — Xem chi tiết
 router.get('/:id', protect, getEscrowById);
 
-// PATCH /api/escrows/:id/submit — Freelancer submit deliverable
+// PATCH /api/escrows/:id/lock — Freelancer nhận việc
+router.patch('/:id/lock', protect, authorize('freelancer'), lockEscrow);
+
+// PATCH /api/escrows/:id/submit — Freelancer nộp sản phẩm
 router.patch('/:id/submit', protect, authorize('freelancer'), submitDeliverable);
 
-// PATCH /api/escrows/:id/approve — Client approve công việc
+// PATCH /api/escrows/:id/approve — Client phê duyệt
 router.patch('/:id/approve', protect, authorize('client'), approveWork);
 
 module.exports = router;

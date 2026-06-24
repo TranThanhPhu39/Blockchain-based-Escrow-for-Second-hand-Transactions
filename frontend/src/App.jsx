@@ -77,7 +77,8 @@ const translations = {
       login: "Login",
       register: "Register",
       dashboard: "Dashboard",
-      create: "Create Job",
+      create: "Post Contract",
+      jobs: "Browse Jobs",
       details: "Escrow Details",
       submit: "Deliverables",
       approval: "Approval",
@@ -87,7 +88,7 @@ const translations = {
       profile: "User Profile"
     },
     common: {
-      createJob: "Create Job",
+      createJob: "Post a Contract",
       viewDashboard: "View Dashboard",
       connectWallet: "Connect MetaMask",
       signTransaction: "Sign Transaction",
@@ -194,15 +195,23 @@ const translations = {
       escrowCopy: "Funds remain locked in the smart contract until the work is approved or a dispute is resolved."
     },
     create: {
-      title: "Create Service Escrow",
-      subtitle: "Define the freelance job and lock stablecoins before work begins.",
+      title: "Post a Service Contract",
+      subtitle: "Define the scope, budget, and deadline. Freelancers will browse and accept your listing.",
       serviceName: "Service Name",
       description: "Job Description",
       budget: "Budget",
-      freelancerWallet: "Freelancer Wallet Address",
       deadline: "Deadline",
       previewTitle: "Contract Preview",
-      previewCopy: "EscrowX will prepare a smart contract draft and simulate a stablecoin deposit request."
+      previewCopy: "EscrowX will prepare a smart contract draft and simulate a stablecoin deposit request.",
+      postedTitle: "Your Posted Contracts",
+      noPosted: "No contracts posted yet.",
+      jobsTitle: "Available Jobs",
+      jobsSubtitle: "Browse open contracts from clients and accept the ones that match your skills.",
+      noJobs: "No jobs available right now.",
+      statusOpen: "Open",
+      statusAssigned: "Assigned",
+      lockBtn: "Accept Job",
+      viewBtn: "View Details"
     },
     details: {
       title: "Escrow Details",
@@ -264,7 +273,8 @@ const translations = {
       approved: ["Work Approved", "Client approval is ready for transaction signing."],
       released: ["Funds Released", "Smart contract released payment to the freelancer."],
       disputeOpened: ["Dispute Opened", "Funds remain locked while evidence is reviewed."],
-      disputeResolved: ["Dispute Resolved", "Jury decision finalized the escrow outcome."]
+      disputeResolved: ["Dispute Resolved", "Jury decision finalized the escrow outcome."],
+      locked: ["Job Accepted", "Contract locked. Waiting for client to deposit funds."]
     },
     profile: {
       title: "User Profile",
@@ -276,7 +286,9 @@ const translations = {
       successRate: "Success Rate",
       verification: "Verification level",
       security: "Security settings",
-      verifications: ["MetaMask linked", "Email verified", "2FA enabled"]
+      verifications: ["MetaMask linked", "Email verified", "2FA enabled"],
+      historyTitle: "Contract History",
+      noHistory: "No completed contracts yet."
     },
     footer: {
       company: "Company",
@@ -294,7 +306,8 @@ const translations = {
       login: "Đăng nhập",
       register: "Đăng ký",
       dashboard: "Bảng điều khiển",
-      create: "Tạo công việc",
+      create: "Đăng hợp đồng",
+      jobs: "Tìm việc",
       details: "Chi tiết ký quỹ",
       submit: "Nộp sản phẩm",
       approval: "Phê duyệt",
@@ -304,7 +317,7 @@ const translations = {
       profile: "Hồ sơ người dùng"
     },
     common: {
-      createJob: "Tạo công việc",
+      createJob: "Đăng hợp đồng",
       viewDashboard: "Xem bảng điều khiển",
       connectWallet: "Kết nối MetaMask",
       signTransaction: "Ký giao dịch",
@@ -411,15 +424,23 @@ const translations = {
       escrowCopy: "Tiền được khóa trong hợp đồng thông minh cho đến khi công việc được phê duyệt hoặc tranh chấp được giải quyết."
     },
     create: {
-      title: "Tạo ký quỹ dịch vụ",
-      subtitle: "Mô tả công việc freelance và khóa stablecoin trước khi bắt đầu.",
+      title: "Đăng hợp đồng dịch vụ",
+      subtitle: "Mô tả phạm vi, ngân sách và thời hạn. Freelancer sẽ duyệt và nhận việc của bạn.",
       serviceName: "Tên dịch vụ",
       description: "Mô tả công việc",
       budget: "Ngân sách",
-      freelancerWallet: "Địa chỉ ví freelancer",
       deadline: "Hạn hoàn thành",
       previewTitle: "Xem trước hợp đồng",
-      previewCopy: "EscrowX sẽ tạo bản nháp hợp đồng thông minh và mô phỏng yêu cầu nạp stablecoin."
+      previewCopy: "EscrowX sẽ tạo bản nháp hợp đồng thông minh và mô phỏng yêu cầu nạp stablecoin.",
+      postedTitle: "Hợp đồng đã đăng",
+      noPosted: "Chưa có hợp đồng nào được đăng.",
+      jobsTitle: "Việc đang mở",
+      jobsSubtitle: "Duyệt các hợp đồng từ khách hàng và nhận việc phù hợp với kỹ năng của bạn.",
+      noJobs: "Hiện không có việc nào.",
+      statusOpen: "Chờ nhận",
+      statusAssigned: "Đã có người",
+      lockBtn: "Nhận việc",
+      viewBtn: "Xem chi tiết"
     },
     details: {
       title: "Chi tiết ký quỹ",
@@ -481,7 +502,8 @@ const translations = {
       approved: ["Sản phẩm được phê duyệt", "Phê duyệt của khách hàng đã sẵn sàng để ký giao dịch."],
       released: ["Đã giải ngân", "Hợp đồng thông minh đã trả tiền cho freelancer."],
       disputeOpened: ["Đã mở tranh chấp", "Tiền vẫn được khóa trong khi bằng chứng được xem xét."],
-      disputeResolved: ["Tranh chấp đã xử lý", "Quyết định của hội đồng đã hoàn tất kết quả ký quỹ."]
+      disputeResolved: ["Tranh chấp đã xử lý", "Quyết định của hội đồng đã hoàn tất kết quả ký quỹ."],
+      locked: ["Đã nhận việc", "Hợp đồng đã khóa. Chờ khách hàng nạp tiền."]
     },
     profile: {
       title: "Hồ sơ người dùng",
@@ -493,7 +515,9 @@ const translations = {
       successRate: "Tỷ lệ thành công",
       verification: "Cấp xác thực",
       security: "Cài đặt bảo mật",
-      verifications: ["Đã liên kết MetaMask", "Email đã xác thực", "Đã bật 2FA"]
+      verifications: ["Đã liên kết MetaMask", "Email đã xác thực", "Đã bật 2FA"],
+      historyTitle: "Lịch sử hợp đồng",
+      noHistory: "Chưa có hợp đồng hoàn thành."
     },
     footer: {
       company: "Công ty",
@@ -861,8 +885,11 @@ function ProgressBar({ value, theme }) {
   );
 }
 
-function Sidebar({ c, theme, route, navigate, open, setOpen }) {
-  const nav = [
+function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
+  const isLoggedIn = !!currentUser;
+  const isFreelancer = currentUser?.role === "freelancer";
+
+  const allNav = [
     [Home, "landing"],
     [LogIn, "login"],
     [User, "register"],
@@ -876,6 +903,14 @@ function Sidebar({ c, theme, route, navigate, open, setOpen }) {
     [Bell, "notifications"],
     [BadgeCheck, "profile"]
   ];
+
+  const protectedIds = new Set(["dashboard", "create", "details", "submit", "approval", "disputes", "wallet", "notifications", "profile"]);
+  const nav = allNav.filter(([, id]) => !protectedIds.has(id) || isLoggedIn);
+
+  function navLabel(id) {
+    if (id === "create") return isFreelancer ? c.nav.jobs : c.nav.create;
+    return c.nav[id];
+  }
 
   const panel = (
     <aside className={classNames("flex h-full w-72 flex-col border-r", theme.sidebar)}>
@@ -904,7 +939,7 @@ function Sidebar({ c, theme, route, navigate, open, setOpen }) {
               }}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              <span className="min-w-0 truncate">{c.nav[id]}</span>
+              <span className="min-w-0 truncate">{navLabel(id)}</span>
             </button>
           );
         })}
@@ -1332,19 +1367,19 @@ function PageIntro({ title, subtitle, theme }) {
   );
 }
 
-function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows, setSelectedEscrow }) {
-  const [status, setStatus] = useState({ loading: false, message: "" });
+function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows, setSelectedEscrow, currentUser, escrows, availableEscrows, refreshAvailableEscrows }) {
+  const [status, setStatus] = useState({ loading: false, lockingId: null, message: "" });
+  const isFreelancer = currentUser?.role === "freelancer";
 
+  // ---- Client: tạo hợp đồng mới ----
   async function handleSubmit(event) {
     event.preventDefault();
     if (!apiToken) {
-      setStatus({ loading: false, message: "Please log in before creating an escrow." });
+      setStatus({ loading: false, lockingId: null, message: "Please log in before creating an escrow." });
       return;
     }
-
     const form = new FormData(event.currentTarget);
-    setStatus({ loading: true, message: "" });
-
+    setStatus({ loading: true, lockingId: null, message: "" });
     try {
       const result = await apiRequest("/api/escrows", {
         method: "POST",
@@ -1353,8 +1388,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
           serviceName: form.get("serviceName"),
           jobDescription: form.get("jobDescription"),
           amount: String(form.get("amount") || "").replace(/[^\d.]/g, ""),
-          deadline: form.get("deadline"),
-          freelancerWalletAddress: form.get("freelancerWalletAddress")
+          deadline: form.get("deadline")
         })
       });
       setSelectedEscrow(result.escrow);
@@ -1362,68 +1396,180 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
       addToast("deposit");
       navigate("details");
     } catch (error) {
-      setStatus({ loading: false, message: error.message });
+      setStatus({ loading: false, lockingId: null, message: error.message });
       return;
     }
-
-    setStatus({ loading: false, message: "" });
+    setStatus({ loading: false, lockingId: null, message: "" });
   }
 
-  return (
-    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-      <Card theme={theme}>
-        <PageIntro title={c.create.title} subtitle={c.create.subtitle} theme={theme} />
-        <form
-          className="mt-6 grid gap-4"
-          onSubmit={handleSubmit}
-        >
-          <Field theme={theme} label={c.create.serviceName} icon={Briefcase}>
-            <TextInput theme={theme} name="serviceName" defaultValue="Landing Page Development" required />
-          </Field>
-          <Field theme={theme} label={c.create.description} icon={FileText}>
-            <TextArea theme={theme} name="jobDescription" defaultValue="Build a responsive Web3 landing page for a SaaS launch with pricing, FAQ, and wallet CTA." />
-          </Field>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Field theme={theme} label={c.create.budget} icon={Coins}>
-              <TextInput theme={theme} name="amount" defaultValue="1250" required />
-            </Field>
-            <Field theme={theme} label={c.create.deadline} icon={Clock3}>
-              <TextInput theme={theme} name="deadline" type="date" defaultValue="2026-06-28" />
-            </Field>
-            <Field theme={theme} label="Token" icon={CreditCard}>
-              <SelectInput theme={theme} defaultValue="USDT">
-                <option>USDT</option>
-                <option>VNDC</option>
-              </SelectInput>
-            </Field>
-          </div>
-          <Field theme={theme} label={c.create.freelancerWallet} icon={Wallet}>
-            <TextInput theme={theme} name="freelancerWalletAddress" placeholder="0x70A1b9c4E7d9136f2A4F200000000000000000000" required />
-          </Field>
-          <InlineMessage message={status.message} theme={theme} />
-          <Button theme={theme} type="submit" icon={Rocket} disabled={status.loading}>
-            {status.loading ? "Creating..." : c.common.createEscrow}
-          </Button>
-        </form>
-      </Card>
-      <Card theme={theme}>
-        <SectionTitle theme={theme} eyebrow={c.common.contract} title={c.create.previewTitle} />
-        <div className={classNames("rounded-lg border p-4", theme.soft)}>
-          <p className={classNames("text-sm leading-6", theme.muted)}>{c.create.previewCopy}</p>
-          <div className="mt-5 grid gap-3 text-sm">
-            {[
-              ["Token", "USDT / VNDC"],
-              ["Network", "Polygon"],
-              [c.common.status, c.status.created],
-              [c.common.contract, "0xE5c8...42F9"]
-            ].map(([label, value]) => (
-              <div key={label} className="flex justify-between gap-3">
-                <span className={theme.faint}>{label}</span>
-                <span className={classNames("text-right font-bold", theme.text)}>{value}</span>
-              </div>
+  // ---- Freelancer: nhận việc ----
+  async function handleLock(escrowId) {
+    if (!apiToken) return;
+    setStatus({ loading: true, lockingId: escrowId, message: "" });
+    try {
+      const result = await apiRequest(`/api/escrows/${escrowId}/lock`, {
+        method: "PATCH",
+        token: apiToken
+      });
+      setSelectedEscrow(result.escrow);
+      await Promise.all([refreshEscrows(), refreshAvailableEscrows()]);
+      addToast("locked");
+      navigate("details");
+    } catch (error) {
+      setStatus({ loading: false, lockingId: null, message: error.message });
+      return;
+    }
+    setStatus({ loading: false, lockingId: null, message: "" });
+  }
+
+  // ---- Mapping trạng thái hợp đồng cho client list ----
+  function postedJobStatus(escrow) {
+    const s = escrow.status;
+    if (s === "RELEASED" || s === "REFUNDED" || s === "CANCELLED") return null;
+    if (s === "DISPUTED") return { label: c.status.open, tone: "rose" };
+    if (s === "SUBMITTED") return { label: c.status.submitted, tone: "amber" };
+    if (s === "LOCKED" || s === "IN_PROGRESS") return { label: c.status.locked, tone: "violet" };
+    if (s === "CREATED" && escrow.freelancer) return { label: c.create.statusAssigned, tone: "cyan" };
+    return { label: c.create.statusOpen, tone: "emerald" };
+  }
+
+  const myPostedEscrows = escrows.filter(e => {
+    const clientId = e.client?._id || e.client;
+    return String(clientId) === String(currentUser?._id);
+  }).filter(e => postedJobStatus(e) !== null);
+
+  // ---- View freelancer: duyệt danh sách việc ----
+  if (isFreelancer) {
+    return (
+      <div className="space-y-6">
+        <PageIntro title={c.create.jobsTitle} subtitle={c.create.jobsSubtitle} theme={theme} />
+        <InlineMessage message={status.message} theme={theme} />
+        {availableEscrows.length === 0 ? (
+          <Card theme={theme}>
+            <p className={classNames("text-center py-8", theme.muted)}>{c.create.noJobs}</p>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {availableEscrows.map(job => (
+              <Card key={job._id} theme={theme}>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={classNames("font-black text-base", theme.heading)}>{job.serviceName}</p>
+                      <Badge theme={theme} tone="emerald">{c.create.statusOpen}</Badge>
+                    </div>
+                    {job.jobDescription && (
+                      <p className={classNames("mt-2 text-sm leading-6 line-clamp-2", theme.muted)}>{job.jobDescription}</p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                      <span className={theme.faint}>{c.common.amount}: <span className={classNames("font-bold", theme.accentText)}>{formatEscrowAmount(job.amount)}</span></span>
+                      {job.deadline && (
+                        <span className={theme.faint}>{c.common.deadline}: <span className={classNames("font-bold", theme.text)}>{new Date(job.deadline).toLocaleDateString()}</span></span>
+                      )}
+                      <span className={theme.faint}>{c.details.client}: <span className={classNames("font-bold", theme.text)}>{job.client?.name || "—"}</span></span>
+                    </div>
+                  </div>
+                  <Button
+                    theme={theme}
+                    icon={LockKeyhole}
+                    variant="primary"
+                    disabled={status.loading && status.lockingId === job._id}
+                    onClick={() => handleLock(job._id)}
+                  >
+                    {status.loading && status.lockingId === job._id ? "Accepting..." : c.create.lockBtn}
+                  </Button>
+                </div>
+              </Card>
             ))}
           </div>
-        </div>
+        )}
+      </div>
+    );
+  }
+
+  // ---- View client: form tạo + danh sách đã đăng ----
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card theme={theme}>
+          <PageIntro title={c.create.title} subtitle={c.create.subtitle} theme={theme} />
+          <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
+            <Field theme={theme} label={c.create.serviceName} icon={Briefcase}>
+              <TextInput theme={theme} name="serviceName" defaultValue="Landing Page Development" required />
+            </Field>
+            <Field theme={theme} label={c.create.description} icon={FileText}>
+              <TextArea theme={theme} name="jobDescription" defaultValue="Build a responsive Web3 landing page for a SaaS launch with pricing, FAQ, and wallet CTA." />
+            </Field>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Field theme={theme} label={c.create.budget} icon={Coins}>
+                <TextInput theme={theme} name="amount" defaultValue="1250" required />
+              </Field>
+              <Field theme={theme} label={c.create.deadline} icon={Clock3}>
+                <TextInput theme={theme} name="deadline" type="date" defaultValue="2026-06-28" />
+              </Field>
+              <Field theme={theme} label="Token" icon={CreditCard}>
+                <SelectInput theme={theme} defaultValue="USDT">
+                  <option>USDT</option>
+                  <option>VNDC</option>
+                </SelectInput>
+              </Field>
+            </div>
+            <InlineMessage message={status.message} theme={theme} />
+            <Button theme={theme} type="submit" icon={Rocket} disabled={status.loading}>
+              {status.loading ? "Posting..." : c.common.createEscrow}
+            </Button>
+          </form>
+        </Card>
+        <Card theme={theme}>
+          <SectionTitle theme={theme} eyebrow={c.common.contract} title={c.create.previewTitle} />
+          <div className={classNames("rounded-lg border p-4", theme.soft)}>
+            <p className={classNames("text-sm leading-6", theme.muted)}>{c.create.previewCopy}</p>
+            <div className="mt-5 grid gap-3 text-sm">
+              {[
+                ["Token", "USDT / VNDC"],
+                ["Network", "Polygon"],
+                [c.common.status, c.status.created],
+                [c.common.contract, "0xE5c8...42F9"]
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-3">
+                  <span className={theme.faint}>{label}</span>
+                  <span className={classNames("text-right font-bold", theme.text)}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <Card theme={theme}>
+        <SectionTitle theme={theme} title={c.create.postedTitle} />
+        {myPostedEscrows.length === 0 ? (
+          <p className={classNames("py-4 text-sm", theme.muted)}>{c.create.noPosted}</p>
+        ) : (
+          <div className="grid gap-3">
+            {myPostedEscrows.map(job => {
+              const st = postedJobStatus(job);
+              return (
+                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={classNames("font-bold text-sm", theme.text)}>{job.serviceName}</p>
+                      <Badge theme={theme} tone={st.tone}>{st.label}</Badge>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                      <span className={theme.faint}>{formatEscrowAmount(job.amount)}</span>
+                      {job.deadline && <span className={theme.faint}>{new Date(job.deadline).toLocaleDateString()}</span>}
+                      {job.freelancer && <span className={theme.faint}>{c.details.freelancer}: {job.freelancer.name || job.freelancer.walletAddress?.slice(0, 10) + "..."}</span>}
+                    </div>
+                  </div>
+                  <Button theme={theme} icon={ReceiptText} variant="secondary" size="sm" onClick={() => { setSelectedEscrow(job); navigate("details"); }}>
+                    {c.create.viewBtn}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
     </div>
   );
@@ -1843,34 +1989,75 @@ function NotificationsPage({ c, theme, addToast, apiToken }) {
   );
 }
 
-function ProfilePage({ c, theme, currentUser }) {
+function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscrow }) {
   const initials = currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : "NA";
+
+  const completedEscrows = escrows.filter(e => e.status === "RELEASED").filter(e => {
+    const clientId = e.client?._id || e.client;
+    const freelancerId = e.freelancer?._id || e.freelancer;
+    const uid = String(currentUser?._id);
+    return String(clientId) === uid || String(freelancerId) === uid;
+  });
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.7fr_1fr]">
-      <Card theme={theme} className="text-center">
-        <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-400/12 text-3xl font-black text-cyan-300">
-          {initials}
-        </div>
-        <h1 className={classNames("mt-4 text-2xl font-black", theme.heading)}>{currentUser?.name || c.profile.name}</h1>
-        <p className={classNames("mt-1", theme.muted)}>{currentUser?.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) : c.profile.role}</p>
-        <p className={classNames("mt-4 break-all font-mono text-sm", theme.accentText)}>{currentUser?.walletAddress || "0x8A91B4c2E7d9136f2A4F2"}</p>
-      </Card>
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard theme={theme} icon={BadgeCheck} label={c.profile.reputation} value="98/100" detail={c.profile.verification} tone="cyan" />
-        <StatCard theme={theme} icon={FileCheck2} label={c.profile.completedJobs} value="124" detail="UI/UX · Web · Audit" tone="emerald" />
-        <StatCard theme={theme} icon={TrendingUp} label={c.profile.successRate} value="99.1%" detail={c.profile.security} tone="violet" />
-        <Card theme={theme} className="md:col-span-3">
-          <SectionTitle theme={theme} title={c.profile.security} />
-          <div className="grid gap-3 md:grid-cols-3">
-            {c.profile.verifications.map((item) => (
-              <div key={item} className={classNames("flex items-center gap-3 rounded-lg border p-3", theme.soft)}>
-                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                <span className={classNames("text-sm font-bold", theme.text)}>{item}</span>
-              </div>
-            ))}
+    <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-[0.7fr_1fr]">
+        <Card theme={theme} className="text-center">
+          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-400/12 text-3xl font-black text-cyan-300">
+            {initials}
           </div>
+          <h1 className={classNames("mt-4 text-2xl font-black", theme.heading)}>{currentUser?.name || c.profile.name}</h1>
+          <p className={classNames("mt-1", theme.muted)}>{currentUser?.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) : c.profile.role}</p>
+          <p className={classNames("mt-4 break-all font-mono text-sm", theme.accentText)}>{currentUser?.walletAddress || "0x8A91B4c2E7d9136f2A4F2"}</p>
         </Card>
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatCard theme={theme} icon={BadgeCheck} label={c.profile.reputation} value="98/100" detail={c.profile.verification} tone="cyan" />
+          <StatCard theme={theme} icon={FileCheck2} label={c.profile.completedJobs} value={completedEscrows.length || "0"} detail="Released contracts" tone="emerald" />
+          <StatCard theme={theme} icon={TrendingUp} label={c.profile.successRate} value="99.1%" detail={c.profile.security} tone="violet" />
+          <Card theme={theme} className="md:col-span-3">
+            <SectionTitle theme={theme} title={c.profile.security} />
+            <div className="grid gap-3 md:grid-cols-3">
+              {c.profile.verifications.map((item) => (
+                <div key={item} className={classNames("flex items-center gap-3 rounded-lg border p-3", theme.soft)}>
+                  <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                  <span className={classNames("text-sm font-bold", theme.text)}>{item}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       </div>
+
+      <Card theme={theme}>
+        <SectionTitle theme={theme} title={c.profile.historyTitle} />
+        {completedEscrows.length === 0 ? (
+          <p className={classNames("py-4 text-sm", theme.muted)}>{c.profile.noHistory}</p>
+        ) : (
+          <div className="grid gap-3">
+            {completedEscrows.map(job => {
+              const isClient = String(job.client?._id || job.client) === String(currentUser?._id);
+              return (
+                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={classNames("font-bold text-sm", theme.text)}>{job.serviceName}</p>
+                      <Badge theme={theme} tone="emerald">{c.status.released}</Badge>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                      <span className={theme.faint}>{formatEscrowAmount(job.amount)}</span>
+                      <span className={theme.faint}>{isClient ? c.details.freelancer : c.details.client}: {isClient ? (job.freelancer?.name || "—") : (job.client?.name || "—")}</span>
+                      {job.updatedAt && <span className={theme.faint}>{new Date(job.updatedAt).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+                  <Button theme={theme} icon={ReceiptText} variant="secondary" size="sm" onClick={() => { setSelectedEscrow(job); navigate("details"); }}>
+                    {c.create.viewBtn}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -2011,6 +2198,7 @@ function App() {
   });
   const [toasts, setToasts] = useState([]);
   const [escrows, setEscrows] = useState([]);
+  const [availableEscrows, setAvailableEscrows] = useState([]);
   const [selectedEscrow, setSelectedEscrow] = useState(null);
 
   const theme = useMemo(() => getTheme(themeName), [themeName]);
@@ -2054,7 +2242,8 @@ function App() {
       approved: CheckCircle2,
       released: Coins,
       disputeOpened: AlertTriangle,
-      disputeResolved: Gavel
+      disputeResolved: Gavel,
+      locked: LockKeyhole
     };
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     setToasts((current) => [
@@ -2078,6 +2267,18 @@ function App() {
     } catch {}
   }, [apiToken]);
 
+  const refreshAvailableEscrows = useCallback(async () => {
+    if (!apiToken || currentUser?.role !== "freelancer") return;
+    try {
+      const data = await apiRequest("/api/escrows/available", { token: apiToken });
+      setAvailableEscrows(data.escrows || []);
+    } catch {}
+  }, [apiToken, currentUser?.role]);
+
+  useEffect(() => {
+    refreshAvailableEscrows();
+  }, [refreshAvailableEscrows]);
+
   const pageProps = {
     c,
     theme,
@@ -2093,6 +2294,8 @@ function App() {
     setCurrentUser,
     escrows,
     refreshEscrows,
+    availableEscrows,
+    refreshAvailableEscrows,
     selectedEscrow,
     setSelectedEscrow
   };
@@ -2116,7 +2319,7 @@ function App() {
     <div className={classNames("min-h-screen overflow-hidden", theme.page)}>
       <div className={classNames("fixed inset-0 -z-10", theme.background)} />
       <div className="app-grid pointer-events-none fixed inset-0 -z-10 opacity-70" />
-      <Sidebar c={c} theme={theme} route={route} navigate={navigate} open={mobileOpen} setOpen={setMobileOpen} />
+      <Sidebar c={c} theme={theme} route={route} navigate={navigate} open={mobileOpen} setOpen={setMobileOpen} currentUser={currentUser} />
       <div className="lg:pl-72">
         <Header
           c={c}

@@ -45,7 +45,6 @@ const escrowSchema = new mongoose.Schema(
     freelancer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Freelancer is required'],
     },
 
     // ==================== JOB INFORMATION ====================
