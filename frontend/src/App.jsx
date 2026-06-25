@@ -1472,7 +1472,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
   const myPostedEscrows = escrows.filter(e => {
     const clientId = e.client?._id || e.client;
-    return String(clientId) === String(currentUser?._id);
+    return String(clientId) === String(currentUser?._id || currentUser?.id);
   }).filter(e => postedJobStatus(e) !== null);
 
   // ---- View freelancer: duyệt danh sách việc ----
@@ -1618,7 +1618,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   const escrow = selectedEscrow;
   const statusKey = escrowStatusKey(escrow?.status);
 
-  const isClient = escrow && currentUser && String(escrow.client?._id || escrow.client) === String(currentUser._id);
+  const isClient = escrow && currentUser && String(escrow.client?._id || escrow.client) === String(currentUser._id || currentUser.id);
   const canDeposit = isClient && escrow?.status === "CREATED" && escrow?.freelancer;
 
   async function handleDeposit() {
@@ -2093,7 +2093,7 @@ function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscr
   const completedEscrows = escrows.filter(e => e.status === "RELEASED").filter(e => {
     const clientId = e.client?._id || e.client;
     const freelancerId = e.freelancer?._id || e.freelancer;
-    const uid = String(currentUser?._id);
+    const uid = String(currentUser?._id || currentUser?.id);
     return String(clientId) === uid || String(freelancerId) === uid;
   });
 
@@ -2133,7 +2133,7 @@ function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscr
         ) : (
           <div className="grid gap-3">
             {completedEscrows.map(job => {
-              const isClient = String(job.client?._id || job.client) === String(currentUser?._id);
+              const isClient = String(job.client?._id || job.client) === String(currentUser?._id || currentUser?.id);
               return (
                 <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
                   <div className="min-w-0 flex-1">
