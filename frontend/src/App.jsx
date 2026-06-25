@@ -1721,6 +1721,16 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
     setStatus({ loading: true, message: "" });
 
     try {
+      if (selectedEscrow?.escrowIdOnChain) {
+        try {
+          const { escrow: escrowContract } = await getContracts();
+          const tx = await escrowContract.markShipped(selectedEscrow.escrowIdOnChain);
+          await tx.wait();
+        } catch (chainErr) {
+          // Bypass nếu đã SHIPPED rồi (retry sau khi API fail)
+          if (!String(chainErr.reason || chainErr.message).includes("InvalidStatus")) throw chainErr;
+        }
+      }
       const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/submit`, {
         method: "PATCH",
         token: apiToken,
@@ -1733,17 +1743,8 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
       setSelectedEscrow(result.escrow);
       await refreshEscrows();
       addToast("submitted");
-      if (result.escrow?.escrowIdOnChain) {
-        try {
-          const { escrow: escrowContract } = await getContracts();
-          const tx = await escrowContract.markShipped(result.escrow.escrowIdOnChain);
-          await tx.wait();
-        } catch (chainErr) {
-          console.warn("markShipped on-chain failed:", chainErr.message);
-        }
-      }
     } catch (error) {
-      setStatus({ loading: false, message: error.message });
+      setStatus({ loading: false, message: error.reason || error.message });
       return;
     }
 
