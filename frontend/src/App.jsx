@@ -1675,11 +1675,12 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     try {
       const { escrow: escrowContract, token, decimals } = await getContracts();
       const amountBig = parseUnits(String(escrow.amount), decimals);
-      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig);
+      const gasOpts = { gasLimit: 150000n };
+      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig, gasOpts);
       await approveTx.wait();
-      const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig);
+      const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig, gasOpts);
       await createTx.wait();
-      const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain);
+      const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain, gasOpts);
       await depositTx.wait();
       addToast("deposit");
       setTimeout(() => refreshEscrows(), 10000);
@@ -1768,7 +1769,7 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
       if (selectedEscrow?.escrowIdOnChain) {
         try {
           const { escrow: escrowContract } = await getContracts();
-          const tx = await escrowContract.markShipped(selectedEscrow.escrowIdOnChain);
+          const tx = await escrowContract.markShipped(selectedEscrow.escrowIdOnChain, { gasLimit: 100000n });
           await tx.wait();
         } catch (chainErr) {
           // Bypass nếu đã SHIPPED rồi (retry sau khi API fail)
@@ -1836,7 +1837,7 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
     try {
       if (selectedEscrow?.escrowIdOnChain) {
         const { escrow: escrowContract } = await getContracts();
-        const tx = await escrowContract.confirmDelivery(selectedEscrow.escrowIdOnChain);
+        const tx = await escrowContract.confirmDelivery(selectedEscrow.escrowIdOnChain, { gasLimit: 100000n });
         await tx.wait();
       }
       const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/approve`, {
