@@ -1856,7 +1856,7 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
       if (selectedEscrow?.escrowIdOnChain) {
         try {
           const { escrow: escrowContract } = await getContracts();
-          const tx = await escrowContract.markShipped(selectedEscrow.escrowIdOnChain, { gasLimit: 100000n });
+          const tx = await escrowContract.markShipped(selectedEscrow.escrowIdOnChain, { gasLimit: 150000n });
           await tx.wait();
         } catch (chainErr) {
           // Bypass nếu đã SHIPPED rồi (retry sau khi API fail)
@@ -1924,7 +1924,8 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
     try {
       if (selectedEscrow?.escrowIdOnChain) {
         const { escrow: escrowContract } = await getContracts();
-        const tx = await escrowContract.confirmDelivery(selectedEscrow.escrowIdOnChain, { gasLimit: 100000n });
+        // confirmDelivery: reentrancy guard + ERC20 safeTransfer to seller → needs ~120k gas
+        const tx = await escrowContract.confirmDelivery(selectedEscrow.escrowIdOnChain, { gasLimit: 200000n });
         await tx.wait();
       }
       const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/approve`, {
