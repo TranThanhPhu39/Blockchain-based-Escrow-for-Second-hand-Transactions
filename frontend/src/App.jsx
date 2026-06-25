@@ -690,6 +690,9 @@ async function getContracts() {
         throw new Error("Vui lòng chuyển MetaMask sang mạng Polygon Amoy (chainId 80002)");
       }
     }
+    _tokenAddress = null;
+    _tokenDecimals = null;
+    await new Promise((r) => setTimeout(r, 800));
   }
   const provider = new BrowserProvider(window.ethereum);
   const signer = await provider.getSigner();
