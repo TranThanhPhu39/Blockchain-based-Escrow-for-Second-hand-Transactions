@@ -698,13 +698,18 @@ async function getContracts() {
   const readProvider = new JsonRpcProvider(AMOY_RPC);
   const writeProvider = new BrowserProvider(window.ethereum);
   const signer = await writeProvider.getSigner();
+  console.log("[getContracts] using RPC:", AMOY_RPC);
   if (!_tokenAddress) {
+    console.log("[getContracts] calling paymentToken()...");
     const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
     _tokenAddress = await escrowRead.paymentToken();
+    console.log("[getContracts] tokenAddress:", _tokenAddress);
   }
   if (_tokenDecimals === null) {
+    console.log("[getContracts] calling decimals()...");
     const tokenRead = new Contract(_tokenAddress, ERC20_ABI, readProvider);
     _tokenDecimals = Number(await tokenRead.decimals());
+    console.log("[getContracts] decimals:", _tokenDecimals);
   }
   const escrowContract = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, signer);
   const tokenContract = new Contract(_tokenAddress, ERC20_ABI, signer);
