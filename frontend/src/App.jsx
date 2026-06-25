@@ -643,7 +643,7 @@ function routeHash(route) {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
-const AMOY_RPC = "https://rpc-amoy.polygon.technology/";
+const AMOY_RPC = import.meta.env.VITE_AMOY_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/Zi4sE_2bG68-B6wAeCW4_";
 
 const ESCROW_ABI = [
   "function createEscrow(bytes32 escrowId, address seller, uint256 amount)",
