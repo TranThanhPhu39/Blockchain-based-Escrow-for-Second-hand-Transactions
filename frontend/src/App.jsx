@@ -660,25 +660,62 @@ const ERC20_ABI = [
 
 let _tokenAddress = null;
 let _tokenDecimals = null;
+let _walletProvider = null; // provider được chọn bởi user (Coin98 hoặc MetaMask)
+
+function setWalletProvider(provider) {
+  _walletProvider = provider;
+  _tokenAddress = null;
+  _tokenDecimals = null;
+}
+
+function getWalletProvider() {
+  return _walletProvider || window.ethereum;
+}
+
+// Trả về danh sách các wallet provider đang available (EIP-6963 + providers[])
+function detectWallets() {
+  const wallets = [];
+  const seen = new Set();
+
+  const addWallet = (provider) => {
+    const id = provider.isCoin98 ? "coin98" : provider.isMetaMask ? "metamask" : Math.random().toString();
+    if (seen.has(id)) return;
+    seen.add(id);
+    wallets.push({
+      id,
+      name: provider.isCoin98 ? "Coin98" : provider.isMetaMask ? "MetaMask" : "Browser Wallet",
+      provider,
+    });
+  };
+
+  if (window.ethereum?.providers?.length) {
+    window.ethereum.providers.forEach(addWallet);
+  } else if (window.ethereum) {
+    addWallet(window.ethereum);
+  }
+
+  return wallets;
+}
 
 function objectIdToBytes32(id) {
   return ("0x" + String(id).padEnd(64, "0")).toLowerCase();
 }
 
 async function getContracts() {
-  if (!window.ethereum) throw new Error("MetaMask not found");
+  const eth = getWalletProvider();
+  if (!eth) throw new Error("Wallet not found");
   if (!CONTRACT_ADDRESS) throw new Error("VITE_CONTRACT_ADDRESS not set");
   const AMOY_CHAIN_ID = "0x13882"; // 80002
-  const chainId = await window.ethereum.request({ method: "eth_chainId" });
+  const chainId = await eth.request({ method: "eth_chainId" });
   if (chainId !== AMOY_CHAIN_ID) {
     try {
-      await window.ethereum.request({
+      await eth.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: AMOY_CHAIN_ID }]
       });
     } catch (switchErr) {
       if (switchErr.code === 4902) {
-        await window.ethereum.request({
+        await eth.request({
           method: "wallet_addEthereumChain",
           params: [{
             chainId: AMOY_CHAIN_ID,
@@ -689,7 +726,7 @@ async function getContracts() {
           }]
         });
       } else {
-        throw new Error("Vui lòng chuyển MetaMask sang mạng Polygon Amoy (chainId 80002)");
+        throw new Error("Vui lòng chuyển sang mạng Polygon Amoy (chainId 80002)");
       }
     }
     _tokenAddress = null;
@@ -697,7 +734,7 @@ async function getContracts() {
     await new Promise((r) => setTimeout(r, 800));
   }
   const readProvider = new JsonRpcProvider(AMOY_RPC);
-  const writeProvider = new BrowserProvider(window.ethereum);
+  const writeProvider = new BrowserProvider(eth);
   const signer = await writeProvider.getSigner();
   console.log("[getContracts] using RPC:", AMOY_RPC);
   if (!_tokenAddress) {
@@ -1680,7 +1717,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       const readProvider = new JsonRpcProvider(AMOY_RPC);
 
       // Auto-faucet: mint test tokens if balance is low
-      const signerAddress = await (await new BrowserProvider(window.ethereum).getSigner()).getAddress();
+      const signerAddress = await (await new BrowserProvider(getWalletProvider()).getSigner()).getAddress();
       console.log("[deposit] signerAddress:", signerAddress);
       console.log("[deposit] escrowIdOnChain:", escrow.escrowIdOnChain);
       console.log("[deposit] freelancerWallet:", freelancerWallet);
@@ -2046,19 +2083,15 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
 
 function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiToken, setCurrentUser }) {
   const [status, setStatus] = useState({ loading: false, message: "" });
+  const [walletOptions, setWalletOptions] = useState([]); // danh sách wallets khi có nhiều
 
-  async function connectWallet() {
-    if (!window.ethereum) {
-      setStatus({ loading: false, message: "MetaMask is not available in this browser." });
-      return;
-    }
-
+  async function connectWithProvider(provider) {
+    setWalletOptions([]);
+    setWalletProvider(provider); // lưu provider được chọn vào module-level
     setStatus({ loading: true, message: "" });
-
     try {
-      const [address] = await window.ethereum.request({ method: "eth_requestAccounts" });
+      const [address] = await provider.request({ method: "eth_requestAccounts" });
       setWallet({ connected: true, address, short: shortAddress(address), eth: "0.00", usdt: "0", status: c.status.connected });
-
       if (apiToken) {
         const result = await apiRequest("/api/auth/wallet", {
           method: "PATCH",
@@ -2068,14 +2101,26 @@ function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiT
         window.localStorage.setItem("escrowx-user", JSON.stringify(result.user));
         setCurrentUser(result.user);
       }
-
       addToast("deposit");
     } catch (error) {
       setStatus({ loading: false, message: error.message });
       return;
     }
-
     setStatus({ loading: false, message: "" });
+  }
+
+  async function connectWallet() {
+    const wallets = detectWallets();
+    if (wallets.length === 0) {
+      setStatus({ loading: false, message: "Không tìm thấy ví. Hãy cài MetaMask hoặc Coin98." });
+      return;
+    }
+    if (wallets.length === 1) {
+      await connectWithProvider(wallets[0].provider);
+      return;
+    }
+    // Nhiều ví → cho user chọn
+    setWalletOptions(wallets);
   }
 
   return (
@@ -2099,6 +2144,29 @@ function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiT
             </Button>
             <Button theme={theme} icon={Fingerprint} variant="secondary" onClick={openSignModal}>{c.common.signTransaction}</Button>
           </div>
+          {walletOptions.length > 0 && (
+            <div className={classNames("mt-4 rounded-lg border p-4", theme.soft)}>
+              <p className={classNames("mb-3 text-sm font-semibold", theme.heading)}>Chọn ví để kết nối:</p>
+              <div className="flex flex-col gap-2">
+                {walletOptions.map((w) => (
+                  <button
+                    key={w.id}
+                    onClick={() => connectWithProvider(w.provider)}
+                    className={classNames("flex items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm font-medium transition hover:opacity-80", theme.soft, theme.text)}
+                  >
+                    <Wallet className="h-5 w-5 shrink-0 text-cyan-400" />
+                    {w.name}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setWalletOptions([])}
+                  className={classNames("mt-1 text-xs", theme.faint)}
+                >
+                  Huỷ
+                </button>
+              </div>
+            </div>
+          )}
           <InlineMessage message={status.message} theme={theme} />
         </div>
       </Card>
