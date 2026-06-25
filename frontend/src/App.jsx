@@ -1,3 +1,4 @@
+import { BrowserProvider, Contract, parseUnits } from "ethers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -113,7 +114,8 @@ const translations = {
       action: "Action",
       contract: "Smart Contract",
       copied: "Copied",
-      markAsRead: "Mark as read"
+      markAsRead: "Mark as read",
+      depositFunds: "Deposit Funds"
     },
     status: {
       created: "CREATED",
@@ -222,7 +224,8 @@ const translations = {
       escrowAmount: "Escrow Amount",
       contractAddress: "Smart Contract Address",
       workflow: "Workflow Timeline",
-      timelineNote: "Contract workflow stages"
+      timelineNote: "Contract workflow stages",
+      depositCopy: "Freelancer accepted. Deposit funds into the smart contract to start the job."
     },
     submit: {
       title: "Deliverable Submission",
@@ -342,7 +345,8 @@ const translations = {
       action: "Thao tác",
       contract: "Hợp đồng thông minh",
       copied: "Đã sao chép",
-      markAsRead: "Đánh dấu đã đọc"
+      markAsRead: "Đánh dấu đã đọc",
+      depositFunds: "Nạp tiền ký quỹ"
     },
     status: {
       created: "ĐÃ TẠO",
@@ -451,7 +455,8 @@ const translations = {
       escrowAmount: "Số tiền ký quỹ",
       contractAddress: "Địa chỉ hợp đồng",
       workflow: "Tiến trình hợp đồng",
-      timelineNote: "Các giai đoạn quy trình hợp đồng"
+      timelineNote: "Các giai đoạn quy trình hợp đồng",
+      depositCopy: "Freelancer đã nhận việc. Nạp tiền vào hợp đồng thông minh để bắt đầu công việc."
     },
     submit: {
       title: "Nộp sản phẩm",
@@ -637,6 +642,38 @@ function routeHash(route) {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
+
+const ESCROW_ABI = [
+  "function createEscrow(bytes32 escrowId, address seller, uint256 amount)",
+  "function deposit(bytes32 escrowId)",
+  "function markShipped(bytes32 escrowId)",
+  "function confirmDelivery(bytes32 escrowId)",
+  "function paymentToken() view returns (address)"
+];
+const ERC20_ABI = [
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function decimals() view returns (uint8)"
+];
+
+let _tokenAddress = null;
+let _tokenDecimals = null;
+
+function objectIdToBytes32(id) {
+  return ("0x" + String(id).padEnd(64, "0")).toLowerCase();
+}
+
+async function getContracts() {
+  if (!window.ethereum) throw new Error("MetaMask not found");
+  if (!CONTRACT_ADDRESS) throw new Error("VITE_CONTRACT_ADDRESS not set");
+  const provider = new BrowserProvider(window.ethereum);
+  const signer = await provider.getSigner();
+  const escrowContract = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, signer);
+  if (!_tokenAddress) _tokenAddress = await escrowContract.paymentToken();
+  const tokenContract = new Contract(_tokenAddress, ERC20_ABI, signer);
+  if (_tokenDecimals === null) _tokenDecimals = Number(await tokenContract.decimals());
+  return { escrow: escrowContract, token: tokenContract, decimals: _tokenDecimals };
+}
 
 async function apiRequest(path, { token, ...options } = {}) {
   const headers = {
@@ -1575,10 +1612,40 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
   );
 }
 
-function EscrowDetailsPage({ c, theme, navigate, selectedEscrow }) {
+function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refreshEscrows, currentUser }) {
+  const [txStatus, setTxStatus] = useState({ loading: false, message: "" });
   const workflow = ["created", "deposited", "locked", "delivered", "approved", "released"];
   const escrow = selectedEscrow;
   const statusKey = escrowStatusKey(escrow?.status);
+
+  const isClient = escrow && currentUser && String(escrow.client?._id || escrow.client) === String(currentUser._id);
+  const canDeposit = isClient && escrow?.status === "CREATED" && escrow?.freelancer;
+
+  async function handleDeposit() {
+    const freelancerWallet = escrow?.freelancer?.walletAddress;
+    if (!escrow?.escrowIdOnChain || !freelancerWallet) {
+      setTxStatus({ loading: false, message: "Freelancer wallet address missing. Ask them to connect MetaMask first." });
+      return;
+    }
+    setTxStatus({ loading: true, message: "" });
+    try {
+      const { escrow: escrowContract, token, decimals } = await getContracts();
+      const amountBig = parseUnits(String(escrow.amount), decimals);
+      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig);
+      await approveTx.wait();
+      const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig);
+      await createTx.wait();
+      const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain);
+      await depositTx.wait();
+      addToast("deposit");
+      setTimeout(() => refreshEscrows(), 10000);
+    } catch (err) {
+      setTxStatus({ loading: false, message: err.reason || err.message });
+      return;
+    }
+    setTxStatus({ loading: false, message: "" });
+  }
+
   return (
     <div className="space-y-6">
       <PageIntro title={c.details.title} subtitle={c.details.subtitle} theme={theme} />
@@ -1588,6 +1655,22 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow }) {
         <StatCard theme={theme} icon={Clock3} label={c.common.deadline} value={escrow?.deadline ? new Date(escrow.deadline).toLocaleDateString() : "Jun 28"} detail="Escrow deadline" tone="amber" />
         <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status[statusKey] || escrow?.status || c.status.locked} detail={escrow ? "On-chain record" : "Demo data"} tone="violet" />
       </div>
+      {canDeposit && (
+        <Card theme={theme}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className={classNames("text-lg font-black", theme.heading)}>{c.common.depositFunds}</p>
+              <p className={classNames("mt-1 text-sm leading-6", theme.muted)}>{c.details.depositCopy}</p>
+            </div>
+            <div className="flex flex-col items-end gap-3">
+              {txStatus.message && <InlineMessage message={txStatus.message} theme={theme} />}
+              <Button theme={theme} icon={CircleDollarSign} onClick={handleDeposit} disabled={txStatus.loading}>
+                {txStatus.loading ? "Processing..." : c.common.depositFunds}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
       <Card theme={theme}>
         <SectionTitle theme={theme} eyebrow={c.details.timelineNote} title={c.details.workflow}>
           <Button theme={theme} icon={UploadCloud} variant="secondary" onClick={() => navigate("submit")}>{c.nav.submit}</Button>
@@ -1650,6 +1733,15 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
       setSelectedEscrow(result.escrow);
       await refreshEscrows();
       addToast("submitted");
+      if (result.escrow?.escrowIdOnChain) {
+        try {
+          const { escrow: escrowContract } = await getContracts();
+          const tx = await escrowContract.markShipped(result.escrow.escrowIdOnChain);
+          await tx.wait();
+        } catch (chainErr) {
+          console.warn("markShipped on-chain failed:", chainErr.message);
+        }
+      }
     } catch (error) {
       setStatus({ loading: false, message: error.message });
       return;
@@ -1697,6 +1789,11 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
     setStatus({ loading: true, message: "" });
 
     try {
+      if (selectedEscrow?.escrowIdOnChain) {
+        const { escrow: escrowContract } = await getContracts();
+        const tx = await escrowContract.confirmDelivery(selectedEscrow.escrowIdOnChain);
+        await tx.wait();
+      }
       const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/approve`, {
         method: "PATCH",
         token: apiToken
@@ -1705,7 +1802,7 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
       await refreshEscrows();
       addToast("approved");
     } catch (error) {
-      setStatus({ loading: false, message: error.message });
+      setStatus({ loading: false, message: error.reason || error.message });
       return;
     }
 
