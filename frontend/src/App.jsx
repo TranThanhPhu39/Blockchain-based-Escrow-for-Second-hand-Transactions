@@ -650,7 +650,8 @@ const ESCROW_ABI = [
   "function deposit(bytes32 escrowId)",
   "function markShipped(bytes32 escrowId)",
   "function confirmDelivery(bytes32 escrowId)",
-  "function paymentToken() view returns (address)"
+  "function paymentToken() view returns (address)",
+  "function getEscrow(bytes32 escrowId) view returns (bool exists, address buyer, address seller, uint256 amount, uint8 status, string evidenceURI, uint256 createdAt, uint256 updatedAt)"
 ];
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -1676,10 +1677,34 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       const { escrow: escrowContract, token, decimals } = await getContracts();
       const amountBig = parseUnits(String(escrow.amount), decimals);
       const gasOpts = { gasLimit: 150000n };
+      const readProvider = new JsonRpcProvider(AMOY_RPC);
+      const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+
+      // Check if escrow already exists on-chain (from a previous failed attempt)
+      let onChainStatus = -1;
+      try {
+        const onChain = await escrowRead.getEscrow(escrow.escrowIdOnChain);
+        onChainStatus = Number(onChain.status); // 0=CREATED, 1=LOCKED
+        console.log("[deposit] on-chain status:", onChainStatus);
+      } catch {
+        onChainStatus = -1; // not found
+        console.log("[deposit] escrow not found on-chain, will createEscrow");
+      }
+
+      if (onChainStatus === 1) {
+        addToast("deposit");
+        setTimeout(() => refreshEscrows(), 3000);
+        return;
+      }
+
       const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig, gasOpts);
       await approveTx.wait();
-      const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig, gasOpts);
-      await createTx.wait();
+
+      if (onChainStatus === -1) {
+        const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig, gasOpts);
+        await createTx.wait();
+      }
+
       const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain, gasOpts);
       await depositTx.wait();
       addToast("deposit");
