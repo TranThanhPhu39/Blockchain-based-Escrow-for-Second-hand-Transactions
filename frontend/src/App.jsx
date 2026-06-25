@@ -1615,6 +1615,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refreshEscrows, currentUser }) {
   const [txStatus, setTxStatus] = useState({ loading: false, message: "" });
   const workflow = ["created", "deposited", "locked", "delivered", "approved", "released"];
+  useEffect(() => { refreshEscrows(); }, [refreshEscrows]);
   const escrow = selectedEscrow;
   const statusKey = escrowStatusKey(escrow?.status);
 
@@ -2361,7 +2362,9 @@ function App() {
     if (!apiToken) return;
     try {
       const data = await apiRequest("/api/escrows", { token: apiToken });
-      setEscrows(data.escrows || []);
+      const list = data.escrows || [];
+      setEscrows(list);
+      setSelectedEscrow(prev => prev ? (list.find(e => e._id === prev._id) || prev) : prev);
     } catch {}
   }, [apiToken]);
 
