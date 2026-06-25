@@ -1621,6 +1621,15 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   const isClient = escrow && currentUser && String(escrow.client?._id || escrow.client) === String(currentUser._id || currentUser.id);
   const canDeposit = isClient && escrow?.status === "CREATED" && escrow?.freelancer;
 
+  console.log("[DEBUG canDeposit]", {
+    escrow_client_id: escrow?.client?._id || escrow?.client,
+    currentUser_id: currentUser?._id || currentUser?.id,
+    isClient,
+    escrow_status: escrow?.status,
+    escrow_freelancer: escrow?.freelancer,
+    canDeposit,
+  });
+
   async function handleDeposit() {
     const freelancerWallet = escrow?.freelancer?.walletAddress;
     if (!escrow?.escrowIdOnChain || !freelancerWallet) {
