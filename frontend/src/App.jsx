@@ -1689,11 +1689,16 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       let onChainStatus = -1;
       try {
         const onChain = await escrowRead.getEscrow(escrow.escrowIdOnChain);
-        onChainStatus = Number(onChain.status); // 0=CREATED, 1=LOCKED
-        console.log("[deposit] on-chain status:", onChainStatus);
+        if (onChain.exists) {
+          onChainStatus = Number(onChain.status); // 0=CREATED, 1=LOCKED
+          console.log("[deposit] on-chain exists, status:", onChainStatus);
+        } else {
+          onChainStatus = -1;
+          console.log("[deposit] escrow not found on-chain, will createEscrow");
+        }
       } catch {
-        onChainStatus = -1; // not found
-        console.log("[deposit] escrow not found on-chain, will createEscrow");
+        onChainStatus = -1;
+        console.log("[deposit] getEscrow threw, will createEscrow");
       }
 
       if (onChainStatus === 1) {
