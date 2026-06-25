@@ -63,7 +63,8 @@ const routes = [
   "disputes",
   "wallet",
   "notifications",
-  "profile"
+  "profile",
+  "admin"
 ];
 
 const routeSet = new Set(routes);
@@ -86,7 +87,8 @@ const translations = {
       disputes: "Dispute Center",
       wallet: "Wallet",
       notifications: "Notifications",
-      profile: "User Profile"
+      profile: "User Profile",
+      admin: "Admin Panel"
     },
     common: {
       createJob: "Post a Contract",
@@ -315,6 +317,7 @@ const translations = {
       submit: "Nộp sản phẩm",
       approval: "Phê duyệt",
       disputes: "Trung tâm tranh chấp",
+      admin: "Quản trị",
       wallet: "Ví",
       notifications: "Thông báo",
       profile: "Hồ sơ người dùng"
@@ -1004,6 +1007,7 @@ function ProgressBar({ value, theme }) {
 function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
   const isLoggedIn = !!currentUser;
   const isFreelancer = currentUser?.role === "freelancer";
+  const isAdmin = currentUser?.role === "admin";
 
   const allNav = [
     [Home, "landing"],
@@ -1017,11 +1021,17 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
     [Gavel, "disputes"],
     [Wallet, "wallet"],
     [Bell, "notifications"],
-    [BadgeCheck, "profile"]
+    [BadgeCheck, "profile"],
+    [ShieldCheck, "admin"]
   ];
 
   const protectedIds = new Set(["dashboard", "create", "details", "submit", "approval", "disputes", "wallet", "notifications", "profile"]);
-  const nav = allNav.filter(([, id]) => !protectedIds.has(id) || isLoggedIn);
+  const adminOnly = new Set(["admin"]);
+  const nav = allNav.filter(([, id]) => {
+    if (adminOnly.has(id)) return isAdmin;
+    if (protectedIds.has(id)) return isLoggedIn;
+    return true;
+  });
 
   function navLabel(id) {
     if (id === "create") return isFreelancer ? c.nav.jobs : c.nav.create;
@@ -2439,6 +2449,157 @@ function SignTransactionModal({ open, onClose, c, theme, addToast }) {
   );
 }
 
+function AdminPage({ c, theme, apiToken }) {
+  const [disputes, setDisputes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [resolving, setResolving] = useState(null); // dispute id đang xử lý
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (!apiToken) return;
+    apiRequest("/api/disputes", { token: apiToken })
+      .then((d) => setDisputes(d.disputes || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [apiToken]);
+
+  async function handleResolve(dispute, releaseToFreelancer) {
+    setResolving(dispute._id);
+    try {
+      await apiRequest(`/api/disputes/${dispute._id}/resolve`, {
+        method: "PATCH",
+        token: apiToken,
+        body: JSON.stringify({ releaseToFreelancer, resolutionNote: note })
+      });
+      setDisputes((prev) =>
+        prev.map((d) =>
+          d._id === dispute._id
+            ? { ...d, status: releaseToFreelancer ? "RESOLVED_RELEASE" : "RESOLVED_REFUND" }
+            : d
+        )
+      );
+      setNote("");
+    } catch (err) {
+      alert(err.message);
+    }
+    setResolving(null);
+  }
+
+  const open = disputes.filter((d) => d.status === "OPEN");
+  const resolved = disputes.filter((d) => d.status !== "OPEN");
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div key="admin" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
+        <div>
+          <h1 className={classNames("text-2xl font-black", theme.heading)}>Admin Panel</h1>
+          <p className={classNames("mt-1 text-sm", theme.faint)}>Xử lý tranh chấp — gọi resolveDispute() on-chain bằng ví admin</p>
+        </div>
+
+        {loading && <p className={classNames("text-sm", theme.faint)}>Đang tải...</p>}
+
+        {!loading && open.length === 0 && (
+          <Card theme={theme}>
+            <p className={classNames("text-sm", theme.faint)}>Không có tranh chấp nào đang mở.</p>
+          </Card>
+        )}
+
+        {open.length > 0 && (
+          <div className="space-y-4">
+            <h2 className={classNames("text-lg font-bold", theme.heading)}>Tranh chấp đang mở ({open.length})</h2>
+            {open.map((d) => (
+              <Card key={d._id} theme={theme}>
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className={classNames("font-bold", theme.heading)}>{d.escrow?.serviceName || "—"}</p>
+                      <p className={classNames("mt-1 text-xs font-mono", theme.faint)}>{d._id}</p>
+                    </div>
+                    <span className="rounded-full bg-yellow-400/20 px-2 py-0.5 text-xs font-bold text-yellow-400">OPEN</span>
+                  </div>
+
+                  <div className={classNames("grid gap-2 text-sm", theme.text)}>
+                    <div className="flex justify-between">
+                      <span className={theme.faint}>Số tiền</span>
+                      <span className="font-bold">{d.escrow?.amount ?? "—"} mUSDC</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme.faint}>Người mở tranh chấp</span>
+                      <span>{d.raisedBy?.name || "—"} ({d.raisedBy?.role || "—"})</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme.faint}>Lý do</span>
+                      <span className="text-right max-w-xs">{d.reason || "—"}</span>
+                    </div>
+                    {d.evidenceFiles?.length > 0 && (
+                      <div className="flex flex-col gap-1">
+                        <span className={theme.faint}>Bằng chứng</span>
+                        {d.evidenceFiles.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="truncate text-cyan-400 underline text-xs">{url}</a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <textarea
+                    placeholder="Ghi chú quyết định (tuỳ chọn)..."
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    rows={2}
+                    className={classNames("w-full rounded-lg border px-3 py-2 text-sm", theme.soft, theme.text)}
+                  />
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      theme={theme}
+                      icon={CheckCircle2}
+                      onClick={() => handleResolve(d, true)}
+                      disabled={resolving === d._id}
+                    >
+                      {resolving === d._id ? "Đang xử lý..." : "Release → Freelancer"}
+                    </Button>
+                    <Button
+                      theme={theme}
+                      icon={TimerReset}
+                      variant="secondary"
+                      onClick={() => handleResolve(d, false)}
+                      disabled={resolving === d._id}
+                    >
+                      {resolving === d._id ? "Đang xử lý..." : "Refund → Client"}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {resolved.length > 0 && (
+          <div className="space-y-3">
+            <h2 className={classNames("text-lg font-bold", theme.heading)}>Đã xử lý ({resolved.length})</h2>
+            {resolved.map((d) => (
+              <Card key={d._id} theme={theme}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className={classNames("font-bold", theme.heading)}>{d.escrow?.serviceName || "—"}</p>
+                    <p className={classNames("text-xs", theme.faint)}>{d.resolutionNote || "Không có ghi chú"}</p>
+                  </div>
+                  <span className={classNames(
+                    "rounded-full px-2 py-0.5 text-xs font-bold",
+                    d.status === "RESOLVED_RELEASE" ? "bg-emerald-400/20 text-emerald-400" : "bg-blue-400/20 text-blue-400"
+                  )}>
+                    {d.status === "RESOLVED_RELEASE" ? "→ Freelancer" : "→ Client"}
+                  </span>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 function App() {
   const [language, setLanguage] = useStoredState("escrowx-language", "en");
   const [themeName, setThemeName] = useStoredState("escrowx-theme", "dark");
@@ -2576,7 +2737,8 @@ function App() {
     disputes: <DisputeCenterPage {...pageProps} />,
     wallet: <WalletPage {...pageProps} />,
     notifications: <NotificationsPage {...pageProps} />,
-    profile: <ProfilePage {...pageProps} />
+    profile: <ProfilePage {...pageProps} />,
+    admin: <AdminPage {...pageProps} />
   };
 
   return (
