@@ -80,6 +80,12 @@ const createDispute = asyncHandler(async (req, res) => {
     throw new Error(`Cannot raise a dispute when escrow status is '${escrow.status}'.`);
   }
 
+  const existing = await Dispute.findOne({ escrow: escrow._id, status: 'OPEN' });
+  if (existing) {
+    res.status(400);
+    throw new Error('Escrow này đã có tranh chấp đang mở (OPEN). Không thể tạo thêm.');
+  }
+
   const dispute = await Dispute.create({
     escrow: escrow._id,
     escrowIdOnChain: escrow.escrowIdOnChain,
