@@ -1,4 +1,4 @@
-import { BrowserProvider, Contract, parseUnits } from "ethers";
+import { BrowserProvider, Contract, JsonRpcProvider, parseUnits } from "ethers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -643,6 +643,7 @@ function routeHash(route) {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
+const AMOY_RPC = "https://rpc-amoy.polygon.technology/";
 
 const ESCROW_ABI = [
   "function createEscrow(bytes32 escrowId, address seller, uint256 amount)",
@@ -694,12 +695,19 @@ async function getContracts() {
     _tokenDecimals = null;
     await new Promise((r) => setTimeout(r, 800));
   }
-  const provider = new BrowserProvider(window.ethereum);
-  const signer = await provider.getSigner();
+  const readProvider = new JsonRpcProvider(AMOY_RPC);
+  const writeProvider = new BrowserProvider(window.ethereum);
+  const signer = await writeProvider.getSigner();
+  if (!_tokenAddress) {
+    const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+    _tokenAddress = await escrowRead.paymentToken();
+  }
+  if (_tokenDecimals === null) {
+    const tokenRead = new Contract(_tokenAddress, ERC20_ABI, readProvider);
+    _tokenDecimals = Number(await tokenRead.decimals());
+  }
   const escrowContract = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, signer);
-  if (!_tokenAddress) _tokenAddress = await escrowContract.paymentToken();
   const tokenContract = new Contract(_tokenAddress, ERC20_ABI, signer);
-  if (_tokenDecimals === null) _tokenDecimals = Number(await tokenContract.decimals());
   return { escrow: escrowContract, token: tokenContract, decimals: _tokenDecimals };
 }
 
