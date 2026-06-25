@@ -1678,6 +1678,11 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       const amountBig = parseUnits(String(escrow.amount), decimals);
       const gasOpts = { gasLimit: 150000n };
       const readProvider = new JsonRpcProvider(AMOY_RPC);
+
+      // Auto-faucet: mint test tokens if balance is low
+      const signerAddress = await (await new BrowserProvider(window.ethereum).getSigner()).getAddress();
+      await apiRequest("/api/faucet", { method: "POST", body: JSON.stringify({ address: signerAddress }) })
+        .catch(() => {}); // non-blocking
       const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
 
       // Check if escrow already exists on-chain (from a previous failed attempt)

@@ -17,6 +17,7 @@ const disputeRoutes = require('./routes/dispute.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const transactionRoutes = require('./routes/transaction.routes');
 const uploadRoutes = require('./routes/upload.routes');
+const faucetRoutes = require('./routes/faucet.routes');
 
 // Import error handler (phải đặt CUỐI CÙNG)
 const errorMiddleware = require('./middleware/error.middleware');
@@ -62,6 +63,7 @@ app.use('/api/disputes', disputeRoutes);          // → dispute.routes.js xử 
 app.use('/api/notifications', notificationRoutes); // → notification.routes.js xử lý (Backend 2)
 app.use('/api/transactions', transactionRoutes);  // → transaction.routes.js xử lý (Backend 2)
 app.use('/api/uploads', uploadRoutes);            // → upload.routes.js xử lý (Backend 2)
+app.use('/api/faucet', faucetRoutes);             // → faucet.routes.js mint test tokens
 
 // Health check endpoint — dùng để kiểm tra server còn sống không
 // Frontend, DevOps, monitoring tools hay gọi endpoint này
