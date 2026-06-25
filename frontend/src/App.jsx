@@ -667,6 +667,9 @@ async function getContracts() {
   if (!window.ethereum) throw new Error("MetaMask not found");
   if (!CONTRACT_ADDRESS) throw new Error("VITE_CONTRACT_ADDRESS not set");
   const provider = new BrowserProvider(window.ethereum);
+  const network = await provider.getNetwork();
+  console.log("[getContracts] CONTRACT_ADDRESS:", CONTRACT_ADDRESS);
+  console.log("[getContracts] chainId:", network.chainId.toString());
   const signer = await provider.getSigner();
   const escrowContract = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, signer);
   if (!_tokenAddress) _tokenAddress = await escrowContract.paymentToken();
