@@ -1744,7 +1744,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       }
 
       console.log("[deposit] calling approve...");
-      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig, gasOpts);
+      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig, { gasLimit: 100000n });
       await approveTx.wait();
       console.log("[deposit] approve done");
 
@@ -1758,13 +1758,15 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
           throw new Error("createEscrow would revert: " + (simErr.reason || simErr.shortMessage || simErr.message));
         }
         console.log("[deposit] calling createEscrow...");
-        const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig, gasOpts);
+        // createEscrow writes 5-6 cold storage slots → needs ~145k gas
+        const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig, { gasLimit: 300000n });
         await createTx.wait();
         console.log("[deposit] createEscrow done");
       }
 
       console.log("[deposit] calling deposit...");
-      const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain, gasOpts);
+      // deposit: reentrancy guard + ERC20 transferFrom → needs ~120k gas
+      const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain, { gasLimit: 200000n });
       await depositTx.wait();
       console.log("[deposit] deposit done");
       addToast("deposit");
