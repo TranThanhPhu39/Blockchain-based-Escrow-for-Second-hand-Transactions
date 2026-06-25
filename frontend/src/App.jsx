@@ -653,6 +653,7 @@ const ESCROW_ABI = [
   "function deposit(bytes32 escrowId)",
   "function markShipped(bytes32 escrowId)",
   "function confirmDelivery(bytes32 escrowId)",
+  "function raiseDispute(bytes32 escrowId, string calldata evidenceURI)",
   "function paymentToken() view returns (address)",
   "function getEscrow(bytes32 escrowId) view returns (bool exists, address buyer, address seller, uint256 amount, uint8 status, string evidenceURI, uint256 createdAt, uint256 updatedAt)"
 ];
@@ -2009,20 +2010,38 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
       setStatus({ loading: false, message: "Please log in and select an escrow first." });
       return;
     }
+    if (!selectedEscrow?.escrowIdOnChain) {
+      setStatus({ loading: false, message: "Escrow chưa có on-chain ID." });
+      return;
+    }
     const form = new FormData(event.currentTarget);
+    const reason = form.get("reason");
     setStatus({ loading: true, message: "" });
     try {
+      // 1. Tạo dispute record trong DB
       const result = await apiRequest("/api/disputes", {
         method: "POST",
         token: apiToken,
-        body: JSON.stringify({ escrowId: selectedEscrow._id, reason: form.get("reason") })
+        body: JSON.stringify({ escrowId: selectedEscrow._id, reason })
       });
-      setDisputes((prev) => [result.dispute, ...prev]);
+      const dispute = result.dispute;
+
+      // 2. Gọi raiseDispute() on-chain — đổi status contract sang DISPUTED
+      const evidenceURI = `${API_BASE_URL}/api/disputes/${dispute._id}`;
+      const { escrow: escrowContract } = await getContracts();
+      const tx = await escrowContract.raiseDispute(
+        selectedEscrow.escrowIdOnChain,
+        evidenceURI,
+        { gasLimit: 200000n }
+      );
+      await tx.wait();
+
+      setDisputes((prev) => [dispute, ...prev]);
       addToast("disputeOpened");
       if (refreshEscrows) await refreshEscrows();
       event.target.reset();
     } catch (error) {
-      setStatus({ loading: false, message: error.message });
+      setStatus({ loading: false, message: error.reason || error.message });
       return;
     }
     setStatus({ loading: false, message: "" });
