@@ -1681,24 +1681,23 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
 
       // Auto-faucet: mint test tokens if balance is low
       const signerAddress = await (await new BrowserProvider(window.ethereum).getSigner()).getAddress();
+      console.log("[deposit] signerAddress:", signerAddress);
+      console.log("[deposit] escrowIdOnChain:", escrow.escrowIdOnChain);
+      console.log("[deposit] freelancerWallet:", freelancerWallet);
+      console.log("[deposit] amount:", escrow.amount, "→ amountBig:", amountBig.toString());
       await apiRequest("/api/faucet", { method: "POST", body: JSON.stringify({ address: signerAddress }) })
-        .catch(() => {}); // non-blocking
+        .catch((e) => console.warn("[faucet] failed:", e.message));
       const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
 
       // Check if escrow already exists on-chain (from a previous failed attempt)
       let onChainStatus = -1;
       try {
         const onChain = await escrowRead.getEscrow(escrow.escrowIdOnChain);
-        if (onChain.exists) {
-          onChainStatus = Number(onChain.status); // 0=CREATED, 1=LOCKED
-          console.log("[deposit] on-chain exists, status:", onChainStatus);
-        } else {
-          onChainStatus = -1;
-          console.log("[deposit] escrow not found on-chain, will createEscrow");
-        }
-      } catch {
+        onChainStatus = Number(onChain.status); // 0=CREATED, 1=LOCKED
+        console.log("[deposit] on-chain exists, status:", onChainStatus);
+      } catch (e) {
         onChainStatus = -1;
-        console.log("[deposit] getEscrow threw, will createEscrow");
+        console.log("[deposit] getEscrow threw (not found):", e.message?.slice(0, 80));
       }
 
       if (onChainStatus === 1) {
@@ -1707,16 +1706,30 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
         return;
       }
 
+      console.log("[deposit] calling approve...");
       const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig, gasOpts);
       await approveTx.wait();
+      console.log("[deposit] approve done");
 
       if (onChainStatus === -1) {
+        // Simulate first to get a readable revert reason
+        try {
+          const escrowSim = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+          await escrowSim.createEscrow.staticCall(escrow.escrowIdOnChain, freelancerWallet, amountBig, { from: signerAddress });
+        } catch (simErr) {
+          console.error("[deposit] createEscrow simulation failed:", simErr.reason || simErr.message);
+          throw new Error("createEscrow would revert: " + (simErr.reason || simErr.shortMessage || simErr.message));
+        }
+        console.log("[deposit] calling createEscrow...");
         const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig, gasOpts);
         await createTx.wait();
+        console.log("[deposit] createEscrow done");
       }
 
+      console.log("[deposit] calling deposit...");
       const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain, gasOpts);
       await depositTx.wait();
+      console.log("[deposit] deposit done");
       addToast("deposit");
       setTimeout(() => refreshEscrows(), 10000);
     } catch (err) {
