@@ -666,10 +666,32 @@ function objectIdToBytes32(id) {
 async function getContracts() {
   if (!window.ethereum) throw new Error("MetaMask not found");
   if (!CONTRACT_ADDRESS) throw new Error("VITE_CONTRACT_ADDRESS not set");
+  const AMOY_CHAIN_ID = "0x13882"; // 80002
+  const chainId = await window.ethereum.request({ method: "eth_chainId" });
+  if (chainId !== AMOY_CHAIN_ID) {
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: AMOY_CHAIN_ID }]
+      });
+    } catch (switchErr) {
+      if (switchErr.code === 4902) {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: AMOY_CHAIN_ID,
+            chainName: "Polygon Amoy",
+            nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 },
+            rpcUrls: ["https://rpc-amoy.polygon.technology/"],
+            blockExplorerUrls: ["https://amoy.polygonscan.com/"]
+          }]
+        });
+      } else {
+        throw new Error("Vui lòng chuyển MetaMask sang mạng Polygon Amoy (chainId 80002)");
+      }
+    }
+  }
   const provider = new BrowserProvider(window.ethereum);
-  const network = await provider.getNetwork();
-  console.log("[getContracts] CONTRACT_ADDRESS:", CONTRACT_ADDRESS);
-  console.log("[getContracts] chainId:", network.chainId.toString());
   const signer = await provider.getSigner();
   const escrowContract = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, signer);
   if (!_tokenAddress) _tokenAddress = await escrowContract.paymentToken();
