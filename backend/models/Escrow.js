@@ -1,12 +1,5 @@
 // ============================================================
 // models/Escrow.js — Schema cho Escrow (Service Contract)
-//
-// Escrow là hợp đồng giữ tiền trung gian cho dịch vụ freelance:
-// 1. Client tạo escrow trong DB
-// 2. Client deposit stablecoin vào smart contract
-// 3. Backend 3 lắng nghe event, cập nhật status → LOCKED
-// 4. Freelancer thực hiện công việc và submit deliverable
-// 5. Client approve → smart contract release tiền cho freelancer
 // ============================================================
 
 const mongoose = require('mongoose');
@@ -15,65 +8,83 @@ const { ESCROW_STATUS } = require('../utils/constants');
 const escrowSchema = new mongoose.Schema(
   {
     // ==================== BLOCKCHAIN DATA ====================
-    // Các field này được điền sau khi smart contract được tương tác
-    // Ban đầu khi tạo escrow trong DB, chúng có thể là null/undefined
-
-    contractAddress: {
-      type: String,
-      lowercase: true, // Ethereum address nên lowercase
-    },
-    escrowIdOnChain: {
-      type:String,
-      lowercase: true,
-      // ID của escrow trên smart contract (uint256)
-      // Dùng để tham chiếu khi gọi contract functions
-    },
-    txHash: {
-      type: String,
-      // Transaction hash của lần deposit đầu tiên
-      // Dùng để verify trên blockchain explorer (PolygonScan)
-    },
+    contractAddress: { type: String, lowercase: true },
+    escrowIdOnChain:  { type: String, lowercase: true },
+    txHash:           { type: String },
 
     // ==================== PARTIES ====================
-
     client: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User', // Tham chiếu đến User model
-      // Dùng để .populate('client') → thay ObjectId bằng full User object
+      ref: 'User',
       required: [true, 'Client is required'],
     },
-    freelancer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    },
+    freelancer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
     // ==================== JOB INFORMATION ====================
-
     serviceName: {
       type: String,
       required: [true, 'Service name is required'],
       trim: true,
     },
-    jobDescription: {
-      type: String,
-      trim: true,
-    },
+    serviceCategory:   { type: String, trim: true },
+    skillRequirements: { type: String, trim: true },
+    jobDescription:    { type: String, trim: true },
+
+    // ==================== FINANCIAL TERMS ====================
     amount: {
       type: String,
       required: [true, 'Amount is required'],
-      // TẠI SAO String thay vì Number?
-      // JavaScript Number chỉ an toàn đến 2^53 - 1 (Number.MAX_SAFE_INTEGER)
-      // Ethereum dùng đơn vị Wei: 1 ETH = 10^18 Wei
-      // Số như 1000000000000000000 (1 ETH) có thể mất precision khi dùng JS Number
-      // Lưu dạng String rồi để ethers.js (BigInt) xử lý
+      // Stored as string to preserve BigInt precision for on-chain amounts
     },
-    deadline: {
-      type: Date,
-      // Deadline của công việc — freelancer cần submit trước ngày này
-    },
+    paymentToken:        { type: String, default: 'USDT' },
+    gasFeeResponsibility:{ type: String, default: 'client' },
+
+    // ==================== DELIVERABLES ====================
+    expectedDeliverables:     { type: String, trim: true },
+    deliverableFormat:        [{ type: String }],
+    submissionLinkRequirement:{ type: String, default: 'required' },
+
+    // ==================== ACCEPTANCE CRITERIA ====================
+    acceptanceChecklist: [{ type: String }],
+    qualityStandard:     { type: String, trim: true },
+    testingRequirement:  { type: String, default: 'none' },
+
+    // ==================== TIMELINE ====================
+    deadline:          { type: Date },
+    gracePeriod:       { type: Number, default: 1 },   // days
+    reviewPeriod:      { type: Number, default: 3 },   // days
+    autoReleasePeriod: { type: Number, default: 5 },   // days — overrides env var
+
+    // ==================== REVISION POLICY ====================
+    numberOfRevisions: { type: String, default: '2' },
+    revisionScope:     { type: String, trim: true },
+
+    // ==================== CANCELLATION POLICY ====================
+    clientCancellationRule:    { type: String, trim: true },
+    freelancerWithdrawalRule:  { type: String, trim: true },
+    refundRule:                { type: String, trim: true },
+
+    // ==================== EVIDENCE RULES ====================
+    acceptedEvidenceTypes: [{ type: String }],
+    timestampSource:       { type: String, default: 'blockchain' },
+    communicationLogUsage: { type: String, default: 'allowed' },
+
+    // ==================== DISPUTE RESOLUTION ====================
+    disputeReasons:          [{ type: String }],
+    evidenceUploadRequirement:{ type: String, default: 'both' },
+    reviewerDecisionOptions: [{ type: String }],
+    appealPolicy:            { type: String, default: 'none' },
+
+    // ==================== LEGAL & OWNERSHIP ====================
+    intellectualPropertyTransfer: { type: String },
+    confidentialityRequirement:   { type: String, default: 'public' },
+    commercialUsageRights:        { type: String, default: 'commercial' },
+
+    // ==================== CONTRACT INTEGRITY ====================
+    // SHA-256 hash of all off-chain metadata — can be stored on-chain as contractURI
+    contractMetadataHash: { type: String },
 
     // ==================== STATUS ====================
-
     status: {
       type: String,
       enum: {
@@ -83,37 +94,22 @@ const escrowSchema = new mongoose.Schema(
       default: ESCROW_STATUS.CREATED,
     },
 
-    // ==================== DELIVERABLE ====================
-    // Thay thế shippingInfo — freelancer submit link/file thay vì gửi hàng vật lý
-
+    // ==================== DELIVERABLE SUBMISSION ====================
     deliverableInfo: {
-      deliverableUrl: { type: String },   // Link Google Drive, GitHub, Figma, v.v.
-      workProof: { type: String },         // Mô tả hoặc link bằng chứng công việc
-      submittedAt: { type: Date },         // Thời điểm freelancer submit
-      note: { type: String },              // Ghi chú thêm từ freelancer
+      deliverableUrl: { type: String },
+      workProof:      { type: String },
+      submittedAt:    { type: Date },
+      note:           { type: String },
     },
 
     // ==================== AUTO RELEASE ====================
-
-    autoReleaseAt: {
-      type: Date,
-      // Nếu client không approve sau X ngày kể từ ngày freelancer submit,
-      // smart contract tự động release tiền cho freelancer
-      // Field này được set khi freelancer submit deliverable
-    },
+    autoReleaseAt: { type: Date },
   },
-  {
-    timestamps: true, // createdAt, updatedAt
-  }
+  { timestamps: true }
 );
 
-// ==================== INDEXES ====================
-// Index giúp tăng tốc độ query
-// Compound index: client + status — query "tất cả escrow LOCKED của user này" sẽ rất nhanh
-// Không index tất cả vì index chiếm thêm storage và làm chậm write
 escrowSchema.index({ client: 1, status: 1 });
 escrowSchema.index({ freelancer: 1, status: 1 });
 
 const Escrow = mongoose.model('Escrow', escrowSchema);
-
 module.exports = Escrow;

@@ -62,20 +62,84 @@ const objectIdToBytes32 = (objectId) => {
  * Response: { success, escrow }
  */
 const createEscrow = asyncHandler(async (req, res) => {
-  const { serviceName, jobDescription, amount, deadline } = req.body;
+  const {
+    // Core (required)
+    serviceName, amount,
+    // Job Information
+    serviceCategory, skillRequirements, jobDescription,
+    // Financial Terms
+    paymentToken, gasFeeResponsibility,
+    // Deliverables
+    expectedDeliverables, deliverableFormat, submissionLinkRequirement,
+    // Acceptance Criteria
+    acceptanceChecklist, qualityStandard, testingRequirement,
+    // Timeline
+    deadline, gracePeriod, reviewPeriod, autoReleasePeriod,
+    // Revision Policy
+    numberOfRevisions, revisionScope,
+    // Cancellation Policy
+    clientCancellationRule, freelancerWithdrawalRule, refundRule,
+    // Evidence Rules
+    acceptedEvidenceTypes, timestampSource, communicationLogUsage,
+    // Dispute Resolution
+    disputeReasons, evidenceUploadRequirement, reviewerDecisionOptions, appealPolicy,
+    // Legal & Ownership
+    intellectualPropertyTransfer, confidentialityRequirement, commercialUsageRights,
+    // Integrity
+    contractMetadataHash,
+  } = req.body;
 
   if (!serviceName || !amount) {
     res.status(400);
     throw new Error('serviceName and amount are required');
   }
 
-  // Tạo listing — freelancer chưa được gán, sẽ được gán khi lockEscrow
   const escrow = await Escrow.create({
     client: req.user._id,
+    // Job Information
     serviceName,
+    serviceCategory,
+    skillRequirements,
     jobDescription,
+    // Financial Terms
     amount,
-    deadline: deadline ? new Date(deadline) : undefined,
+    paymentToken:         paymentToken || 'USDT',
+    gasFeeResponsibility: gasFeeResponsibility || 'client',
+    // Deliverables
+    expectedDeliverables,
+    deliverableFormat:         Array.isArray(deliverableFormat) ? deliverableFormat : [],
+    submissionLinkRequirement: submissionLinkRequirement || 'required',
+    // Acceptance Criteria
+    acceptanceChecklist: Array.isArray(acceptanceChecklist) ? acceptanceChecklist : [],
+    qualityStandard,
+    testingRequirement:  testingRequirement || 'none',
+    // Timeline
+    deadline:          deadline ? new Date(deadline) : undefined,
+    gracePeriod:       gracePeriod       !== undefined ? Number(gracePeriod)       : 1,
+    reviewPeriod:      reviewPeriod      !== undefined ? Number(reviewPeriod)      : 3,
+    autoReleasePeriod: autoReleasePeriod !== undefined ? Number(autoReleasePeriod) : 5,
+    // Revision Policy
+    numberOfRevisions: numberOfRevisions || '2',
+    revisionScope,
+    // Cancellation Policy
+    clientCancellationRule,
+    freelancerWithdrawalRule,
+    refundRule,
+    // Evidence Rules
+    acceptedEvidenceTypes: Array.isArray(acceptedEvidenceTypes) ? acceptedEvidenceTypes : [],
+    timestampSource:       timestampSource       || 'blockchain',
+    communicationLogUsage: communicationLogUsage || 'allowed',
+    // Dispute Resolution
+    disputeReasons:           Array.isArray(disputeReasons)           ? disputeReasons           : [],
+    evidenceUploadRequirement: evidenceUploadRequirement || 'both',
+    reviewerDecisionOptions:  Array.isArray(reviewerDecisionOptions)  ? reviewerDecisionOptions  : [],
+    appealPolicy:             appealPolicy || 'none',
+    // Legal & Ownership
+    intellectualPropertyTransfer,
+    confidentialityRequirement: confidentialityRequirement || 'public',
+    commercialUsageRights:      commercialUsageRights      || 'commercial',
+    // Integrity
+    contractMetadataHash,
     status: ESCROW_STATUS.CREATED,
   });
 

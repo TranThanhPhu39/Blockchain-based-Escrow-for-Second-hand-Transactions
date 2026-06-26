@@ -1500,28 +1500,146 @@ function PageIntro({ title, subtitle, theme }) {
   );
 }
 
+function FormSection({ title, icon: Icon, theme, children }) {
+  return (
+    <div className="grid gap-4">
+      <div className={classNames("flex items-center gap-2 border-b pb-3", theme.border)}>
+        {Icon && <Icon className={classNames("h-4 w-4 shrink-0", theme.accentText)} />}
+        <p className={classNames("text-xs font-black uppercase tracking-[0.18em]", theme.accentText)}>{title}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function CheckboxRow({ label, checked, onChange, theme }) {
+  return (
+    <label className={classNames(
+      "flex cursor-pointer select-none items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition",
+      checked
+        ? theme.isDark ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200" : "border-blue-400 bg-blue-50 text-blue-800"
+        : `${theme.soft} ${theme.muted}`
+    )}>
+      <span className={classNames(
+        "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition",
+        checked
+          ? theme.isDark ? "border-cyan-400 bg-cyan-400 text-slate-950" : "border-blue-600 bg-blue-600 text-white"
+          : theme.isDark ? "border-white/25" : "border-slate-300"
+      )}>
+        {checked && <CheckCircle2 className="h-3 w-3" />}
+      </span>
+      {label}
+      <input type="checkbox" className="sr-only" checked={checked} onChange={onChange} readOnly />
+    </label>
+  );
+}
+
 function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows, setSelectedEscrow, currentUser, escrows, availableEscrows, refreshAvailableEscrows }) {
-  const [status, setStatus] = useState({ loading: false, lockingId: null, message: "" });
+  // ── Controlled form state (all sections) ─────────────────────────────────
+  const [fd, setFd] = useState({
+    // Job Information
+    serviceName:       "Landing Page Development",
+    serviceCategory:   "",
+    skillRequirements: "",
+    jobDescription:    "Build a responsive Web3 landing page for a SaaS launch with pricing, FAQ, and wallet CTA.",
+    // Financial Terms
+    amount:               "1250",
+    paymentToken:         "USDT",
+    gasFeeResponsibility: "client",
+    // Deliverables
+    expectedDeliverables:      "",
+    deliverableFormat:         [],
+    submissionLinkRequirement: "required",
+    // Acceptance Criteria
+    acceptanceChecklist: [],
+    qualityStandard:     "",
+    testingRequirement:  "none",
+    // Timeline
+    deadline:          "2026-06-28",
+    gracePeriod:       1,
+    reviewPeriod:      3,
+    autoReleasePeriod: 5,
+    // Revision Policy
+    numberOfRevisions: "2",
+    revisionScope:     "",
+    // Cancellation Policy
+    clientCancellationRule:   "",
+    freelancerWithdrawalRule: "",
+    refundRule:               "",
+    // Evidence Rules
+    acceptedEvidenceTypes: [],
+    timestampSource:       "blockchain",
+    communicationLogUsage: "allowed",
+    // Dispute Resolution
+    disputeReasons:            [],
+    evidenceUploadRequirement: "both",
+    reviewerDecisionOptions:   [],
+    appealPolicy:              "none",
+    // Legal & Ownership
+    intellectualPropertyTransfer: "",
+    confidentialityRequirement:   "public",
+    commercialUsageRights:        "commercial",
+  });
+
+  const [errors,  setErrors]  = useState({});
+  const [status,  setStatus]  = useState({ loading: false, lockingId: null, message: "" });
+
+  function set(field, value) {
+    setFd(prev => ({ ...prev, [field]: value }));
+    setErrors(prev => { const e = { ...prev }; delete e[field]; return e; });
+  }
+
+  function toggleArr(field, item) {
+    setFd(prev => ({
+      ...prev,
+      [field]: prev[field].includes(item)
+        ? prev[field].filter(x => x !== item)
+        : [...prev[field], item],
+    }));
+    setErrors(prev => { const e = { ...prev }; delete e[field]; return e; });
+  }
+
+  function validate() {
+    const e = {};
+    if (!fd.serviceName.trim())                              e.serviceName             = "Service name is required";
+    if (!fd.jobDescription.trim())                           e.jobDescription          = "Job description is required";
+    if (!fd.amount || parseFloat(fd.amount) <= 0)           e.amount                  = "Budget must be greater than 0";
+    if (!fd.deadline || new Date(fd.deadline) <= new Date()) e.deadline               = "Deadline must be in the future";
+    if (!fd.serviceCategory)                                 e.serviceCategory         = "Service category is required";
+    if (!fd.expectedDeliverables.trim())                     e.expectedDeliverables    = "Expected deliverables is required";
+    if (fd.acceptanceChecklist.length === 0)                 e.acceptanceChecklist     = "At least one acceptance criterion is required";
+    if (!fd.reviewPeriod      || Number(fd.reviewPeriod)      <= 0) e.reviewPeriod      = "Review period must be greater than 0";
+    if (!fd.autoReleasePeriod || Number(fd.autoReleasePeriod) <= 0) e.autoReleasePeriod = "Auto release period must be greater than 0";
+    if (fd.acceptedEvidenceTypes.length === 0)               e.acceptedEvidenceTypes   = "At least one evidence type must be selected";
+    if (!fd.intellectualPropertyTransfer)                    e.intellectualPropertyTransfer = "IP transfer must be selected";
+    return e;
+  }
+
   const isFreelancer = currentUser?.role === "freelancer";
 
-  // ---- Client: tạo hợp đồng mới ----
+  // ── Helpers ──────────────────────────────────────────────────────────────
   async function handleSubmit(event) {
     event.preventDefault();
     if (!apiToken) {
       setStatus({ loading: false, lockingId: null, message: "Please log in before creating an escrow." });
       return;
     }
-    const form = new FormData(event.currentTarget);
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      setStatus({ loading: false, lockingId: null, message: "Please fix the errors highlighted above." });
+      return;
+    }
     setStatus({ loading: true, lockingId: null, message: "" });
     try {
       const result = await apiRequest("/api/escrows", {
         method: "POST",
         token: apiToken,
         body: JSON.stringify({
-          serviceName: form.get("serviceName"),
-          jobDescription: form.get("jobDescription"),
-          amount: String(form.get("amount") || "").replace(/[^\d.]/g, ""),
-          deadline: form.get("deadline")
+          ...fd,
+          gracePeriod:       Number(fd.gracePeriod),
+          reviewPeriod:      Number(fd.reviewPeriod),
+          autoReleasePeriod: Number(fd.autoReleasePeriod),
         })
       });
       setSelectedEscrow(result.escrow);
@@ -1535,7 +1653,6 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
     setStatus({ loading: false, lockingId: null, message: "" });
   }
 
-  // ---- Freelancer: nhận việc ----
   async function handleLock(escrowId) {
     if (!apiToken) return;
     setStatus({ loading: true, lockingId: escrowId, message: "" });
@@ -1555,23 +1672,32 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
     setStatus({ loading: false, lockingId: null, message: "" });
   }
 
-  // ---- Mapping trạng thái hợp đồng cho client list ----
   function postedJobStatus(escrow) {
     const s = escrow.status;
     if (s === "RELEASED" || s === "REFUNDED" || s === "CANCELLED") return null;
-    if (s === "DISPUTED") return { label: c.status.open, tone: "rose" };
-    if (s === "SUBMITTED") return { label: c.status.submitted, tone: "amber" };
-    if (s === "LOCKED" || s === "IN_PROGRESS") return { label: c.status.locked, tone: "violet" };
-    if (s === "CREATED" && escrow.freelancer) return { label: c.create.statusAssigned, tone: "cyan" };
+    if (s === "DISPUTED")                                    return { label: c.status.open,            tone: "rose"   };
+    if (s === "SUBMITTED")                                   return { label: c.status.submitted,        tone: "amber"  };
+    if (s === "LOCKED" || s === "IN_PROGRESS")               return { label: c.status.locked,           tone: "violet" };
+    if (s === "CREATED" && escrow.freelancer)                return { label: c.create.statusAssigned,   tone: "cyan"   };
     return { label: c.create.statusOpen, tone: "emerald" };
   }
 
-  const myPostedEscrows = escrows.filter(e => {
-    const clientId = e.client?._id || e.client;
-    return String(clientId) === String(currentUser?._id || currentUser?.id);
-  }).filter(e => postedJobStatus(e) !== null);
+  const myPostedEscrows = escrows
+    .filter(e => String(e.client?._id || e.client) === String(currentUser?._id || currentUser?.id))
+    .filter(e => postedJobStatus(e) !== null);
 
-  // ---- View freelancer: duyệt danh sách việc ----
+  // ── Option lists ─────────────────────────────────────────────────────────
+  const deliverableFormatOpts     = ["Source Code","Figma File","PDF","ZIP File","Deployment URL","GitHub Repository","Google Drive Link","Video Demo","Other"];
+  const acceptanceChecklistOpts   = ["Matches project description","Meets all listed deliverables","Responsive design","No critical bugs","Source code is accessible","Deployment link works","Meets deadline","Other"];
+  const evidenceTypeOpts          = ["GitHub commits","Screenshots","Video demo","Deployment URL","Source code repository","Chat messages","Transaction hash","Delivery link","Other"];
+  const disputeReasonOpts         = ["Missing deliverables","Late delivery","Poor quality","Wrong scope","Non-payment concern","Freelancer inactivity","Client inactivity","Suspected scam","Other"];
+  const reviewerDecisionOpts      = ["Release full payment to freelancer","Refund full amount to client","Split payment","Request additional evidence"];
+
+  function Err({ field }) {
+    return errors[field] ? <p className="mt-1 text-xs font-bold text-rose-400">{errors[field]}</p> : null;
+  }
+
+  // ── FREELANCER VIEW ───────────────────────────────────────────────────────
   if (isFreelancer) {
     return (
       <div className="space-y-6">
@@ -1579,7 +1705,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
         <InlineMessage message={status.message} theme={theme} />
         {availableEscrows.length === 0 ? (
           <Card theme={theme}>
-            <p className={classNames("text-center py-8", theme.muted)}>{c.create.noJobs}</p>
+            <p className={classNames("py-8 text-center", theme.muted)}>{c.create.noJobs}</p>
           </Card>
         ) : (
           <div className="grid gap-4">
@@ -1588,27 +1714,20 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className={classNames("font-black text-base", theme.heading)}>{job.serviceName}</p>
+                      <p className={classNames("text-base font-black", theme.heading)}>{job.serviceName}</p>
+                      {job.serviceCategory && <Badge theme={theme} tone="violet">{job.serviceCategory}</Badge>}
                       <Badge theme={theme} tone="emerald">{c.create.statusOpen}</Badge>
                     </div>
                     {job.jobDescription && (
-                      <p className={classNames("mt-2 text-sm leading-6 line-clamp-2", theme.muted)}>{job.jobDescription}</p>
+                      <p className={classNames("mt-2 line-clamp-2 text-sm leading-6", theme.muted)}>{job.jobDescription}</p>
                     )}
                     <div className="mt-3 flex flex-wrap gap-4 text-sm">
                       <span className={theme.faint}>{c.common.amount}: <span className={classNames("font-bold", theme.accentText)}>{formatEscrowAmount(job.amount)}</span></span>
-                      {job.deadline && (
-                        <span className={theme.faint}>{c.common.deadline}: <span className={classNames("font-bold", theme.text)}>{new Date(job.deadline).toLocaleDateString()}</span></span>
-                      )}
+                      {job.deadline && <span className={theme.faint}>{c.common.deadline}: <span className={classNames("font-bold", theme.text)}>{new Date(job.deadline).toLocaleDateString()}</span></span>}
                       <span className={theme.faint}>{c.details.client}: <span className={classNames("font-bold", theme.text)}>{job.client?.name || "—"}</span></span>
                     </div>
                   </div>
-                  <Button
-                    theme={theme}
-                    icon={LockKeyhole}
-                    variant="primary"
-                    disabled={status.loading && status.lockingId === job._id}
-                    onClick={() => handleLock(job._id)}
-                  >
+                  <Button theme={theme} icon={LockKeyhole} variant="primary" disabled={status.loading && status.lockingId === job._id} onClick={() => handleLock(job._id)}>
                     {status.loading && status.lockingId === job._id ? "Accepting..." : c.create.lockBtn}
                   </Button>
                 </div>
@@ -1620,90 +1739,375 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
     );
   }
 
-  // ---- View client: form tạo + danh sách đã đăng ----
+  // ── CLIENT VIEW ───────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card theme={theme}>
-          <PageIntro title={c.create.title} subtitle={c.create.subtitle} theme={theme} />
-          <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-            <Field theme={theme} label={c.create.serviceName} icon={Briefcase}>
-              <TextInput theme={theme} name="serviceName" defaultValue="Landing Page Development" required />
-            </Field>
-            <Field theme={theme} label={c.create.description} icon={FileText}>
-              <TextArea theme={theme} name="jobDescription" defaultValue="Build a responsive Web3 landing page for a SaaS launch with pricing, FAQ, and wallet CTA." />
-            </Field>
-            <div className="grid gap-4 md:grid-cols-3">
-              <Field theme={theme} label={c.create.budget} icon={Coins}>
-                <TextInput theme={theme} name="amount" defaultValue="1250" required />
+      <PageIntro title={c.create.title} subtitle={c.create.subtitle} theme={theme} />
+      <div className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
+
+        {/* ── FORM ── */}
+        <form className="grid gap-6" onSubmit={handleSubmit} noValidate>
+
+          {/* 1 · JOB INFORMATION */}
+          <Card theme={theme}>
+            <FormSection title="Job Information" icon={Briefcase} theme={theme}>
+              <Field theme={theme} label={c.create.serviceName} icon={Briefcase}>
+                <TextInput theme={theme} value={fd.serviceName} onChange={e => set("serviceName", e.target.value)} />
+                <Err field="serviceName" />
               </Field>
-              <Field theme={theme} label={c.create.deadline} icon={Clock3}>
-                <TextInput theme={theme} name="deadline" type="date" defaultValue="2026-06-28" />
+              <Field theme={theme} label="Service Category" icon={Layers3}>
+                <SelectInput theme={theme} value={fd.serviceCategory} onChange={e => set("serviceCategory", e.target.value)}>
+                  <option value="">— Select category —</option>
+                  <option>Web Development</option>
+                  <option>UI/UX Design</option>
+                  <option>Smart Contract Development</option>
+                  <option>Content Writing</option>
+                  <option>Marketing</option>
+                  <option>Data Analysis</option>
+                  <option>Other</option>
+                </SelectInput>
+                <Err field="serviceCategory" />
               </Field>
-              <Field theme={theme} label="Token" icon={CreditCard}>
-                <SelectInput theme={theme} defaultValue="USDT">
-                  <option>USDT</option>
-                  <option>VNDC</option>
+              <Field theme={theme} label="Skill Requirements" icon={GraduationCap}>
+                <TextArea theme={theme} placeholder="e.g. React, Solidity, 2+ years, Figma experience…" value={fd.skillRequirements} onChange={e => set("skillRequirements", e.target.value)} />
+              </Field>
+              <Field theme={theme} label={c.create.description} icon={FileText}>
+                <TextArea theme={theme} value={fd.jobDescription} onChange={e => set("jobDescription", e.target.value)} />
+                <Err field="jobDescription" />
+              </Field>
+            </FormSection>
+          </Card>
+
+          {/* 2 · FINANCIAL TERMS */}
+          <Card theme={theme}>
+            <FormSection title="Financial Terms" icon={CircleDollarSign} theme={theme}>
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field theme={theme} label={c.create.budget} icon={Coins}>
+                  <TextInput theme={theme} type="number" min="0" value={fd.amount} onChange={e => set("amount", e.target.value)} />
+                  <Err field="amount" />
+                </Field>
+                <Field theme={theme} label="Payment Token" icon={CreditCard}>
+                  <SelectInput theme={theme} value={fd.paymentToken} onChange={e => set("paymentToken", e.target.value)}>
+                    <option>USDT</option>
+                    <option>VNDC</option>
+                    <option>POL</option>
+                  </SelectInput>
+                </Field>
+                <Field theme={theme} label="Gas Fee Responsibility" icon={Zap}>
+                  <SelectInput theme={theme} value={fd.gasFeeResponsibility} onChange={e => set("gasFeeResponsibility", e.target.value)}>
+                    <option value="client">Client pays gas fees</option>
+                    <option value="freelancer">Freelancer pays gas fees</option>
+                    <option value="each">Each party pays their own</option>
+                  </SelectInput>
+                </Field>
+              </div>
+            </FormSection>
+          </Card>
+
+          {/* 3 · DELIVERABLES */}
+          <Card theme={theme}>
+            <FormSection title="Deliverables" icon={FileCheck2} theme={theme}>
+              <Field theme={theme} label="Expected Deliverables" icon={ClipboardCheck}>
+                <TextArea theme={theme} placeholder="e.g. Fully responsive landing page with source code and deployment link…" value={fd.expectedDeliverables} onChange={e => set("expectedDeliverables", e.target.value)} />
+                <Err field="expectedDeliverables" />
+              </Field>
+              <div>
+                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>Deliverable Format</p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {deliverableFormatOpts.map(opt => (
+                    <CheckboxRow key={opt} label={opt} checked={fd.deliverableFormat.includes(opt)} onChange={() => toggleArr("deliverableFormat", opt)} theme={theme} />
+                  ))}
+                </div>
+              </div>
+              <Field theme={theme} label="Submission Link Requirement" icon={Globe2}>
+                <SelectInput theme={theme} value={fd.submissionLinkRequirement} onChange={e => set("submissionLinkRequirement", e.target.value)}>
+                  <option value="required">Required</option>
+                  <option value="optional">Optional</option>
+                  <option value="none">Not Required</option>
                 </SelectInput>
               </Field>
-            </div>
+            </FormSection>
+          </Card>
+
+          {/* 4 · ACCEPTANCE CRITERIA */}
+          <Card theme={theme}>
+            <FormSection title="Acceptance Criteria" icon={BadgeCheck} theme={theme}>
+              <div>
+                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>Acceptance Checklist</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {acceptanceChecklistOpts.map(opt => (
+                    <CheckboxRow key={opt} label={opt} checked={fd.acceptanceChecklist.includes(opt)} onChange={() => toggleArr("acceptanceChecklist", opt)} theme={theme} />
+                  ))}
+                </div>
+                <Err field="acceptanceChecklist" />
+              </div>
+              <Field theme={theme} label="Quality Standard" icon={Sparkles}>
+                <TextArea theme={theme} placeholder="e.g. Lighthouse score ≥ 90, responsive on mobile, no console errors…" value={fd.qualityStandard} onChange={e => set("qualityStandard", e.target.value)} />
+              </Field>
+              <Field theme={theme} label="Testing Requirement" icon={Activity}>
+                <SelectInput theme={theme} value={fd.testingRequirement} onChange={e => set("testingRequirement", e.target.value)}>
+                  <option value="none">No testing required</option>
+                  <option value="demo">Basic demo required</option>
+                  <option value="screenshots">Screenshots required</option>
+                  <option value="video">Video demo required</option>
+                  <option value="test_cases">Test cases required</option>
+                </SelectInput>
+              </Field>
+            </FormSection>
+          </Card>
+
+          {/* 5 · TIMELINE */}
+          <Card theme={theme}>
+            <FormSection title="Timeline" icon={Clock3} theme={theme}>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Field theme={theme} label={c.create.deadline} icon={Clock3}>
+                  <TextInput theme={theme} type="date" value={fd.deadline} onChange={e => set("deadline", e.target.value)} />
+                  <Err field="deadline" />
+                </Field>
+                <Field theme={theme} label="Grace Period (days)" icon={TimerReset}>
+                  <TextInput theme={theme} type="number" min="0" value={fd.gracePeriod} onChange={e => set("gracePeriod", e.target.value)} />
+                </Field>
+                <Field theme={theme} label="Review Period (days)" icon={FileCheck2}>
+                  <TextInput theme={theme} type="number" min="1" value={fd.reviewPeriod} onChange={e => set("reviewPeriod", e.target.value)} />
+                  <Err field="reviewPeriod" />
+                </Field>
+                <Field theme={theme} label="Auto Release (days)" icon={Zap}>
+                  <TextInput theme={theme} type="number" min="1" value={fd.autoReleasePeriod} onChange={e => set("autoReleasePeriod", e.target.value)} />
+                  <Err field="autoReleasePeriod" />
+                </Field>
+              </div>
+            </FormSection>
+          </Card>
+
+          {/* 6 · REVISION POLICY */}
+          <Card theme={theme}>
+            <FormSection title="Revision Policy" icon={Radio} theme={theme}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field theme={theme} label="Number of Revisions" icon={Radio}>
+                  <SelectInput theme={theme} value={fd.numberOfRevisions} onChange={e => set("numberOfRevisions", e.target.value)}>
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="unlimited">Unlimited</option>
+                  </SelectInput>
+                </Field>
+                <Field theme={theme} label="Revision Scope" icon={FileText}>
+                  <TextArea theme={theme} placeholder="e.g. Bug fixes are free. New feature requests require a new contract…" value={fd.revisionScope} onChange={e => set("revisionScope", e.target.value)} />
+                </Field>
+              </div>
+            </FormSection>
+          </Card>
+
+          {/* 7 · CANCELLATION & REFUND */}
+          <Card theme={theme}>
+            <FormSection title="Cancellation & Refund Policy" icon={X} theme={theme}>
+              <Field theme={theme} label="Client Cancellation Rule" icon={Users}>
+                <TextArea theme={theme} placeholder="e.g. Client may cancel before deposit with no penalty…" value={fd.clientCancellationRule} onChange={e => set("clientCancellationRule", e.target.value)} />
+              </Field>
+              <Field theme={theme} label="Freelancer Withdrawal Rule" icon={Users}>
+                <TextArea theme={theme} placeholder="e.g. Freelancer may withdraw before client deposits with no penalty…" value={fd.freelancerWithdrawalRule} onChange={e => set("freelancerWithdrawalRule", e.target.value)} />
+              </Field>
+              <Field theme={theme} label="Refund Rule" icon={CircleDollarSign}>
+                <TextArea theme={theme} placeholder="e.g. Full refund if cancelled before work starts. Partial refund based on progress…" value={fd.refundRule} onChange={e => set("refundRule", e.target.value)} />
+              </Field>
+            </FormSection>
+          </Card>
+
+          {/* 8 · EVIDENCE RULES */}
+          <Card theme={theme}>
+            <FormSection title="Evidence Rules for Dispute" icon={UploadCloud} theme={theme}>
+              <div>
+                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>Accepted Evidence Types</p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {evidenceTypeOpts.map(opt => (
+                    <CheckboxRow key={opt} label={opt} checked={fd.acceptedEvidenceTypes.includes(opt)} onChange={() => toggleArr("acceptedEvidenceTypes", opt)} theme={theme} />
+                  ))}
+                </div>
+                <Err field="acceptedEvidenceTypes" />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field theme={theme} label="Timestamp Source" icon={Clock3}>
+                  <SelectInput theme={theme} value={fd.timestampSource} onChange={e => set("timestampSource", e.target.value)}>
+                    <option value="blockchain">Blockchain timestamp</option>
+                    <option value="platform">Platform timestamp</option>
+                    <option value="git">Git commit timestamp</option>
+                    <option value="mixed">Mixed evidence timestamp</option>
+                  </SelectInput>
+                </Field>
+                <Field theme={theme} label="Communication Log Usage" icon={MessageCircle}>
+                  <SelectInput theme={theme} value={fd.communicationLogUsage} onChange={e => set("communicationLogUsage", e.target.value)}>
+                    <option value="allowed">Allow platform messages as evidence</option>
+                    <option value="not_allowed">Do not use platform messages</option>
+                  </SelectInput>
+                </Field>
+              </div>
+            </FormSection>
+          </Card>
+
+          {/* 9 · DISPUTE RESOLUTION */}
+          <Card theme={theme}>
+            <FormSection title="Dispute Resolution Terms" icon={Gavel} theme={theme}>
+              <div>
+                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>Dispute Reasons</p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {disputeReasonOpts.map(opt => (
+                    <CheckboxRow key={opt} label={opt} checked={fd.disputeReasons.includes(opt)} onChange={() => toggleArr("disputeReasons", opt)} theme={theme} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>Reviewer Decision Options</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {reviewerDecisionOpts.map(opt => (
+                    <CheckboxRow key={opt} label={opt} checked={fd.reviewerDecisionOptions.includes(opt)} onChange={() => toggleArr("reviewerDecisionOptions", opt)} theme={theme} />
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field theme={theme} label="Evidence Upload Requirement" icon={UploadCloud}>
+                  <SelectInput theme={theme} value={fd.evidenceUploadRequirement} onChange={e => set("evidenceUploadRequirement", e.target.value)}>
+                    <option value="both">Required for both parties</option>
+                    <option value="initiator">Required only for dispute initiator</option>
+                    <option value="optional">Optional</option>
+                  </SelectInput>
+                </Field>
+                <Field theme={theme} label="Appeal Policy" icon={ShieldCheck}>
+                  <SelectInput theme={theme} value={fd.appealPolicy} onChange={e => set("appealPolicy", e.target.value)}>
+                    <option value="none">No appeal</option>
+                    <option value="one">One appeal allowed</option>
+                    <option value="new_evidence">Appeal with new evidence only</option>
+                  </SelectInput>
+                </Field>
+              </div>
+            </FormSection>
+          </Card>
+
+          {/* 10 · LEGAL & OWNERSHIP */}
+          <Card theme={theme}>
+            <FormSection title="Legal & Ownership Terms" icon={ShieldCheck} theme={theme}>
+              <Field theme={theme} label="Intellectual Property Transfer" icon={Fingerprint}>
+                <SelectInput theme={theme} value={fd.intellectualPropertyTransfer} onChange={e => set("intellectualPropertyTransfer", e.target.value)}>
+                  <option value="">— Select IP terms —</option>
+                  <option value="transfer_on_payment">Transfers to client after payment release</option>
+                  <option value="remains_freelancer">Remains with freelancer</option>
+                  <option value="shared">Shared ownership</option>
+                  <option value="custom">Custom</option>
+                </SelectInput>
+                <Err field="intellectualPropertyTransfer" />
+              </Field>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field theme={theme} label="Confidentiality" icon={LockKeyhole}>
+                  <SelectInput theme={theme} value={fd.confidentialityRequirement} onChange={e => set("confidentialityRequirement", e.target.value)}>
+                    <option value="public">Public work allowed</option>
+                    <option value="confidential">Confidential work</option>
+                    <option value="nda">NDA required outside platform</option>
+                  </SelectInput>
+                </Field>
+                <Field theme={theme} label="Commercial Usage Rights" icon={TrendingUp}>
+                  <SelectInput theme={theme} value={fd.commercialUsageRights} onChange={e => set("commercialUsageRights", e.target.value)}>
+                    <option value="commercial">Client may use commercially</option>
+                    <option value="internal">Internal purposes only</option>
+                    <option value="custom">Custom usage rights</option>
+                  </SelectInput>
+                </Field>
+              </div>
+            </FormSection>
+          </Card>
+
+          {/* SUBMIT */}
+          <div className="grid gap-3">
             <InlineMessage message={status.message} theme={theme} />
-            <Button theme={theme} type="submit" icon={Rocket} disabled={status.loading}>
+            <Button theme={theme} type="submit" icon={Rocket} size="lg" disabled={status.loading}>
               {status.loading ? "Posting..." : c.common.createEscrow}
             </Button>
-          </form>
-        </Card>
-        <Card theme={theme}>
-          <SectionTitle theme={theme} eyebrow={c.common.contract} title={c.create.previewTitle} />
-          <div className={classNames("rounded-lg border p-4", theme.soft)}>
-            <p className={classNames("text-sm leading-6", theme.muted)}>{c.create.previewCopy}</p>
-            <div className="mt-5 grid gap-3 text-sm">
-              {[
-                ["Token", "USDT / VNDC"],
-                ["Network", "Polygon"],
-                [c.common.status, c.status.created],
-                [c.common.contract, "0xE5c8...42F9"]
-              ].map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-3">
-                  <span className={theme.faint}>{label}</span>
-                  <span className={classNames("text-right font-bold", theme.text)}>{value}</span>
-                </div>
-              ))}
-            </div>
           </div>
-        </Card>
-      </div>
+        </form>
 
-      <Card theme={theme}>
-        <SectionTitle theme={theme} title={c.create.postedTitle} />
-        {myPostedEscrows.length === 0 ? (
-          <p className={classNames("py-4 text-sm", theme.muted)}>{c.create.noPosted}</p>
-        ) : (
-          <div className="grid gap-3">
-            {myPostedEscrows.map(job => {
-              const st = postedJobStatus(job);
-              return (
-                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className={classNames("font-bold text-sm", theme.text)}>{job.serviceName}</p>
-                      <Badge theme={theme} tone={st.tone}>{st.label}</Badge>
-                    </div>
-                    <div className="mt-1 flex flex-wrap gap-3 text-xs">
-                      <span className={theme.faint}>{formatEscrowAmount(job.amount)}</span>
-                      {job.deadline && <span className={theme.faint}>{new Date(job.deadline).toLocaleDateString()}</span>}
-                      {job.freelancer && <span className={theme.faint}>{c.details.freelancer}: {job.freelancer.name || job.freelancer.walletAddress?.slice(0, 10) + "..."}</span>}
-                    </div>
-                  </div>
-                  <Button theme={theme} icon={ReceiptText} variant="secondary" size="sm" onClick={() => { setSelectedEscrow(job); navigate("details"); }}>
-                    {c.create.viewBtn}
-                  </Button>
+        {/* ── CONTRACT SUMMARY (sticky sidebar) ── */}
+        <div className="grid gap-4 self-start xl:sticky xl:top-24">
+          <Card theme={theme}>
+            <SectionTitle theme={theme} eyebrow={c.common.contract} title={c.create.previewTitle} />
+            <p className={classNames("mb-4 text-xs leading-5", theme.muted)}>{c.create.previewCopy}</p>
+            <div className="grid gap-2.5 text-sm">
+              {[
+                ["Service",        fd.serviceName],
+                ["Category",       fd.serviceCategory],
+                ["Budget",         fd.amount ? `${fd.amount} ${fd.paymentToken}` : ""],
+                ["Gas fees",       fd.gasFeeResponsibility === "client" ? "Client pays" : fd.gasFeeResponsibility === "freelancer" ? "Freelancer pays" : "Each pays own"],
+                ["Deadline",       fd.deadline],
+                ["Grace period",   fd.gracePeriod   ? `${fd.gracePeriod} day(s)`   : ""],
+                ["Review period",  fd.reviewPeriod  ? `${fd.reviewPeriod} day(s)`  : ""],
+                ["Auto release",   fd.autoReleasePeriod ? `${fd.autoReleasePeriod} day(s)` : ""],
+                ["Revisions",      fd.numberOfRevisions],
+                ["Sub. link",      fd.submissionLinkRequirement],
+                ["Testing",        fd.testingRequirement !== "none" ? fd.testingRequirement : ""],
+                ["Evidence req.",  fd.evidenceUploadRequirement === "both" ? "Both parties" : fd.evidenceUploadRequirement === "initiator" ? "Initiator only" : "Optional"],
+                ["Appeal",         fd.appealPolicy === "none" ? "No appeal" : fd.appealPolicy === "one" ? "One appeal" : "New evidence only"],
+                ["IP transfer",    fd.intellectualPropertyTransfer ? fd.intellectualPropertyTransfer.replace(/_/g, " ") : ""],
+                ["Confidentiality",fd.confidentialityRequirement],
+                ["Commercial use", fd.commercialUsageRights === "commercial" ? "Allowed" : fd.commercialUsageRights === "internal" ? "Internal only" : "Custom"],
+              ].map(([label, value]) => value ? (
+                <div key={label} className="flex justify-between gap-3">
+                  <span className={classNames("shrink-0", theme.faint)}>{label}</span>
+                  <span className={classNames("text-right font-bold capitalize", theme.text)}>{value}</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+              ) : null)}
+            </div>
+            {(fd.deliverableFormat.length > 0 || fd.acceptanceChecklist.length > 0 || fd.acceptedEvidenceTypes.length > 0) && (
+              <div className={classNames("mt-4 grid gap-3 border-t pt-4", theme.border)}>
+                {fd.deliverableFormat.length > 0 && (
+                  <div>
+                    <p className={classNames("mb-2 text-xs font-black uppercase tracking-wide", theme.faint)}>Formats</p>
+                    <div className="flex flex-wrap gap-1">{fd.deliverableFormat.map(f => <Badge key={f} theme={theme} tone="cyan">{f}</Badge>)}</div>
+                  </div>
+                )}
+                {fd.acceptanceChecklist.length > 0 && (
+                  <div>
+                    <p className={classNames("mb-2 text-xs font-black uppercase tracking-wide", theme.faint)}>Acceptance</p>
+                    <div className="flex flex-wrap gap-1">{fd.acceptanceChecklist.map(f => <Badge key={f} theme={theme} tone="emerald">{f}</Badge>)}</div>
+                  </div>
+                )}
+                {fd.acceptedEvidenceTypes.length > 0 && (
+                  <div>
+                    <p className={classNames("mb-2 text-xs font-black uppercase tracking-wide", theme.faint)}>Evidence</p>
+                    <div className="flex flex-wrap gap-1">{fd.acceptedEvidenceTypes.map(f => <Badge key={f} theme={theme} tone="violet">{f}</Badge>)}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+
+          {/* Posted contracts list */}
+          {myPostedEscrows.length > 0 && (
+            <Card theme={theme}>
+              <SectionTitle theme={theme} title={c.create.postedTitle} />
+              <div className="grid gap-3">
+                {myPostedEscrows.map(job => {
+                  const st = postedJobStatus(job);
+                  return (
+                    <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className={classNames("text-sm font-bold", theme.text)}>{job.serviceName}</p>
+                          <Badge theme={theme} tone={st.tone}>{st.label}</Badge>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                          <span className={theme.faint}>{formatEscrowAmount(job.amount)}</span>
+                          {job.deadline && <span className={theme.faint}>{new Date(job.deadline).toLocaleDateString()}</span>}
+                        </div>
+                      </div>
+                      <Button theme={theme} icon={ReceiptText} variant="secondary" size="sm" onClick={() => { setSelectedEscrow(job); navigate("details"); }}>
+                        {c.create.viewBtn}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
