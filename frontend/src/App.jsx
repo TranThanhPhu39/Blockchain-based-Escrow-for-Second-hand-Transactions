@@ -1,4 +1,4 @@
-import { BrowserProvider, Contract, parseUnits } from "ethers";
+import { BrowserProvider, Contract, JsonRpcProvider, parseUnits } from "ethers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -63,7 +63,8 @@ const routes = [
   "disputes",
   "wallet",
   "notifications",
-  "profile"
+  "profile",
+  "admin"
 ];
 
 const routeSet = new Set(routes);
@@ -86,7 +87,8 @@ const translations = {
       disputes: "Dispute Center",
       wallet: "Wallet",
       notifications: "Notifications",
-      profile: "User Profile"
+      profile: "User Profile",
+      admin: "Admin Panel"
     },
     common: {
       createJob: "Post a Contract",
@@ -315,6 +317,7 @@ const translations = {
       submit: "Nộp sản phẩm",
       approval: "Phê duyệt",
       disputes: "Trung tâm tranh chấp",
+      admin: "Quản trị",
       wallet: "Ví",
       notifications: "Thông báo",
       profile: "Hồ sơ người dùng"
@@ -643,13 +646,16 @@ function routeHash(route) {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
+const AMOY_RPC = import.meta.env.VITE_AMOY_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/Zi4sE_2bG68-B6wAeCW4_";
 
 const ESCROW_ABI = [
   "function createEscrow(bytes32 escrowId, address seller, uint256 amount)",
   "function deposit(bytes32 escrowId)",
   "function markShipped(bytes32 escrowId)",
   "function confirmDelivery(bytes32 escrowId)",
-  "function paymentToken() view returns (address)"
+  "function raiseDispute(bytes32 escrowId, string calldata evidenceURI)",
+  "function paymentToken() view returns (address)",
+  "function getEscrow(bytes32 escrowId) view returns (bool exists, address buyer, address seller, uint256 amount, uint8 status, string evidenceURI, uint256 createdAt, uint256 updatedAt)"
 ];
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -658,20 +664,97 @@ const ERC20_ABI = [
 
 let _tokenAddress = null;
 let _tokenDecimals = null;
+let _walletProvider = null; // provider được chọn bởi user (Coin98 hoặc MetaMask)
+
+function setWalletProvider(provider) {
+  _walletProvider = provider;
+  _tokenAddress = null;
+  _tokenDecimals = null;
+}
+
+function getWalletProvider() {
+  return _walletProvider || window.ethereum;
+}
+
+// Trả về danh sách các wallet provider đang available (EIP-6963 + providers[])
+function detectWallets() {
+  const wallets = [];
+  const seen = new Set();
+
+  const addWallet = (provider) => {
+    const id = provider.isCoin98 ? "coin98" : provider.isMetaMask ? "metamask" : Math.random().toString();
+    if (seen.has(id)) return;
+    seen.add(id);
+    wallets.push({
+      id,
+      name: provider.isCoin98 ? "Coin98" : provider.isMetaMask ? "MetaMask" : "Browser Wallet",
+      provider,
+    });
+  };
+
+  if (window.ethereum?.providers?.length) {
+    window.ethereum.providers.forEach(addWallet);
+  } else if (window.ethereum) {
+    addWallet(window.ethereum);
+  }
+
+  return wallets;
+}
 
 function objectIdToBytes32(id) {
   return ("0x" + String(id).padEnd(64, "0")).toLowerCase();
 }
 
 async function getContracts() {
-  if (!window.ethereum) throw new Error("MetaMask not found");
+  const eth = getWalletProvider();
+  if (!eth) throw new Error("Wallet not found");
   if (!CONTRACT_ADDRESS) throw new Error("VITE_CONTRACT_ADDRESS not set");
-  const provider = new BrowserProvider(window.ethereum);
-  const signer = await provider.getSigner();
+  const AMOY_CHAIN_ID = "0x13882"; // 80002
+  const chainId = await eth.request({ method: "eth_chainId" });
+  if (chainId !== AMOY_CHAIN_ID) {
+    try {
+      await eth.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: AMOY_CHAIN_ID }]
+      });
+    } catch (switchErr) {
+      if (switchErr.code === 4902) {
+        await eth.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: AMOY_CHAIN_ID,
+            chainName: "Polygon Amoy",
+            nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 },
+            rpcUrls: ["https://rpc-amoy.polygon.technology/"],
+            blockExplorerUrls: ["https://amoy.polygonscan.com/"]
+          }]
+        });
+      } else {
+        throw new Error("Vui lòng chuyển sang mạng Polygon Amoy (chainId 80002)");
+      }
+    }
+    _tokenAddress = null;
+    _tokenDecimals = null;
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  const readProvider = new JsonRpcProvider(AMOY_RPC);
+  const writeProvider = new BrowserProvider(eth);
+  const signer = await writeProvider.getSigner();
+  console.log("[getContracts] using RPC:", AMOY_RPC);
+  if (!_tokenAddress) {
+    console.log("[getContracts] calling paymentToken()...");
+    const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+    _tokenAddress = await escrowRead.paymentToken();
+    console.log("[getContracts] tokenAddress:", _tokenAddress);
+  }
+  if (_tokenDecimals === null) {
+    console.log("[getContracts] calling decimals()...");
+    const tokenRead = new Contract(_tokenAddress, ERC20_ABI, readProvider);
+    _tokenDecimals = Number(await tokenRead.decimals());
+    console.log("[getContracts] decimals:", _tokenDecimals);
+  }
   const escrowContract = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, signer);
-  if (!_tokenAddress) _tokenAddress = await escrowContract.paymentToken();
   const tokenContract = new Contract(_tokenAddress, ERC20_ABI, signer);
-  if (_tokenDecimals === null) _tokenDecimals = Number(await tokenContract.decimals());
   return { escrow: escrowContract, token: tokenContract, decimals: _tokenDecimals };
 }
 
@@ -925,6 +1008,7 @@ function ProgressBar({ value, theme }) {
 function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
   const isLoggedIn = !!currentUser;
   const isFreelancer = currentUser?.role === "freelancer";
+  const isAdmin = currentUser?.role === "admin";
 
   const allNav = [
     [Home, "landing"],
@@ -938,11 +1022,17 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
     [Gavel, "disputes"],
     [Wallet, "wallet"],
     [Bell, "notifications"],
-    [BadgeCheck, "profile"]
+    [BadgeCheck, "profile"],
+    [ShieldCheck, "admin"]
   ];
 
   const protectedIds = new Set(["dashboard", "create", "details", "submit", "approval", "disputes", "wallet", "notifications", "profile"]);
-  const nav = allNav.filter(([, id]) => !protectedIds.has(id) || isLoggedIn);
+  const adminOnly = new Set(["admin"]);
+  const nav = allNav.filter(([, id]) => {
+    if (adminOnly.has(id)) return isAdmin;
+    if (protectedIds.has(id)) return isLoggedIn;
+    return true;
+  });
 
   function navLabel(id) {
     if (id === "create") return isFreelancer ? c.nav.jobs : c.nav.create;
@@ -1622,6 +1712,8 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   const isClient = escrow && currentUser && String(escrow.client?._id || escrow.client) === String(currentUser._id || currentUser.id);
   const canDeposit = isClient && escrow?.status === "CREATED" && escrow?.freelancer;
 
+  
+
   async function handleDeposit() {
     const freelancerWallet = escrow?.freelancer?.walletAddress;
     if (!escrow?.escrowIdOnChain || !freelancerWallet) {
@@ -1632,12 +1724,62 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     try {
       const { escrow: escrowContract, token, decimals } = await getContracts();
       const amountBig = parseUnits(String(escrow.amount), decimals);
-      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig);
+      const gasOpts = { gasLimit: 150000n };
+      const readProvider = new JsonRpcProvider(AMOY_RPC);
+
+      // Auto-faucet: mint test tokens if balance is low
+      const signerAddress = await (await new BrowserProvider(getWalletProvider()).getSigner()).getAddress();
+      console.log("[deposit] signerAddress:", signerAddress);
+      console.log("[deposit] escrowIdOnChain:", escrow.escrowIdOnChain);
+      console.log("[deposit] freelancerWallet:", freelancerWallet);
+      console.log("[deposit] amount:", escrow.amount, "→ amountBig:", amountBig.toString());
+      await apiRequest("/api/faucet", { method: "POST", body: JSON.stringify({ address: signerAddress }) })
+        .catch((e) => console.warn("[faucet] failed:", e.message));
+      const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+
+      // Check if escrow already exists on-chain (from a previous failed attempt)
+      let onChainStatus = -1;
+      try {
+        const onChain = await escrowRead.getEscrow(escrow.escrowIdOnChain);
+        onChainStatus = Number(onChain.status); // 0=CREATED, 1=LOCKED
+        console.log("[deposit] on-chain exists, status:", onChainStatus);
+      } catch (e) {
+        onChainStatus = -1;
+        console.log("[deposit] getEscrow threw (not found):", e.message?.slice(0, 80));
+      }
+
+      if (onChainStatus === 1) {
+        addToast("deposit");
+        setTimeout(() => refreshEscrows(), 3000);
+        return;
+      }
+
+      console.log("[deposit] calling approve...");
+      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig, { gasLimit: 100000n });
       await approveTx.wait();
-      const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig);
-      await createTx.wait();
-      const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain);
+      console.log("[deposit] approve done");
+
+      if (onChainStatus === -1) {
+        // Simulate first to get a readable revert reason
+        try {
+          const escrowSim = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+          await escrowSim.createEscrow.staticCall(escrow.escrowIdOnChain, freelancerWallet, amountBig, { from: signerAddress });
+        } catch (simErr) {
+          console.error("[deposit] createEscrow simulation failed:", simErr.reason || simErr.message);
+          throw new Error("createEscrow would revert: " + (simErr.reason || simErr.shortMessage || simErr.message));
+        }
+        console.log("[deposit] calling createEscrow...");
+        // createEscrow writes 5-6 cold storage slots → needs ~145k gas
+        const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig, { gasLimit: 300000n });
+        await createTx.wait();
+        console.log("[deposit] createEscrow done");
+      }
+
+      console.log("[deposit] calling deposit...");
+      // deposit: reentrancy guard + ERC20 transferFrom → needs ~120k gas
+      const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain, { gasLimit: 200000n });
       await depositTx.wait();
+      console.log("[deposit] deposit done");
       addToast("deposit");
       setTimeout(() => refreshEscrows(), 10000);
     } catch (err) {
@@ -1725,7 +1867,7 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
       if (selectedEscrow?.escrowIdOnChain) {
         try {
           const { escrow: escrowContract } = await getContracts();
-          const tx = await escrowContract.markShipped(selectedEscrow.escrowIdOnChain);
+          const tx = await escrowContract.markShipped(selectedEscrow.escrowIdOnChain, { gasLimit: 150000n });
           await tx.wait();
         } catch (chainErr) {
           // Bypass nếu đã SHIPPED rồi (retry sau khi API fail)
@@ -1793,7 +1935,8 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
     try {
       if (selectedEscrow?.escrowIdOnChain) {
         const { escrow: escrowContract } = await getContracts();
-        const tx = await escrowContract.confirmDelivery(selectedEscrow.escrowIdOnChain);
+        // confirmDelivery: reentrancy guard + ERC20 safeTransfer to seller → needs ~120k gas
+        const tx = await escrowContract.confirmDelivery(selectedEscrow.escrowIdOnChain, { gasLimit: 200000n });
         await tx.wait();
       }
       const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/approve`, {
@@ -1867,20 +2010,38 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
       setStatus({ loading: false, message: "Please log in and select an escrow first." });
       return;
     }
+    if (!selectedEscrow?.escrowIdOnChain) {
+      setStatus({ loading: false, message: "Escrow chưa có on-chain ID." });
+      return;
+    }
     const form = new FormData(event.currentTarget);
+    const reason = form.get("reason");
     setStatus({ loading: true, message: "" });
     try {
+      // 1. Tạo dispute record trong DB
       const result = await apiRequest("/api/disputes", {
         method: "POST",
         token: apiToken,
-        body: JSON.stringify({ escrowId: selectedEscrow._id, reason: form.get("reason") })
+        body: JSON.stringify({ escrowId: selectedEscrow._id, reason })
       });
-      setDisputes((prev) => [result.dispute, ...prev]);
+      const dispute = result.dispute;
+
+      // 2. Gọi raiseDispute() on-chain — đổi status contract sang DISPUTED
+      const evidenceURI = `${API_BASE_URL}/api/disputes/${dispute._id}`;
+      const { escrow: escrowContract } = await getContracts();
+      const tx = await escrowContract.raiseDispute(
+        selectedEscrow.escrowIdOnChain,
+        evidenceURI,
+        { gasLimit: 200000n }
+      );
+      await tx.wait();
+
+      setDisputes((prev) => [dispute, ...prev]);
       addToast("disputeOpened");
       if (refreshEscrows) await refreshEscrows();
       event.target.reset();
     } catch (error) {
-      setStatus({ loading: false, message: error.message });
+      setStatus({ loading: false, message: error.reason || error.message });
       return;
     }
     setStatus({ loading: false, message: "" });
@@ -1954,19 +2115,15 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
 
 function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiToken, setCurrentUser }) {
   const [status, setStatus] = useState({ loading: false, message: "" });
+  const [walletOptions, setWalletOptions] = useState([]); // danh sách wallets khi có nhiều
 
-  async function connectWallet() {
-    if (!window.ethereum) {
-      setStatus({ loading: false, message: "MetaMask is not available in this browser." });
-      return;
-    }
-
+  async function connectWithProvider(provider) {
+    setWalletOptions([]);
+    setWalletProvider(provider); // lưu provider được chọn vào module-level
     setStatus({ loading: true, message: "" });
-
     try {
-      const [address] = await window.ethereum.request({ method: "eth_requestAccounts" });
+      const [address] = await provider.request({ method: "eth_requestAccounts" });
       setWallet({ connected: true, address, short: shortAddress(address), eth: "0.00", usdt: "0", status: c.status.connected });
-
       if (apiToken) {
         const result = await apiRequest("/api/auth/wallet", {
           method: "PATCH",
@@ -1976,14 +2133,26 @@ function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiT
         window.localStorage.setItem("escrowx-user", JSON.stringify(result.user));
         setCurrentUser(result.user);
       }
-
       addToast("deposit");
     } catch (error) {
       setStatus({ loading: false, message: error.message });
       return;
     }
-
     setStatus({ loading: false, message: "" });
+  }
+
+  async function connectWallet() {
+    const wallets = detectWallets();
+    if (wallets.length === 0) {
+      setStatus({ loading: false, message: "Không tìm thấy ví. Hãy cài MetaMask hoặc Coin98." });
+      return;
+    }
+    if (wallets.length === 1) {
+      await connectWithProvider(wallets[0].provider);
+      return;
+    }
+    // Nhiều ví → cho user chọn
+    setWalletOptions(wallets);
   }
 
   return (
@@ -2007,6 +2176,29 @@ function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiT
             </Button>
             <Button theme={theme} icon={Fingerprint} variant="secondary" onClick={openSignModal}>{c.common.signTransaction}</Button>
           </div>
+          {walletOptions.length > 0 && (
+            <div className={classNames("mt-4 rounded-lg border p-4", theme.soft)}>
+              <p className={classNames("mb-3 text-sm font-semibold", theme.heading)}>Chọn ví để kết nối:</p>
+              <div className="flex flex-col gap-2">
+                {walletOptions.map((w) => (
+                  <button
+                    key={w.id}
+                    onClick={() => connectWithProvider(w.provider)}
+                    className={classNames("flex items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm font-medium transition hover:opacity-80", theme.soft, theme.text)}
+                  >
+                    <Wallet className="h-5 w-5 shrink-0 text-cyan-400" />
+                    {w.name}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setWalletOptions([])}
+                  className={classNames("mt-1 text-xs", theme.faint)}
+                >
+                  Huỷ
+                </button>
+              </div>
+            </div>
+          )}
           <InlineMessage message={status.message} theme={theme} />
         </div>
       </Card>
@@ -2276,6 +2468,157 @@ function SignTransactionModal({ open, onClose, c, theme, addToast }) {
   );
 }
 
+function AdminPage({ c, theme, apiToken }) {
+  const [disputes, setDisputes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [resolving, setResolving] = useState(null); // dispute id đang xử lý
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (!apiToken) return;
+    apiRequest("/api/disputes", { token: apiToken })
+      .then((d) => setDisputes(d.disputes || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [apiToken]);
+
+  async function handleResolve(dispute, releaseToFreelancer) {
+    setResolving(dispute._id);
+    try {
+      await apiRequest(`/api/disputes/${dispute._id}/resolve`, {
+        method: "PATCH",
+        token: apiToken,
+        body: JSON.stringify({ releaseToFreelancer, resolutionNote: note })
+      });
+      setDisputes((prev) =>
+        prev.map((d) =>
+          d._id === dispute._id
+            ? { ...d, status: releaseToFreelancer ? "RESOLVED_RELEASE" : "RESOLVED_REFUND" }
+            : d
+        )
+      );
+      setNote("");
+    } catch (err) {
+      alert(err.message);
+    }
+    setResolving(null);
+  }
+
+  const open = disputes.filter((d) => d.status === "OPEN");
+  const resolved = disputes.filter((d) => d.status !== "OPEN");
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div key="admin" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-6">
+        <div>
+          <h1 className={classNames("text-2xl font-black", theme.heading)}>Admin Panel</h1>
+          <p className={classNames("mt-1 text-sm", theme.faint)}>Xử lý tranh chấp — gọi resolveDispute() on-chain bằng ví admin</p>
+        </div>
+
+        {loading && <p className={classNames("text-sm", theme.faint)}>Đang tải...</p>}
+
+        {!loading && open.length === 0 && (
+          <Card theme={theme}>
+            <p className={classNames("text-sm", theme.faint)}>Không có tranh chấp nào đang mở.</p>
+          </Card>
+        )}
+
+        {open.length > 0 && (
+          <div className="space-y-4">
+            <h2 className={classNames("text-lg font-bold", theme.heading)}>Tranh chấp đang mở ({open.length})</h2>
+            {open.map((d) => (
+              <Card key={d._id} theme={theme}>
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className={classNames("font-bold", theme.heading)}>{d.escrow?.serviceName || "—"}</p>
+                      <p className={classNames("mt-1 text-xs font-mono", theme.faint)}>{d._id}</p>
+                    </div>
+                    <span className="rounded-full bg-yellow-400/20 px-2 py-0.5 text-xs font-bold text-yellow-400">OPEN</span>
+                  </div>
+
+                  <div className={classNames("grid gap-2 text-sm", theme.text)}>
+                    <div className="flex justify-between">
+                      <span className={theme.faint}>Số tiền</span>
+                      <span className="font-bold">{d.escrow?.amount ?? "—"} mUSDC</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme.faint}>Người mở tranh chấp</span>
+                      <span>{d.raisedBy?.name || "—"} ({d.raisedBy?.role || "—"})</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={theme.faint}>Lý do</span>
+                      <span className="text-right max-w-xs">{d.reason || "—"}</span>
+                    </div>
+                    {d.evidenceFiles?.length > 0 && (
+                      <div className="flex flex-col gap-1">
+                        <span className={theme.faint}>Bằng chứng</span>
+                        {d.evidenceFiles.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="truncate text-cyan-400 underline text-xs">{url}</a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <textarea
+                    placeholder="Ghi chú quyết định (tuỳ chọn)..."
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    rows={2}
+                    className={classNames("w-full rounded-lg border px-3 py-2 text-sm", theme.soft, theme.text)}
+                  />
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      theme={theme}
+                      icon={CheckCircle2}
+                      onClick={() => handleResolve(d, true)}
+                      disabled={resolving === d._id}
+                    >
+                      {resolving === d._id ? "Đang xử lý..." : "Release → Freelancer"}
+                    </Button>
+                    <Button
+                      theme={theme}
+                      icon={TimerReset}
+                      variant="secondary"
+                      onClick={() => handleResolve(d, false)}
+                      disabled={resolving === d._id}
+                    >
+                      {resolving === d._id ? "Đang xử lý..." : "Refund → Client"}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {resolved.length > 0 && (
+          <div className="space-y-3">
+            <h2 className={classNames("text-lg font-bold", theme.heading)}>Đã xử lý ({resolved.length})</h2>
+            {resolved.map((d) => (
+              <Card key={d._id} theme={theme}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className={classNames("font-bold", theme.heading)}>{d.escrow?.serviceName || "—"}</p>
+                    <p className={classNames("text-xs", theme.faint)}>{d.resolutionNote || "Không có ghi chú"}</p>
+                  </div>
+                  <span className={classNames(
+                    "rounded-full px-2 py-0.5 text-xs font-bold",
+                    d.status === "RESOLVED_RELEASE" ? "bg-emerald-400/20 text-emerald-400" : "bg-blue-400/20 text-blue-400"
+                  )}>
+                    {d.status === "RESOLVED_RELEASE" ? "→ Freelancer" : "→ Client"}
+                  </span>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 function App() {
   const [language, setLanguage] = useStoredState("escrowx-language", "en");
   const [themeName, setThemeName] = useStoredState("escrowx-theme", "dark");
@@ -2413,7 +2756,8 @@ function App() {
     disputes: <DisputeCenterPage {...pageProps} />,
     wallet: <WalletPage {...pageProps} />,
     notifications: <NotificationsPage {...pageProps} />,
-    profile: <ProfilePage {...pageProps} />
+    profile: <ProfilePage {...pageProps} />,
+    admin: <AdminPage {...pageProps} />
   };
 
   return (
