@@ -1,213 +1,527 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable}       from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20}        from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20}     from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+/**
+ * Freelance escrow with the following state machine:
+ *
+ *  Client createContract
+ *        │
+ *        ▼
+ *  Freelancer acceptContract  ──(5 days no response)──▶ triggerAutoban → CANCELLED + banned
+ *        │
+ *        ▼
+ *  Client deposit
+ *        │
+ *        ▼
+ *  Freelancer submitWork  ◀──────────────────────────────────────┐
+ *        │                                                        │
+ *        ▼                                                        │
+ *  Client review                                                  │
+ *   ├── approveWork   → RELEASED (freelancer paid)               │
+ *   ├── requestRevision → REVISION_REQUESTED ──────────────────-─┘
+ *   └── raiseDispute (+ evidence) → DISPUTED
+ *            │
+ *            ▼
+ *   Freelancer uploadDefense → REVIEWING_DISPUTE
+ *            │
+ *            ▼
+ *   Reviewers castDisputeVote (max 9 reviewers, 3-day window)
+ *   Each vote includes a structured Dispute Checklist:
+ *     • deliverablesMatch
+ *     • acceptanceCriteriaMet
+ *     • deadlineMet
+ *     • revisionHistoryReviewed
+ *     • submissionHistoryReviewed
+ *     • blockchainTimelineReviewed
+ *     • evidenceReviewed
+ *     • voteForFreelancer + reason
+ *            │
+ *            ▼
+ *   finalizeDispute  (majority wins → RELEASED or REFUNDED)
+ */
 contract EscrowContract is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    // ── Constants ────────────────────────────────────────────────────────────
+    uint256 public constant ACCEPT_DEADLINE = 5 days;
+    uint256 public constant DISPUTE_WINDOW  = 3 days;
+    uint256 public constant MAX_REVIEWERS   = 9;
+
+    // ── State machine ────────────────────────────────────────────────────────
     enum Status {
-        CREATED,
-        LOCKED,
-        SHIPPED,
-        DISPUTED,
-        RELEASED,
-        REFUNDED,
-        CANCELLED
+        CREATED,             // Client created, waiting for freelancer
+        ACCEPTED,            // Freelancer accepted
+        DEPOSITED,           // Client deposited funds
+        SUBMITTED,           // Freelancer submitted work (client reviewing)
+        REVISION_REQUESTED,  // Client wants changes
+        DISPUTED,            // Client raised dispute, waiting for freelancer defense
+        REVIEWING_DISPUTE,   // Reviewers voting on dispute
+        RELEASED,            // Funds sent to freelancer
+        REFUNDED,            // Funds returned to client
+        CANCELLED            // Contract cancelled
     }
 
-    struct Escrow {
-        bool exists;
-        address buyer;
-        address seller;
+    // ── Structs ──────────────────────────────────────────────────────────────
+
+    struct ContractData {
+        bool    exists;
+        address client;
+        address freelancer;
         uint256 amount;
-        Status status;
-        string evidenceURI;
+        Status  status;
+        string  contractURI;    // off-chain: requirements, deliverables, deadline
+        string  submissionURI;  // latest work submission
+        uint256 revisionCount;
         uint256 createdAt;
         uint256 updatedAt;
     }
 
+    // One reviewer's checklist + vote
+    struct ReviewVote {
+        bool   voted;
+        // Checklist items
+        bool   deliverablesMatch;
+        bool   acceptanceCriteriaMet;
+        bool   deadlineMet;
+        bool   revisionHistoryReviewed;
+        bool   submissionHistoryReviewed;
+        bool   blockchainTimelineReviewed;
+        bool   evidenceReviewed;
+        // Decision
+        bool   voteForFreelancer;
+        string reason;
+        uint256 timestamp;
+    }
+
+    struct DisputeData {
+        string  clientEvidenceURI;
+        string  freelancerDefenseURI;
+        uint256 raisedAt;
+        uint256 reviewStartedAt;
+        uint256 votesForFreelancer;
+        uint256 votesForClient;
+        address[] reviewerList;
+        mapping(address => ReviewVote) votes;
+        bool    finalized;
+    }
+
+    // ── Storage ──────────────────────────────────────────────────────────────
     IERC20 public immutable paymentToken;
 
-    mapping(bytes32 => Escrow) private escrows;
+    mapping(bytes32  => ContractData) private contracts;
+    mapping(bytes32  => DisputeData)  private disputes;
+    mapping(address  => bool)         public  bannedFreelancers;
+    mapping(address  => bool)         public  isReviewer;
 
-    event EscrowCreated(bytes32 indexed escrowId, address indexed buyer, address indexed seller, uint256 amount);
-    event FundsDeposited(bytes32 indexed escrowId, address indexed buyer, uint256 amount);
-    event ItemShipped(bytes32 indexed escrowId, address indexed seller);
-    event DisputeRaised(bytes32 indexed escrowId, address indexed raisedBy, string evidenceURI);
-    event FundsReleased(bytes32 indexed escrowId, address indexed seller, uint256 amount);
-    event BuyerRefunded(bytes32 indexed escrowId, address indexed buyer, uint256 amount);
-    event EscrowCancelled(bytes32 indexed escrowId, address indexed buyer);
+    // ── Events ───────────────────────────────────────────────────────────────
+    event ContractCreated(bytes32 indexed contractId, address indexed client, address indexed freelancer, uint256 amount);
+    event ContractAccepted(bytes32 indexed contractId, address indexed freelancer);
+    event FundsDeposited(bytes32 indexed contractId, address indexed client, uint256 amount);
+    event WorkSubmitted(bytes32 indexed contractId, address indexed freelancer, string submissionURI, uint256 revisionRound);
+    event WorkApproved(bytes32 indexed contractId, address indexed client);
+    event RevisionRequested(bytes32 indexed contractId, address indexed client, string reason, uint256 revisionCount);
+    event DisputeRaised(bytes32 indexed contractId, address indexed client, string evidenceURI);
+    event DefenseUploaded(bytes32 indexed contractId, address indexed freelancer, string defenseURI);
+    event DisputeVoteCast(bytes32 indexed contractId, address indexed reviewer, bool voteForFreelancer);
+    event DisputeFinalized(bytes32 indexed contractId, bool freelancerWon, uint256 votesForFreelancer, uint256 votesForClient);
+    event FundsReleased(bytes32 indexed contractId, address indexed freelancer, uint256 amount);
+    event ClientRefunded(bytes32 indexed contractId, address indexed client, uint256 amount);
+    event FreelancerBanned(address indexed freelancer, bytes32 indexed triggerContractId);
+    event ContractCancelled(bytes32 indexed contractId);
+    event ReviewerAdded(address indexed reviewer);
+    event ReviewerRemoved(address indexed reviewer);
 
-    error EscrowAlreadyExists(bytes32 escrowId);
-    error EscrowNotFound(bytes32 escrowId);
+    // ── Errors ───────────────────────────────────────────────────────────────
+    error ContractAlreadyExists(bytes32 contractId);
+    error ContractNotFound(bytes32 contractId);
     error InvalidAddress();
     error InvalidAmount();
-    error InvalidStatus(Status currentStatus);
+    error InvalidStatus(Status current);
     error Unauthorized();
+    error FreelancerIsBanned(address freelancer);
+    error DeadlineNotReached();
+    error DeadlineExpired();
+    error AlreadyVoted();
+    error MaxReviewersReached();
+    error NotAReviewer();
+    error AlreadyFinalized();
+    error ReviewWindowOpen();
+    error ReviewerAlreadyAdded();
+    error ReviewerNotFound();
 
+    // ── Constructor ──────────────────────────────────────────────────────────
     constructor(address tokenAddress, address initialOwner) Ownable(initialOwner) {
-        if (tokenAddress == address(0) || initialOwner == address(0)) {
-            revert InvalidAddress();
-        }
-
+        if (tokenAddress == address(0) || initialOwner == address(0)) revert InvalidAddress();
         paymentToken = IERC20(tokenAddress);
     }
 
-    function createEscrow(bytes32 escrowId, address seller, uint256 amount) external {
-        if (escrows[escrowId].exists) {
-            revert EscrowAlreadyExists(escrowId);
-        }
-        if (escrowId == bytes32(0) || seller == address(0) || seller == msg.sender) {
-            revert InvalidAddress();
-        }
-        if (amount == 0) {
-            revert InvalidAmount();
-        }
+    // ═══════════════════════════════════════════════════════════════════════
+    //  REVIEWER MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════
 
-        escrows[escrowId] = Escrow({
-            exists: true,
-            buyer: msg.sender,
-            seller: seller,
-            amount: amount,
-            status: Status.CREATED,
-            evidenceURI: "",
-            createdAt: block.timestamp,
-            updatedAt: block.timestamp
+    function addReviewer(address reviewer) external onlyOwner {
+        if (reviewer == address(0))  revert InvalidAddress();
+        if (isReviewer[reviewer])    revert ReviewerAlreadyAdded();
+        isReviewer[reviewer] = true;
+        emit ReviewerAdded(reviewer);
+    }
+
+    function removeReviewer(address reviewer) external onlyOwner {
+        if (!isReviewer[reviewer]) revert ReviewerNotFound();
+        isReviewer[reviewer] = false;
+        emit ReviewerRemoved(reviewer);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  STEP 1 — CLIENT CREATES CONTRACT
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function createContract(
+        bytes32        contractId,
+        address        freelancer,
+        uint256        amount,
+        string calldata contractURI   // IPFS / off-chain URI with requirements
+    ) external {
+        if (contracts[contractId].exists) revert ContractAlreadyExists(contractId);
+        if (contractId == bytes32(0) || freelancer == address(0) || freelancer == msg.sender)
+            revert InvalidAddress();
+        if (amount == 0) revert InvalidAmount();
+        if (bannedFreelancers[freelancer]) revert FreelancerIsBanned(freelancer);
+
+        contracts[contractId] = ContractData({
+            exists:        true,
+            client:        msg.sender,
+            freelancer:    freelancer,
+            amount:        amount,
+            status:        Status.CREATED,
+            contractURI:   contractURI,
+            submissionURI: "",
+            revisionCount: 0,
+            createdAt:     block.timestamp,
+            updatedAt:     block.timestamp
         });
 
-        emit EscrowCreated(escrowId, msg.sender, seller, amount);
+        emit ContractCreated(contractId, msg.sender, freelancer, amount);
     }
 
-    function deposit(bytes32 escrowId) external nonReentrant {
-        Escrow storage escrow = _getExistingEscrow(escrowId);
-        _onlyBuyer(escrow);
-        _requireStatus(escrow, Status.CREATED);
+    // ═══════════════════════════════════════════════════════════════════════
+    //  STEP 2 — FREELANCER ACCEPTS (must be within 5 days)
+    // ═══════════════════════════════════════════════════════════════════════
 
-        escrow.status = Status.LOCKED;
-        escrow.updatedAt = block.timestamp;
-        paymentToken.safeTransferFrom(msg.sender, address(this), escrow.amount);
+    function acceptContract(bytes32 contractId) external {
+        ContractData storage c = _get(contractId);
+        _onlyFreelancer(c);
+        _requireStatus(c, Status.CREATED);
+        if (block.timestamp > c.createdAt + ACCEPT_DEADLINE) revert DeadlineExpired();
 
-        emit FundsDeposited(escrowId, msg.sender, escrow.amount);
+        c.status    = Status.ACCEPTED;
+        c.updatedAt = block.timestamp;
+        emit ContractAccepted(contractId, msg.sender);
     }
 
-    function markShipped(bytes32 escrowId) external {
-        Escrow storage escrow = _getExistingEscrow(escrowId);
-        _onlySeller(escrow);
-        _requireStatus(escrow, Status.LOCKED);
+    /**
+     * @notice Anyone can call this after 5 days if the freelancer never accepted.
+     *         Bans the freelancer and cancels the contract.
+     */
+    function triggerAutoban(bytes32 contractId) external {
+        ContractData storage c = _get(contractId);
+        _requireStatus(c, Status.CREATED);
+        if (block.timestamp <= c.createdAt + ACCEPT_DEADLINE) revert DeadlineNotReached();
 
-        escrow.status = Status.SHIPPED;
-        escrow.updatedAt = block.timestamp;
+        c.status    = Status.CANCELLED;
+        c.updatedAt = block.timestamp;
 
-        emit ItemShipped(escrowId, msg.sender);
-    }
-
-    function confirmDelivery(bytes32 escrowId) external nonReentrant {
-        Escrow storage escrow = _getExistingEscrow(escrowId);
-        _onlyBuyer(escrow);
-        _requireStatus(escrow, Status.SHIPPED);
-
-        _releaseFunds(escrowId, escrow);
-    }
-
-    function raiseDispute(bytes32 escrowId, string calldata evidenceURI) external {
-        Escrow storage escrow = _getExistingEscrow(escrowId);
-        if (msg.sender != escrow.buyer && msg.sender != escrow.seller) {
-            revert Unauthorized();
-        }
-        if (escrow.status != Status.LOCKED && escrow.status != Status.SHIPPED) {
-            revert InvalidStatus(escrow.status);
+        if (!bannedFreelancers[c.freelancer]) {
+            bannedFreelancers[c.freelancer] = true;
+            emit FreelancerBanned(c.freelancer, contractId);
         }
 
-        escrow.status = Status.DISPUTED;
-        escrow.evidenceURI = evidenceURI;
-        escrow.updatedAt = block.timestamp;
-
-        emit DisputeRaised(escrowId, msg.sender, evidenceURI);
+        emit ContractCancelled(contractId);
     }
 
-    function autoRelease(bytes32 escrowId) external onlyOwner nonReentrant {
-        Escrow storage escrow = _getExistingEscrow(escrowId);
-        if (escrow.status != Status.LOCKED && escrow.status != Status.SHIPPED) {
-            revert InvalidStatus(escrow.status);
+    // ═══════════════════════════════════════════════════════════════════════
+    //  STEP 3 — CLIENT DEPOSITS FUNDS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function deposit(bytes32 contractId) external nonReentrant {
+        ContractData storage c = _get(contractId);
+        _onlyClient(c);
+        _requireStatus(c, Status.ACCEPTED);
+
+        c.status    = Status.DEPOSITED;
+        c.updatedAt = block.timestamp;
+        paymentToken.safeTransferFrom(msg.sender, address(this), c.amount);
+
+        emit FundsDeposited(contractId, msg.sender, c.amount);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  STEP 4 — FREELANCER SUBMITS WORK (initial or after revision)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function submitWork(bytes32 contractId, string calldata submissionURI) external {
+        ContractData storage c = _get(contractId);
+        _onlyFreelancer(c);
+        if (c.status != Status.DEPOSITED && c.status != Status.REVISION_REQUESTED)
+            revert InvalidStatus(c.status);
+
+        c.submissionURI = submissionURI;
+        c.status        = Status.SUBMITTED;
+        c.updatedAt     = block.timestamp;
+
+        emit WorkSubmitted(contractId, msg.sender, submissionURI, c.revisionCount);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  STEP 5a — CLIENT APPROVES → funds released to freelancer
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function approveWork(bytes32 contractId) external nonReentrant {
+        ContractData storage c = _get(contractId);
+        _onlyClient(c);
+        _requireStatus(c, Status.SUBMITTED);
+
+        emit WorkApproved(contractId, msg.sender);
+        _releaseFunds(contractId, c);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  STEP 5b — CLIENT REQUESTS REVISION → freelancer must resubmit
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function requestRevision(bytes32 contractId, string calldata reason) external {
+        ContractData storage c = _get(contractId);
+        _onlyClient(c);
+        _requireStatus(c, Status.SUBMITTED);
+
+        c.revisionCount++;
+        c.status    = Status.REVISION_REQUESTED;
+        c.updatedAt = block.timestamp;
+
+        emit RevisionRequested(contractId, msg.sender, reason, c.revisionCount);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  STEP 5c — CLIENT RAISES DISPUTE (uploads evidence at the same time)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function raiseDispute(bytes32 contractId, string calldata evidenceURI) external {
+        ContractData storage c = _get(contractId);
+        _onlyClient(c);
+        _requireStatus(c, Status.SUBMITTED);
+
+        c.status    = Status.DISPUTED;
+        c.updatedAt = block.timestamp;
+
+        DisputeData storage d = disputes[contractId];
+        d.clientEvidenceURI = evidenceURI;
+        d.raisedAt          = block.timestamp;
+
+        emit DisputeRaised(contractId, msg.sender, evidenceURI);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  DISPUTE — FREELANCER UPLOADS DEFENSE → opens voting window
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function uploadDefense(bytes32 contractId, string calldata defenseURI) external {
+        ContractData storage c = _get(contractId);
+        _onlyFreelancer(c);
+        _requireStatus(c, Status.DISPUTED);
+
+        DisputeData storage d = disputes[contractId];
+        d.freelancerDefenseURI = defenseURI;
+        d.reviewStartedAt      = block.timestamp;
+
+        c.status    = Status.REVIEWING_DISPUTE;
+        c.updatedAt = block.timestamp;
+
+        emit DefenseUploaded(contractId, msg.sender, defenseURI);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  DISPUTE — REVIEWER CASTS VOTE WITH CHECKLIST
+    //  Max 9 reviewers · 3-day window · majority wins
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function castDisputeVote(
+        bytes32        contractId,
+        // ── Dispute Checklist ──────────────────
+        bool deliverablesMatch,
+        bool acceptanceCriteriaMet,
+        bool deadlineMet,
+        bool revisionHistoryReviewed,
+        bool submissionHistoryReviewed,
+        bool blockchainTimelineReviewed,
+        bool evidenceReviewed,
+        // ── Decision ──────────────────────────
+        bool           voteForFreelancer,
+        string calldata reason
+    ) external nonReentrant {
+        if (!isReviewer[msg.sender]) revert NotAReviewer();
+
+        ContractData storage c = _get(contractId);
+        _requireStatus(c, Status.REVIEWING_DISPUTE);
+
+        DisputeData storage d = disputes[contractId];
+        if (d.finalized)                                            revert AlreadyFinalized();
+        if (block.timestamp > d.reviewStartedAt + DISPUTE_WINDOW)  revert DeadlineExpired();
+        if (d.votes[msg.sender].voted)                              revert AlreadyVoted();
+        if (d.reviewerList.length >= MAX_REVIEWERS)                 revert MaxReviewersReached();
+
+        d.votes[msg.sender] = ReviewVote({
+            voted:                      true,
+            deliverablesMatch:          deliverablesMatch,
+            acceptanceCriteriaMet:      acceptanceCriteriaMet,
+            deadlineMet:                deadlineMet,
+            revisionHistoryReviewed:    revisionHistoryReviewed,
+            submissionHistoryReviewed:  submissionHistoryReviewed,
+            blockchainTimelineReviewed: blockchainTimelineReviewed,
+            evidenceReviewed:           evidenceReviewed,
+            voteForFreelancer:          voteForFreelancer,
+            reason:                     reason,
+            timestamp:                  block.timestamp
+        });
+
+        d.reviewerList.push(msg.sender);
+        if (voteForFreelancer) d.votesForFreelancer++;
+        else                   d.votesForClient++;
+
+        emit DisputeVoteCast(contractId, msg.sender, voteForFreelancer);
+
+        // Auto-finalize when all 9 slots are filled
+        if (d.reviewerList.length == MAX_REVIEWERS) {
+            _finalizeDispute(contractId, c, d);
         }
-        _releaseFunds(escrowId, escrow);
     }
 
-    function resolveDispute(bytes32 escrowId, bool releaseToSeller) external onlyOwner nonReentrant {
-        Escrow storage escrow = _getExistingEscrow(escrowId);
-        _requireStatus(escrow, Status.DISPUTED);
+    // ═══════════════════════════════════════════════════════════════════════
+    //  DISPUTE — ANYONE FINALIZES AFTER 3-DAY WINDOW CLOSES
+    // ═══════════════════════════════════════════════════════════════════════
 
-        if (releaseToSeller) {
-            _releaseFunds(escrowId, escrow);
-        } else {
-            _refundBuyer(escrowId, escrow);
-        }
+    function finalizeDispute(bytes32 contractId) external nonReentrant {
+        ContractData storage c = _get(contractId);
+        _requireStatus(c, Status.REVIEWING_DISPUTE);
+
+        DisputeData storage d = disputes[contractId];
+        if (d.finalized) revert AlreadyFinalized();
+        if (
+            d.reviewerList.length < MAX_REVIEWERS &&
+            block.timestamp <= d.reviewStartedAt + DISPUTE_WINDOW
+        ) revert ReviewWindowOpen();
+
+        _finalizeDispute(contractId, c, d);
     }
 
-    function cancelEscrow(bytes32 escrowId) external {
-        Escrow storage escrow = _getExistingEscrow(escrowId);
-        _onlyBuyer(escrow);
-        _requireStatus(escrow, Status.CREATED);
+    // ═══════════════════════════════════════════════════════════════════════
+    //  CANCEL (before deposit only)
+    // ═══════════════════════════════════════════════════════════════════════
 
-        escrow.status = Status.CANCELLED;
-        escrow.updatedAt = block.timestamp;
+    function cancelContract(bytes32 contractId) external {
+        ContractData storage c = _get(contractId);
+        _onlyClient(c);
+        if (c.status != Status.CREATED && c.status != Status.ACCEPTED)
+            revert InvalidStatus(c.status);
 
-        emit EscrowCancelled(escrowId, msg.sender);
+        c.status    = Status.CANCELLED;
+        c.updatedAt = block.timestamp;
+        emit ContractCancelled(contractId);
     }
 
-    function getEscrow(bytes32 escrowId) external view returns (Escrow memory) {
-        Escrow memory escrow = escrows[escrowId];
-        if (!escrow.exists) {
-            revert EscrowNotFound(escrowId);
-        }
+    // ═══════════════════════════════════════════════════════════════════════
+    //  VIEW FUNCTIONS
+    // ═══════════════════════════════════════════════════════════════════════
 
-        return escrow;
+    function getContract(bytes32 contractId) external view returns (ContractData memory) {
+        ContractData storage c = contracts[contractId];
+        if (!c.exists) revert ContractNotFound(contractId);
+        return c;
     }
 
-    function _releaseFunds(bytes32 escrowId, Escrow storage escrow) private {
-        escrow.status = Status.RELEASED;
-        escrow.updatedAt = block.timestamp;
-        paymentToken.safeTransfer(escrow.seller, escrow.amount);
-
-        emit FundsReleased(escrowId, escrow.seller, escrow.amount);
+    function getDisputeSummary(bytes32 contractId) external view returns (
+        string memory clientEvidenceURI,
+        string memory freelancerDefenseURI,
+        uint256       raisedAt,
+        uint256       reviewStartedAt,
+        uint256       votesForFreelancer,
+        uint256       votesForClient,
+        uint256       totalVotes,
+        bool          finalized
+    ) {
+        DisputeData storage d = disputes[contractId];
+        return (
+            d.clientEvidenceURI,
+            d.freelancerDefenseURI,
+            d.raisedAt,
+            d.reviewStartedAt,
+            d.votesForFreelancer,
+            d.votesForClient,
+            d.reviewerList.length,
+            d.finalized
+        );
     }
 
-    function _refundBuyer(bytes32 escrowId, Escrow storage escrow) private {
-        escrow.status = Status.REFUNDED;
-        escrow.updatedAt = block.timestamp;
-        paymentToken.safeTransfer(escrow.buyer, escrow.amount);
-
-        emit BuyerRefunded(escrowId, escrow.buyer, escrow.amount);
+    function getDisputeReviewers(bytes32 contractId) external view returns (address[] memory) {
+        return disputes[contractId].reviewerList;
     }
 
-    function _getExistingEscrow(bytes32 escrowId) private view returns (Escrow storage) {
-        Escrow storage escrow = escrows[escrowId];
-        if (!escrow.exists) {
-            revert EscrowNotFound(escrowId);
-        }
-
-        return escrow;
+    function getDisputeVote(bytes32 contractId, address reviewer) external view returns (ReviewVote memory) {
+        return disputes[contractId].votes[reviewer];
     }
 
-    function _onlyBuyer(Escrow storage escrow) private view {
-        if (msg.sender != escrow.buyer) {
-            revert Unauthorized();
-        }
+    // ═══════════════════════════════════════════════════════════════════════
+    //  INTERNAL HELPERS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function _finalizeDispute(
+        bytes32 contractId,
+        ContractData storage c,
+        DisputeData  storage d
+    ) private {
+        d.finalized = true;
+        // Majority wins; tie → refund client
+        bool freelancerWon = d.votesForFreelancer > d.votesForClient;
+
+        emit DisputeFinalized(contractId, freelancerWon, d.votesForFreelancer, d.votesForClient);
+
+        if (freelancerWon) _releaseFunds(contractId, c);
+        else               _refundClient(contractId, c);
     }
 
-    function _onlySeller(Escrow storage escrow) private view {
-        if (msg.sender != escrow.seller) {
-            revert Unauthorized();
-        }
+    function _releaseFunds(bytes32 contractId, ContractData storage c) private {
+        c.status    = Status.RELEASED;
+        c.updatedAt = block.timestamp;
+        paymentToken.safeTransfer(c.freelancer, c.amount);
+        emit FundsReleased(contractId, c.freelancer, c.amount);
     }
 
-    function _requireStatus(Escrow storage escrow, Status expectedStatus) private view {
-        if (escrow.status != expectedStatus) {
-            revert InvalidStatus(escrow.status);
-        }
+    function _refundClient(bytes32 contractId, ContractData storage c) private {
+        c.status    = Status.REFUNDED;
+        c.updatedAt = block.timestamp;
+        paymentToken.safeTransfer(c.client, c.amount);
+        emit ClientRefunded(contractId, c.client, c.amount);
+    }
+
+    function _get(bytes32 contractId) private view returns (ContractData storage) {
+        ContractData storage c = contracts[contractId];
+        if (!c.exists) revert ContractNotFound(contractId);
+        return c;
+    }
+
+    function _onlyClient(ContractData storage c) private view {
+        if (msg.sender != c.client) revert Unauthorized();
+    }
+
+    function _onlyFreelancer(ContractData storage c) private view {
+        if (msg.sender != c.freelancer) revert Unauthorized();
+    }
+
+    function _requireStatus(ContractData storage c, Status expected) private view {
+        if (c.status != expected) revert InvalidStatus(c.status);
     }
 }
