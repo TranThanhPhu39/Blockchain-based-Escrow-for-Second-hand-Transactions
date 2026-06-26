@@ -4,7 +4,9 @@
       "Bash(npx hardhat *)",
       "Bash(npx vite *)",
       "Bash(node_modules/.bin/vite build *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(timeout 20 node -e ' *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
