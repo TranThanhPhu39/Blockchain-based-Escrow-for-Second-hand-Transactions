@@ -1,4 +1,4 @@
-import { BrowserProvider, Contract, JsonRpcProvider, parseUnits } from "ethers";
+import { BrowserProvider, Contract, Interface, JsonRpcProvider, parseUnits } from "ethers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -661,8 +661,22 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
 const AMOY_RPC = import.meta.env.VITE_AMOY_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/Zi4sE_2bG68-B6wAeCW4_";
 
-// Polygon Amoy: use legacy gasPrice (type-0 tx) — EIP-1559 params cause MetaMask to strip calldata on this network
-const AMOY_GAS = { gasPrice: 35_000_000_000n }; // 35 Gwei
+// Polygon Amoy: legacy type-0 tx, 35 Gwei
+const AMOY_GAS_PRICE = 35_000_000_000n;
+
+// Bypass ethers.js Contract abstraction — encode calldata explicitly then send via signer.
+// This avoids the BrowserProvider+Contract combo stripping calldata on Polygon Amoy.
+async function sendContractTx(signer, functionName, args, gasLimit) {
+  const iface = new Interface(ESCROW_ABI);
+  const data = iface.encodeFunctionData(functionName, args);
+  console.log(`[tx] ${functionName} data:`, data.slice(0, 20) + "...");
+  return signer.sendTransaction({
+    to: CONTRACT_ADDRESS,
+    data,
+    gasPrice: AMOY_GAS_PRICE,
+    gasLimit: BigInt(gasLimit),
+  });
+}
 
 const ESCROW_ABI = [
   "function createContract(bytes32 contractId, address freelancer, uint256 amount, string contractURI)",
@@ -775,6 +789,41 @@ async function getContracts() {
   const escrowContract = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, signer);
   const tokenContract = new Contract(_tokenAddress, ERC20_ABI, signer);
   return { escrow: escrowContract, token: tokenContract, decimals: _tokenDecimals };
+}
+
+// Lightweight version of getContracts — returns signer + ERC20 token + decimals without creating
+// a Contract wrapper for the escrow (callers use sendContractTx instead).
+async function getSignerAndDecimals() {
+  const eth = getWalletProvider();
+  if (!eth) throw new Error("Wallet not found");
+  if (!CONTRACT_ADDRESS) throw new Error("VITE_CONTRACT_ADDRESS not set");
+  const AMOY_CHAIN_ID = "0x13882";
+  const chainId = await eth.request({ method: "eth_chainId" });
+  if (chainId !== AMOY_CHAIN_ID) {
+    try {
+      await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: AMOY_CHAIN_ID }] });
+    } catch (switchErr) {
+      if (switchErr.code === 4902) {
+        await eth.request({ method: "wallet_addEthereumChain", params: [{ chainId: AMOY_CHAIN_ID, chainName: "Polygon Amoy", nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 }, rpcUrls: ["https://rpc-amoy.polygon.technology/"], blockExplorerUrls: ["https://amoy.polygonscan.com/"] }] });
+      } else throw new Error("Please switch to Polygon Amoy (chainId 80002)");
+    }
+    _tokenAddress = null;
+    _tokenDecimals = null;
+    await new Promise(r => setTimeout(r, 800));
+  }
+  const readProvider = new JsonRpcProvider(AMOY_RPC);
+  const writeProvider = new BrowserProvider(eth);
+  const signer = await writeProvider.getSigner();
+  if (!_tokenAddress) {
+    const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+    _tokenAddress = await escrowRead.paymentToken();
+  }
+  if (_tokenDecimals === null) {
+    const tokenRead = new Contract(_tokenAddress, ERC20_ABI, readProvider);
+    _tokenDecimals = Number(await tokenRead.decimals());
+  }
+  const token = new Contract(_tokenAddress, ERC20_ABI, signer);
+  return { signer, token, decimals: _tokenDecimals };
 }
 
 async function apiRequest(path, { token, ...options } = {}) {
@@ -2169,13 +2218,11 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     }
     setTxStatus({ loading: true, message: "" });
     try {
-      const { escrow: escrowContract, decimals } = await getContracts();
+      const { signer, decimals } = await getSignerAndDecimals();
       const amountBig = parseUnits(String(escrow.amount), decimals);
       const contractURI = `${API_BASE_URL}/api/escrows/${escrow._id}`;
-      const tx = await escrowContract.createContract(
-        escrow.escrowIdOnChain, freelancerWallet, amountBig, contractURI,
-        { ...AMOY_GAS, gasLimit: 300000n }
-      );
+      const tx = await sendContractTx(signer, "createContract",
+        [escrow.escrowIdOnChain, freelancerWallet, amountBig, contractURI], 300000);
       await tx.wait();
       setTxStatus({ loading: false, message: "Hợp đồng đã đăng ký on-chain. Chờ freelancer chấp nhận để nạp tiền." });
       setTimeout(() => refreshEscrows(), 5000);
@@ -2192,8 +2239,8 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     }
     setTxStatus({ loading: true, message: "" });
     try {
-      const { escrow: escrowContract } = await getContracts();
-      const tx = await escrowContract.acceptContract(escrow.escrowIdOnChain, { ...AMOY_GAS, gasLimit: 150000n });
+      const { signer } = await getSignerAndDecimals();
+      const tx = await sendContractTx(signer, "acceptContract", [escrow.escrowIdOnChain], 150000);
       await tx.wait();
       setTxStatus({ loading: false, message: "Đã chấp nhận hợp đồng. Client có thể nạp tiền." });
       setTimeout(() => refreshEscrows(), 5000);
@@ -2211,7 +2258,8 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     }
     setTxStatus({ loading: true, message: "" });
     try {
-      const signerAddress = await (await new BrowserProvider(getWalletProvider()).getSigner()).getAddress();
+      const { signer, token, decimals } = await getSignerAndDecimals();
+      const signerAddress = await signer.getAddress();
       await apiRequest("/api/faucet", { method: "POST", body: JSON.stringify({ address: signerAddress }) })
         .catch(e => console.warn("[faucet]", e.message));
 
@@ -2233,14 +2281,14 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
         return;
       }
 
-      // onChainStatus === 1 (ACCEPTED) → approve + deposit
-      const { escrow: escrowContract, token, decimals } = await getContracts();
+      // onChainStatus === 1 (ACCEPTED) → approve ERC20, then deposit
       const amountBig = parseUnits(String(escrow.amount), decimals);
       console.log("[deposit] calling approve...");
-      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig, { ...AMOY_GAS, gasLimit: 100000n });
+      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig,
+        { gasPrice: AMOY_GAS_PRICE, gasLimit: 100000n });
       await approveTx.wait();
       console.log("[deposit] calling deposit...");
-      const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain, { ...AMOY_GAS, gasLimit: 200000n });
+      const depositTx = await sendContractTx(signer, "deposit", [escrow.escrowIdOnChain], 200000);
       await depositTx.wait();
       console.log("[deposit] done");
       addToast("deposit");
@@ -2378,12 +2426,12 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
     try {
       if (selectedEscrow?.escrowIdOnChain) {
         try {
-          const { escrow: escrowContract } = await getContracts();
+          const { signer } = await getSignerAndDecimals();
           const submissionURI = form.get("deliverableUrl") || "";
-          const tx = await escrowContract.submitWork(selectedEscrow.escrowIdOnChain, submissionURI, { ...AMOY_GAS, gasLimit: 200000n });
+          const tx = await sendContractTx(signer, "submitWork",
+            [selectedEscrow.escrowIdOnChain, submissionURI], 200000);
           await tx.wait();
         } catch (chainErr) {
-          // Bypass nếu đã SUBMITTED rồi (retry sau khi API fail)
           if (!String(chainErr.reason || chainErr.message).includes("InvalidStatus")) throw chainErr;
         }
       }
@@ -2447,9 +2495,8 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
 
     try {
       if (selectedEscrow?.escrowIdOnChain) {
-        const { escrow: escrowContract } = await getContracts();
-        // approveWork: reentrancy guard + ERC20 safeTransfer to freelancer → needs ~120k gas
-        const tx = await escrowContract.approveWork(selectedEscrow.escrowIdOnChain, { ...AMOY_GAS, gasLimit: 200000n });
+        const { signer } = await getSignerAndDecimals();
+        const tx = await sendContractTx(signer, "approveWork", [selectedEscrow.escrowIdOnChain], 200000);
         await tx.wait();
       }
       const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/approve`, {
@@ -2541,12 +2588,9 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
 
       // 2. Gọi raiseDispute() on-chain — đổi status contract sang DISPUTED
       const evidenceURI = `${API_BASE_URL}/api/disputes/${dispute._id}`;
-      const { escrow: escrowContract } = await getContracts();
-      const tx = await escrowContract.raiseDispute(
-        selectedEscrow.escrowIdOnChain,
-        evidenceURI,
-        { ...AMOY_GAS, gasLimit: 200000n }
-      );
+      const { signer } = await getSignerAndDecimals();
+      const tx = await sendContractTx(signer, "raiseDispute",
+        [selectedEscrow.escrowIdOnChain, evidenceURI], 200000);
       await tx.wait();
 
       setDisputes((prev) => [dispute, ...prev]);
