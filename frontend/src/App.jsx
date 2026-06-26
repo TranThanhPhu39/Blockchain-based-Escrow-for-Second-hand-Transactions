@@ -193,6 +193,7 @@ const translations = {
       emailMethod: "Email + Password",
       walletMethod: "MetaMask Wallet",
       roleHelp: "Choose how you will use EscrowX first. You can switch later.",
+      registerSuccess: "Account created! Sign in to continue.",
       sessionTitle: "Secure session",
       sessionCopy: "Your credentials are handled by the backend API. Connect MetaMask to attach a wallet address to your account.",
       escrowTitle: "Non-custodial escrow",
@@ -427,6 +428,7 @@ const translations = {
       emailMethod: "Email + mật khẩu",
       walletMethod: "Ví MetaMask",
       roleHelp: "Chọn cách bạn dùng EscrowX trước. Bạn có thể đổi sau.",
+      registerSuccess: "Tài khoản đã được tạo! Đăng nhập để tiếp tục.",
       sessionTitle: "Phiên đăng nhập bảo mật",
       sessionCopy: "Thông tin đăng nhập được xử lý bởi backend API. Kết nối MetaMask để gắn địa chỉ ví vào tài khoản.",
       escrowTitle: "Ký quỹ không lưu ký",
@@ -1035,6 +1037,7 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
   const nav = allNav.filter(([, id]) => {
     if (adminOnly.has(id)) return isAdmin;
     if (protectedIds.has(id)) return isLoggedIn;
+    if (id === "login" || id === "register") return !isLoggedIn;
     return true;
   });
 
@@ -1254,8 +1257,13 @@ function LandingPage({ c, theme, language, navigate }) {
 }
 
 function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentUser, setWallet }) {
-  const isLogin = type === "login";
+  const [isLogin, setIsLogin] = useState(type === "login");
   const [status, setStatus] = useState({ loading: false, message: "" });
+
+  function switchTab(toLogin) {
+    setIsLogin(toLogin);
+    setStatus({ loading: false, message: "" });
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -1287,31 +1295,39 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
       const walletAddress = String(form.get("walletAddress") || "").trim();
 
       if (!isLogin && walletAddress) {
-        const walletResult = await apiRequest("/api/auth/wallet", {
-          method: "PATCH",
-          token: auth.token,
-          body: JSON.stringify({ walletAddress })
-        });
-        nextUser = walletResult.user;
+        try {
+          const walletResult = await apiRequest("/api/auth/wallet", {
+            method: "PATCH",
+            token: auth.token,
+            body: JSON.stringify({ walletAddress })
+          });
+          nextUser = walletResult.user;
+        } catch (walletErr) {
+          // wallet patch failed but account was created — still proceed to login
+        }
       }
 
-      window.localStorage.setItem("escrowx-token", auth.token);
-      window.localStorage.setItem("escrowx-user", JSON.stringify(nextUser));
-      setApiToken(auth.token);
-      setCurrentUser(nextUser);
-
-      if (nextUser?.walletAddress) {
-        setWallet((current) => ({
-          ...current,
-          connected: true,
-          address: nextUser.walletAddress,
-          short: shortAddress(nextUser.walletAddress),
-          status: c.status.connected
-        }));
+      if (isLogin) {
+        window.localStorage.setItem("escrowx-token", auth.token);
+        window.localStorage.setItem("escrowx-user", JSON.stringify(nextUser));
+        setApiToken(auth.token);
+        setCurrentUser(nextUser);
+        if (nextUser?.walletAddress) {
+          setWallet((current) => ({
+            ...current,
+            connected: true,
+            address: nextUser.walletAddress,
+            short: shortAddress(nextUser.walletAddress),
+            status: c.status.connected
+          }));
+        }
+        addToast("approved");
+        navigate("dashboard");
+      } else {
+        setIsLogin(true);
+        setStatus({ loading: false, message: c.auth.registerSuccess });
+        return;
       }
-
-      addToast("approved");
-      navigate("dashboard");
     } catch (error) {
       setStatus({ loading: false, message: error.message });
       return;
@@ -1319,52 +1335,51 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
 
     setStatus({ loading: false, message: "" });
   }
+
   return (
-    <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-      <Card theme={theme} className="p-6">
-        <Badge theme={theme} tone="cyan">{isLogin ? c.auth.emailMethod : c.auth.roleHelp}</Badge>
-        <h1 className={classNames("mt-5 text-3xl font-black", theme.heading)}>{isLogin ? c.auth.loginTitle : c.auth.registerTitle}</h1>
-        <p className={classNames("mt-3 leading-7", theme.muted)}>{isLogin ? c.auth.loginSubtitle : c.auth.registerSubtitle}</p>
-        <div className="mt-6 grid gap-3">
-          <div className={classNames("rounded-lg border p-4", theme.soft)}>
-            <div className="flex items-center gap-3">
-              <Fingerprint className={classNames("h-5 w-5", theme.accentText)} />
-              <p className={classNames("font-black", theme.heading)}>{c.auth.sessionTitle}</p>
-            </div>
-            <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{c.auth.sessionCopy}</p>
-          </div>
-          <div className={classNames("rounded-lg border p-4", theme.soft)}>
-            <div className="flex items-center gap-3">
-              <LockKeyhole className={classNames("h-5 w-5", theme.accentText)} />
-              <p className={classNames("font-black", theme.heading)}>{c.auth.escrowTitle}</p>
-            </div>
-            <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{c.auth.escrowCopy}</p>
-          </div>
+    <div className="flex min-h-[60vh] items-center justify-center py-6">
+      <Card theme={theme} className="w-full max-w-md p-6">
+        <div className={classNames("mb-6 grid grid-cols-2 rounded-lg border p-1", theme.soft)}>
+          <button
+            type="button"
+            onClick={() => switchTab(false)}
+            className={classNames(
+              "rounded-md py-2.5 text-sm font-black transition-all",
+              !isLogin ? theme.accentBg : theme.muted
+            )}
+          >
+            {c.nav.register}
+          </button>
+          <button
+            type="button"
+            onClick={() => switchTab(true)}
+            className={classNames(
+              "rounded-md py-2.5 text-sm font-black transition-all",
+              isLogin ? theme.accentBg : theme.muted
+            )}
+          >
+            {c.nav.login}
+          </button>
         </div>
-      </Card>
-      <Card theme={theme} className="p-6">
-        <form
-          className="grid gap-4"
-          onSubmit={handleSubmit}
-        >
-          {!isLogin ? (
+        <form className="grid gap-4" onSubmit={handleSubmit}>
+          {!isLogin && (
             <Field theme={theme} label={c.common.fullName} icon={User}>
               <TextInput theme={theme} name="name" placeholder="Nguyen An" required />
             </Field>
-          ) : null}
+          )}
           <Field theme={theme} label={c.common.email} icon={Mail}>
             <TextInput theme={theme} name="email" type="email" placeholder="founder@escrowx.io" required />
           </Field>
           <Field theme={theme} label={c.common.password} icon={LockKeyhole}>
             <TextInput theme={theme} name="password" type="password" placeholder="password" required minLength={6} />
           </Field>
-          {!isLogin ? (
+          {!isLogin && (
             <>
               <Field theme={theme} label={c.common.confirmPassword} icon={LockKeyhole}>
                 <TextInput theme={theme} name="confirmPassword" type="password" placeholder="password" required minLength={6} />
               </Field>
               <Field theme={theme} label={c.common.walletAddress} icon={Wallet}>
-                <TextInput theme={theme} name="walletAddress" placeholder="0x8A91B4c2E7d9136f2A4F200000000000000000000" />
+                <TextInput theme={theme} name="walletAddress" placeholder="0x..." />
               </Field>
               <Field theme={theme} label={c.common.role} icon={Users}>
                 <SelectInput theme={theme} name="role" defaultValue="client">
@@ -1373,12 +1388,16 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
                 </SelectInput>
               </Field>
             </>
-          ) : null}
+          )}
           <InlineMessage message={status.message} theme={theme} />
           <Button theme={theme} type="submit" icon={isLogin ? LogIn : Rocket} disabled={status.loading}>
             {status.loading ? "Connecting..." : isLogin ? c.nav.login : c.nav.register}
           </Button>
-          {isLogin ? <Button theme={theme} icon={Wallet} variant="secondary" onClick={() => navigate("wallet")}>{c.auth.walletMethod}</Button> : null}
+          {isLogin && (
+            <Button theme={theme} icon={Wallet} variant="secondary" onClick={() => navigate("wallet")}>
+              {c.auth.walletMethod}
+            </Button>
+          )}
         </form>
       </Card>
     </div>
@@ -2778,8 +2797,8 @@ function App() {
 
   const pages = {
     landing: <LandingPage {...pageProps} />,
-    login: <AuthPage {...pageProps} type="login" />,
-    register: <AuthPage {...pageProps} type="register" />,
+    login: currentUser ? <ProfilePage {...pageProps} /> : <AuthPage {...pageProps} type="login" />,
+    register: currentUser ? <ProfilePage {...pageProps} /> : <AuthPage {...pageProps} type="register" />,
     dashboard: <DashboardPage {...pageProps} />,
     create: <CreateJobPage {...pageProps} />,
     details: <EscrowDetailsPage {...pageProps} />,
