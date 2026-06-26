@@ -79,6 +79,7 @@ const translations = {
       landing: "Landing Page",
       login: "Login",
       register: "Register",
+      auth: "Sign In / Register",
       dashboard: "Dashboard",
       create: "Post Contract",
       jobs: "Browse Jobs",
@@ -315,6 +316,7 @@ const translations = {
       landing: "Trang chủ",
       login: "Đăng nhập",
       register: "Đăng ký",
+      auth: "Đăng ký / Đăng nhập",
       dashboard: "Bảng điều khiển",
       create: "Đăng hợp đồng",
       jobs: "Tìm việc",
@@ -1022,7 +1024,6 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
   const allNav = [
     [Home, "landing"],
     [LogIn, "login"],
-    [User, "register"],
     [LayoutDashboardIcon, "dashboard"],
     [Briefcase, "create"],
     [ReceiptText, "details"],
@@ -1040,12 +1041,13 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
   const nav = allNav.filter(([, id]) => {
     if (adminOnly.has(id)) return isAdmin;
     if (protectedIds.has(id)) return isLoggedIn;
-    if (id === "login" || id === "register") return !isLoggedIn;
+    if (id === "login") return !isLoggedIn;
     return true;
   });
 
   function navLabel(id) {
     if (id === "create") return isFreelancer ? c.nav.jobs : c.nav.create;
+    if (id === "login") return c.nav.auth;
     return c.nav[id];
   }
 
