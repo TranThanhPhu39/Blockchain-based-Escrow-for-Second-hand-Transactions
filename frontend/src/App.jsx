@@ -661,14 +661,20 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
 const AMOY_RPC = import.meta.env.VITE_AMOY_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/Zi4sE_2bG68-B6wAeCW4_";
 
+// Polygon Amoy: use legacy gasPrice (type-0 tx) — EIP-1559 params cause MetaMask to strip calldata on this network
+const AMOY_GAS = { gasPrice: 35_000_000_000n }; // 35 Gwei
+
 const ESCROW_ABI = [
-  "function createEscrow(bytes32 escrowId, address seller, uint256 amount)",
-  "function deposit(bytes32 escrowId)",
-  "function markShipped(bytes32 escrowId)",
-  "function confirmDelivery(bytes32 escrowId)",
-  "function raiseDispute(bytes32 escrowId, string calldata evidenceURI)",
+  "function createContract(bytes32 contractId, address freelancer, uint256 amount, string contractURI)",
+  "function acceptContract(bytes32 contractId)",
+  "function deposit(bytes32 contractId)",
+  "function submitWork(bytes32 contractId, string submissionURI)",
+  "function approveWork(bytes32 contractId)",
+  "function requestRevision(bytes32 contractId, string reason)",
+  "function raiseDispute(bytes32 contractId, string evidenceURI)",
+  "function cancelContract(bytes32 contractId)",
   "function paymentToken() view returns (address)",
-  "function getEscrow(bytes32 escrowId) view returns (bool exists, address buyer, address seller, uint256 amount, uint8 status, string evidenceURI, uint256 createdAt, uint256 updatedAt)"
+  "function getContract(bytes32 contractId) view returns (bool, address, address, uint256, uint8, string, string, uint256, uint256, uint256)"
 ];
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -2120,8 +2126,12 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   const escrow = selectedEscrow;
   const statusKey = escrowStatusKey(escrow?.status);
 
-  const isClient = escrow && currentUser && String(escrow.client?._id || escrow.client) === String(currentUser._id || currentUser.id);
-  const canDeposit = isClient && escrow?.status === "CREATED" && escrow?.freelancer;
+  const isClient     = escrow && currentUser && String(escrow.client?._id    || escrow.client)     === String(currentUser._id || currentUser.id);
+  const isFreelancer = escrow && currentUser && String(escrow.freelancer?._id || escrow.freelancer) === String(currentUser._id || currentUser.id);
+  // canRegister: client chưa đăng ký on-chain (escrowIdOnChain tồn tại nhưng on-chain chưa có)
+  const canRegister  = isClient     && ["CREATED"].includes(escrow?.status) && escrow?.freelancer;
+  const canAccept    = isFreelancer && ["CREATED"].includes(escrow?.status);
+  const canDeposit   = isClient     && ["CREATED", "LOCKED"].includes(escrow?.status) && escrow?.freelancer;
 
   useEffect(() => {
     if (escrow?.status !== "SUBMITTED" || !escrow?.autoReleaseAt) { setCountdown(""); return; }
@@ -2138,72 +2148,101 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     return () => clearInterval(timer);
   }, [escrow?.status, escrow?.autoReleaseAt]);
 
-  async function handleDeposit() {
+  // on-chain status: 0=CREATED 1=ACCEPTED 2=DEPOSITED 3=SUBMITTED 4=REVISION 5=DISPUTED 7=RELEASED 8=REFUNDED 9=CANCELLED
+  async function getOnChainStatus(contractId) {
+    try {
+      const readProvider = new JsonRpcProvider(AMOY_RPC);
+      const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+      const onChain = await escrowRead.getContract(contractId);
+      return onChain.exists ? Number(onChain.status) : -1;
+    } catch {
+      return -1;
+    }
+  }
+
+  // Step 1 (client): Register contract on-chain → freelancer can then accept
+  async function handleRegisterOnChain() {
     const freelancerWallet = escrow?.freelancer?.walletAddress;
     if (!escrow?.escrowIdOnChain || !freelancerWallet) {
-      setTxStatus({ loading: false, message: "Freelancer wallet address missing. Ask them to connect MetaMask first." });
+      setTxStatus({ loading: false, message: "Freelancer chưa kết nối ví. Yêu cầu họ kết nối MetaMask trước." });
       return;
     }
     setTxStatus({ loading: true, message: "" });
     try {
-      const { escrow: escrowContract, token, decimals } = await getContracts();
+      const { escrow: escrowContract, decimals } = await getContracts();
       const amountBig = parseUnits(String(escrow.amount), decimals);
-      const gasOpts = { gasLimit: 150000n };
-      const readProvider = new JsonRpcProvider(AMOY_RPC);
+      const contractURI = `${API_BASE_URL}/api/escrows/${escrow._id}`;
+      const tx = await escrowContract.createContract(
+        escrow.escrowIdOnChain, freelancerWallet, amountBig, contractURI,
+        { ...AMOY_GAS, gasLimit: 300000n }
+      );
+      await tx.wait();
+      setTxStatus({ loading: false, message: "Hợp đồng đã đăng ký on-chain. Chờ freelancer chấp nhận để nạp tiền." });
+      setTimeout(() => refreshEscrows(), 5000);
+    } catch (err) {
+      setTxStatus({ loading: false, message: err.reason || err.message });
+    }
+  }
 
-      // Auto-faucet: mint test tokens if balance is low
+  // Step 2 (freelancer): Accept contract on-chain
+  async function handleAcceptContract() {
+    if (!escrow?.escrowIdOnChain) {
+      setTxStatus({ loading: false, message: "Hợp đồng chưa được đăng ký on-chain." });
+      return;
+    }
+    setTxStatus({ loading: true, message: "" });
+    try {
+      const { escrow: escrowContract } = await getContracts();
+      const tx = await escrowContract.acceptContract(escrow.escrowIdOnChain, { ...AMOY_GAS, gasLimit: 150000n });
+      await tx.wait();
+      setTxStatus({ loading: false, message: "Đã chấp nhận hợp đồng. Client có thể nạp tiền." });
+      setTimeout(() => refreshEscrows(), 5000);
+    } catch (err) {
+      setTxStatus({ loading: false, message: err.reason || err.message });
+    }
+  }
+
+  // Step 3 (client): Deposit funds — only after freelancer accepted (on-chain status = 1)
+  async function handleDeposit() {
+    const freelancerWallet = escrow?.freelancer?.walletAddress;
+    if (!escrow?.escrowIdOnChain || !freelancerWallet) {
+      setTxStatus({ loading: false, message: "Freelancer chưa kết nối ví." });
+      return;
+    }
+    setTxStatus({ loading: true, message: "" });
+    try {
       const signerAddress = await (await new BrowserProvider(getWalletProvider()).getSigner()).getAddress();
-      console.log("[deposit] signerAddress:", signerAddress);
-      console.log("[deposit] escrowIdOnChain:", escrow.escrowIdOnChain);
-      console.log("[deposit] freelancerWallet:", freelancerWallet);
-      console.log("[deposit] amount:", escrow.amount, "→ amountBig:", amountBig.toString());
       await apiRequest("/api/faucet", { method: "POST", body: JSON.stringify({ address: signerAddress }) })
-        .catch((e) => console.warn("[faucet] failed:", e.message));
-      const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+        .catch(e => console.warn("[faucet]", e.message));
 
-      // Check if escrow already exists on-chain (from a previous failed attempt)
-      let onChainStatus = -1;
-      try {
-        const onChain = await escrowRead.getEscrow(escrow.escrowIdOnChain);
-        onChainStatus = Number(onChain.status); // 0=CREATED, 1=LOCKED
-        console.log("[deposit] on-chain exists, status:", onChainStatus);
-      } catch (e) {
-        onChainStatus = -1;
-        console.log("[deposit] getEscrow threw (not found):", e.message?.slice(0, 80));
+      const onChainStatus = await getOnChainStatus(escrow.escrowIdOnChain);
+      console.log("[deposit] on-chain status:", onChainStatus);
+
+      if (onChainStatus === -1) {
+        setTxStatus({ loading: false, message: "Hợp đồng chưa được đăng ký on-chain. Bấm 'Đăng ký on-chain' trước." });
+        return;
       }
-
-      if (onChainStatus === 1) {
+      if (onChainStatus === 0) {
+        setTxStatus({ loading: false, message: "Hợp đồng đã on-chain nhưng freelancer chưa chấp nhận. Hãy chờ." });
+        return;
+      }
+      if (onChainStatus >= 2) {
         addToast("deposit");
         setTimeout(() => refreshEscrows(), 3000);
+        setTxStatus({ loading: false, message: "" });
         return;
       }
 
+      // onChainStatus === 1 (ACCEPTED) → approve + deposit
+      const { escrow: escrowContract, token, decimals } = await getContracts();
+      const amountBig = parseUnits(String(escrow.amount), decimals);
       console.log("[deposit] calling approve...");
-      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig, { gasLimit: 100000n });
+      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig, { ...AMOY_GAS, gasLimit: 100000n });
       await approveTx.wait();
-      console.log("[deposit] approve done");
-
-      if (onChainStatus === -1) {
-        // Simulate first to get a readable revert reason
-        try {
-          const escrowSim = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
-          await escrowSim.createEscrow.staticCall(escrow.escrowIdOnChain, freelancerWallet, amountBig, { from: signerAddress });
-        } catch (simErr) {
-          console.error("[deposit] createEscrow simulation failed:", simErr.reason || simErr.message);
-          throw new Error("createEscrow would revert: " + (simErr.reason || simErr.shortMessage || simErr.message));
-        }
-        console.log("[deposit] calling createEscrow...");
-        // createEscrow writes 5-6 cold storage slots → needs ~145k gas
-        const createTx = await escrowContract.createEscrow(escrow.escrowIdOnChain, freelancerWallet, amountBig, { gasLimit: 300000n });
-        await createTx.wait();
-        console.log("[deposit] createEscrow done");
-      }
-
       console.log("[deposit] calling deposit...");
-      // deposit: reentrancy guard + ERC20 transferFrom → needs ~120k gas
-      const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain, { gasLimit: 200000n });
+      const depositTx = await escrowContract.deposit(escrow.escrowIdOnChain, { ...AMOY_GAS, gasLimit: 200000n });
       await depositTx.wait();
-      console.log("[deposit] deposit done");
+      console.log("[deposit] done");
       addToast("deposit");
       setTimeout(() => refreshEscrows(), 10000);
     } catch (err) {
@@ -2222,12 +2261,47 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
         <StatCard theme={theme} icon={Clock3} label={c.common.deadline} value={escrow?.deadline ? new Date(escrow.deadline).toLocaleDateString() : "Jun 28"} detail="Escrow deadline" tone="amber" />
         <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status[statusKey] || escrow?.status || c.status.locked} detail={escrow ? "On-chain record" : "Demo data"} tone="violet" />
       </div>
+      {/* Step 1: Client đăng ký hợp đồng on-chain */}
+      {canRegister && (
+        <Card theme={theme}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className={classNames("text-lg font-black", theme.heading)}>Đăng ký hợp đồng on-chain</p>
+              <p className={classNames("mt-1 text-sm leading-6", theme.muted)}>Bước 1 — Ghi hợp đồng lên blockchain. Freelancer sẽ nhận được thông báo để chấp nhận.</p>
+            </div>
+            <div className="flex flex-col items-end gap-3">
+              {txStatus.message && <InlineMessage message={txStatus.message} theme={theme} />}
+              <Button theme={theme} icon={ShieldCheck} onClick={handleRegisterOnChain} disabled={txStatus.loading}>
+                {txStatus.loading ? "Processing..." : "Đăng ký on-chain"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+      {/* Step 2: Freelancer chấp nhận */}
+      {canAccept && (
+        <Card theme={theme}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className={classNames("text-lg font-black", theme.heading)}>Chấp nhận hợp đồng</p>
+              <p className={classNames("mt-1 text-sm leading-6", theme.muted)}>Bước 2 — Xác nhận bạn sẵn sàng thực hiện. Client sẽ nạp tiền ký quỹ sau khi bạn chấp nhận.</p>
+            </div>
+            <div className="flex flex-col items-end gap-3">
+              {txStatus.message && <InlineMessage message={txStatus.message} theme={theme} />}
+              <Button theme={theme} icon={CheckCircle2} variant="primary" onClick={handleAcceptContract} disabled={txStatus.loading}>
+                {txStatus.loading ? "Processing..." : "Chấp nhận hợp đồng"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+      {/* Step 3: Client nạp tiền (sau khi freelancer đã accept on-chain) */}
       {canDeposit && (
         <Card theme={theme}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <p className={classNames("text-lg font-black", theme.heading)}>{c.common.depositFunds}</p>
-              <p className={classNames("mt-1 text-sm leading-6", theme.muted)}>{c.details.depositCopy}</p>
+              <p className={classNames("mt-1 text-sm leading-6", theme.muted)}>Bước 3 — {c.details.depositCopy}</p>
             </div>
             <div className="flex flex-col items-end gap-3">
               {txStatus.message && <InlineMessage message={txStatus.message} theme={theme} />}
@@ -2305,10 +2379,11 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
       if (selectedEscrow?.escrowIdOnChain) {
         try {
           const { escrow: escrowContract } = await getContracts();
-          const tx = await escrowContract.markShipped(selectedEscrow.escrowIdOnChain, { gasLimit: 150000n });
+          const submissionURI = form.get("deliverableUrl") || "";
+          const tx = await escrowContract.submitWork(selectedEscrow.escrowIdOnChain, submissionURI, { ...AMOY_GAS, gasLimit: 200000n });
           await tx.wait();
         } catch (chainErr) {
-          // Bypass nếu đã SHIPPED rồi (retry sau khi API fail)
+          // Bypass nếu đã SUBMITTED rồi (retry sau khi API fail)
           if (!String(chainErr.reason || chainErr.message).includes("InvalidStatus")) throw chainErr;
         }
       }
@@ -2373,8 +2448,8 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
     try {
       if (selectedEscrow?.escrowIdOnChain) {
         const { escrow: escrowContract } = await getContracts();
-        // confirmDelivery: reentrancy guard + ERC20 safeTransfer to seller → needs ~120k gas
-        const tx = await escrowContract.confirmDelivery(selectedEscrow.escrowIdOnChain, { gasLimit: 200000n });
+        // approveWork: reentrancy guard + ERC20 safeTransfer to freelancer → needs ~120k gas
+        const tx = await escrowContract.approveWork(selectedEscrow.escrowIdOnChain, { ...AMOY_GAS, gasLimit: 200000n });
         await tx.wait();
       }
       const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/approve`, {
@@ -2470,7 +2545,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
       const tx = await escrowContract.raiseDispute(
         selectedEscrow.escrowIdOnChain,
         evidenceURI,
-        { gasLimit: 200000n }
+        { ...AMOY_GAS, gasLimit: 200000n }
       );
       await tx.wait();
 
