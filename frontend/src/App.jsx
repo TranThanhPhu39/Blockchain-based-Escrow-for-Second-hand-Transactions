@@ -1174,7 +1174,7 @@ function LandingPage({ c, theme, language, navigate, currentUser, addToast }) {
       <section className={classNames("relative overflow-hidden rounded-lg border p-6 sm:p-8 lg:p-10", theme.card)}>
         <div className="hero-grid absolute inset-0 opacity-80" />
         <div className="absolute right-[-80px] top-[-120px] h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
-        <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+        <div className="relative">
           <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
             <Badge theme={theme} tone="cyan">{c.landing.heroEyebrow}</Badge>
             <h1 className={classNames("mt-5 max-w-4xl text-4xl font-black leading-[1.12] tracking-tight sm:text-6xl", theme.heading)}>
@@ -1184,39 +1184,6 @@ function LandingPage({ c, theme, language, navigate, currentUser, addToast }) {
             <div className="mt-7 flex flex-wrap gap-3">
               <Button theme={theme} icon={Rocket} size="lg" onClick={() => guardedNavigate("create")}>{c.common.createJob}</Button>
               <Button theme={theme} icon={LayoutDashboardIcon} size="lg" variant="secondary" onClick={() => guardedNavigate("dashboard")}>{c.common.viewDashboard}</Button>
-            </div>
-          </motion.div>
-          <motion.div
-            className={classNames("rounded-lg border p-5", theme.soft)}
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.45, delay: 0.1 }}
-          >
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div>
-                <p className={classNames("font-black", theme.heading)}>Escrow Contract Console</p>
-                <p className={classNames("text-sm", theme.faint)}>0xE5c8...42F9 · Polygon</p>
-              </div>
-              <Badge theme={theme} tone="emerald">{c.status.locked}</Badge>
-            </div>
-            <div className="grid gap-3">
-              {c.landing.steps.map(([label, detail], index) => (
-                <motion.div
-                  key={label}
-                  className={classNames("flex items-start gap-3 rounded-lg border p-3", theme.soft)}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.16 + index * 0.06 }}
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-400/12 text-cyan-300">
-                    {index < 2 ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
-                  </div>
-                  <div className="min-w-0">
-                    <p className={classNames("text-sm font-black", theme.heading)}>{label}</p>
-                    <p className={classNames("mt-1 text-xs leading-5", theme.faint)}>{detail}</p>
-                  </div>
-                </motion.div>
-              ))}
             </div>
           </motion.div>
         </div>
