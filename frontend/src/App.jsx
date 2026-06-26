@@ -1835,7 +1835,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
         <div className="mt-6 grid gap-3 md:grid-cols-2">
           {[
             [c.details.client, escrow?.client?.walletAddress || escrow?.client?.name || "0x91B4...3F21"],
-            [c.details.freelancer, escrow?.freelancer?.walletAddress || escrow?.freelancer?.name || "0x70A1...B9C4"],
+            [c.details.freelancer, escrow?.freelancer?.walletAddress || escrow?.freelancer?.name || ""],
             [c.details.contractAddress, escrow?.contractAddress || "Not deployed yet"],
             [c.common.deadline, escrow?.deadline ? new Date(escrow.deadline).toLocaleString() : "2026-06-28 18:00 ICT"]
           ].map(([label, value]) => (
