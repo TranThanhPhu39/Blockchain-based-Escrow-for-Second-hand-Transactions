@@ -715,7 +715,7 @@ function escrowStatusKey(status) {
   const key = String(status || "CREATED").toLowerCase();
   if (key === "created") return "created";
   if (key === "locked") return "locked";
-  if (key === "submitted") return "submitted";
+  if (key === "submitted") return "delivered";
   if (key === "released") return "released";
   if (key === "refunded") return "refunded";
   if (key === "disputed") return "open";

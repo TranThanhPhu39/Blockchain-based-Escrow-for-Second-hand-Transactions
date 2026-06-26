@@ -122,9 +122,12 @@ const updateWallet = asyncHandler(async (req, res) => {
     throw new Error('Invalid Ethereum wallet address format');
   }
 
-  // findByIdAndUpdate: tìm và cập nhật trong 1 query
-  // { new: true }: trả về document SAU KHI update, không phải trước
-  // { runValidators: true }: chạy schema validators khi update
+  const duplicate = await User.findOne({ walletAddress: walletAddress.toLowerCase(), _id: { $ne: req.user._id } });
+  if (duplicate) {
+    res.status(400);
+    throw new Error('This wallet address is already registered to another account');
+  }
+
   const user = await User.findByIdAndUpdate(
     req.user._id,
     { walletAddress: walletAddress.toLowerCase() },
