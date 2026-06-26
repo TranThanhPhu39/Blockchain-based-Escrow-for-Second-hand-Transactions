@@ -129,6 +129,14 @@ contract EscrowContract is Ownable, ReentrancyGuard {
         emit DisputeRaised(escrowId, msg.sender, evidenceURI);
     }
 
+    function autoRelease(bytes32 escrowId) external onlyOwner nonReentrant {
+        Escrow storage escrow = _getExistingEscrow(escrowId);
+        if (escrow.status != Status.LOCKED && escrow.status != Status.SHIPPED) {
+            revert InvalidStatus(escrow.status);
+        }
+        _releaseFunds(escrowId, escrow);
+    }
+
     function resolveDispute(bytes32 escrowId, bool releaseToSeller) external onlyOwner nonReentrant {
         Escrow storage escrow = _getExistingEscrow(escrowId);
         _requireStatus(escrow, Status.DISPUTED);

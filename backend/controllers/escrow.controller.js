@@ -222,7 +222,7 @@ const submitDeliverable = asyncHandler(async (req, res) => {
   escrow.status = ESCROW_STATUS.SUBMITTED;
 
   // Auto release sau X ngày nếu client không approve
-  const autoReleaseDays = parseInt(process.env.AUTO_RELEASE_DAYS) || 7;
+  const autoReleaseDays = parseInt(process.env.AUTO_RELEASE_DAYS) || 5;
   escrow.autoReleaseAt = new Date(Date.now() + autoReleaseDays * 24 * 60 * 60 * 1000);
 
   await escrow.save();

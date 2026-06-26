@@ -21,6 +21,7 @@ const app            = require('./app');
 const connectDB      = require('./config/db');
 const { initBlockchain }       = require('./config/blockchain');
 const { startEventListeners }  = require('./services/eventListener.service');
+const { startAutoRelease, stopAutoRelease } = require('./services/autoRelease.service');
 
 const PORT = process.env.PORT || 5000;
 
@@ -36,6 +37,7 @@ const startServer = async () => {
 
     // ── BƯỚC 3: Bắt đầu lắng nghe events ──────────────────
     startEventListeners();
+    startAutoRelease();
   } catch (blockchainError) {
     console.warn('⚠️  Blockchain init failed. Running without blockchain features.');
     console.warn('   Reason:', blockchainError.message);
@@ -62,12 +64,14 @@ const startServer = async () => {
   process.on('SIGINT', () => {
     console.log('\n🛑 Shutting down gracefully...');
     stopEventListeners();
+    stopAutoRelease();
     process.exit(0);
   });
 
   process.on('SIGTERM', () => {
     console.log('\n🛑 SIGTERM received. Shutting down...');
     stopEventListeners();
+    stopAutoRelease();
     process.exit(0);
   });
 };

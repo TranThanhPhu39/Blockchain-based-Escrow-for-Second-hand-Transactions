@@ -122,6 +122,13 @@
     },
     {
       "inputs": [{ "internalType": "bytes32", "name": "escrowId", "type": "bytes32" }],
+      "name": "autoRelease",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [{ "internalType": "bytes32", "name": "escrowId", "type": "bytes32" }],
       "name": "cancelEscrow",
       "outputs": [],
       "stateMutability": "nonpayable",

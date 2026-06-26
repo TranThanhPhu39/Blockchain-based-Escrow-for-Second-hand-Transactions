@@ -227,7 +227,9 @@ const translations = {
       contractAddress: "Smart Contract Address",
       workflow: "Workflow Timeline",
       timelineNote: "Contract workflow stages",
-      depositCopy: "Freelancer accepted. Deposit funds into the smart contract to start the job."
+      depositCopy: "Freelancer accepted. Deposit funds into the smart contract to start the job.",
+      autoReleaseTitle: "Auto-release countdown",
+      autoReleaseCopy: "Funds release automatically to freelancer if client takes no action."
     },
     submit: {
       title: "Deliverable Submission",
@@ -459,7 +461,9 @@ const translations = {
       contractAddress: "Địa chỉ hợp đồng",
       workflow: "Tiến trình hợp đồng",
       timelineNote: "Các giai đoạn quy trình hợp đồng",
-      depositCopy: "Freelancer đã nhận việc. Nạp tiền vào hợp đồng thông minh để bắt đầu công việc."
+      depositCopy: "Freelancer đã nhận việc. Nạp tiền vào hợp đồng thông minh để bắt đầu công việc.",
+      autoReleaseTitle: "Đếm ngược tự giải ngân",
+      autoReleaseCopy: "Tiền tự động chuyển cho freelancer nếu khách hàng không phản hồi."
     },
     submit: {
       title: "Nộp sản phẩm",
@@ -1704,6 +1708,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
 function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refreshEscrows, currentUser }) {
   const [txStatus, setTxStatus] = useState({ loading: false, message: "" });
+  const [countdown, setCountdown] = useState("");
   const workflow = ["created", "deposited", "locked", "delivered", "approved", "released"];
   useEffect(() => { refreshEscrows(); }, [refreshEscrows]);
   const escrow = selectedEscrow;
@@ -1712,7 +1717,20 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   const isClient = escrow && currentUser && String(escrow.client?._id || escrow.client) === String(currentUser._id || currentUser.id);
   const canDeposit = isClient && escrow?.status === "CREATED" && escrow?.freelancer;
 
-  
+  useEffect(() => {
+    if (escrow?.status !== "SUBMITTED" || !escrow?.autoReleaseAt) { setCountdown(""); return; }
+    const update = () => {
+      const diff = new Date(escrow.autoReleaseAt) - Date.now();
+      if (diff <= 0) { setCountdown("Processing..."); return; }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setCountdown(`${d}d ${h}h ${m}m`);
+    };
+    update();
+    const timer = setInterval(update, 60000);
+    return () => clearInterval(timer);
+  }, [escrow?.status, escrow?.autoReleaseAt]);
 
   async function handleDeposit() {
     const freelancerWallet = escrow?.freelancer?.walletAddress;
@@ -1811,6 +1829,20 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
                 {txStatus.loading ? "Processing..." : c.common.depositFunds}
               </Button>
             </div>
+          </div>
+        </Card>
+      )}
+      {escrow?.status === "SUBMITTED" && escrow?.autoReleaseAt && countdown && (
+        <Card theme={theme}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <TimerReset className={classNames("h-5 w-5 shrink-0", theme.accent)} />
+              <div>
+                <p className={classNames("text-sm font-black", theme.heading)}>{c.details.autoReleaseTitle}</p>
+                <p className={classNames("mt-0.5 text-xs", theme.muted)}>{c.details.autoReleaseCopy}</p>
+              </div>
+            </div>
+            <p className={classNames("shrink-0 font-mono text-xl font-black tabular-nums", theme.text)}>{countdown}</p>
           </div>
         </Card>
       )}
