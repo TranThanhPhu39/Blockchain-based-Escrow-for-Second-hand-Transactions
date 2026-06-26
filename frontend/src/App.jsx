@@ -2203,7 +2203,8 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       const readProvider = new JsonRpcProvider(AMOY_RPC);
       const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
       const onChain = await escrowRead.getContract(contractId);
-      return onChain.exists ? Number(onChain.status) : -1;
+      // ABI returns unnamed tuple → use index: [0]=exists (bool), [4]=status (uint8)
+      return onChain[0] ? Number(onChain[4]) : -1;
     } catch {
       return -1;
     }
@@ -2237,9 +2238,20 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       setTxStatus({ loading: false, message: "Hợp đồng chưa được đăng ký on-chain." });
       return;
     }
-    setTxStatus({ loading: true, message: "" });
+    setTxStatus({ loading: true, message: "Đang kiểm tra trạng thái on-chain..." });
     try {
+      const onChainStatus = await getOnChainStatus(escrow.escrowIdOnChain);
+      console.log("[acceptContract] on-chain status:", onChainStatus);
+      if (onChainStatus === -1) {
+        setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước." });
+        return;
+      }
+      if (onChainStatus !== 0) {
+        setTxStatus({ loading: false, message: "Hợp đồng đã được chấp nhận hoặc đã qua trạng thái này." });
+        return;
+      }
       const { signer } = await getSignerAndDecimals();
+      setTxStatus({ loading: true, message: "Đang gửi giao dịch chấp nhận..." });
       const tx = await sendContractTx(signer, "acceptContract", [escrow.escrowIdOnChain], 150000);
       await tx.wait();
       setTxStatus({ loading: false, message: "Đã chấp nhận hợp đồng. Client có thể nạp tiền." });
