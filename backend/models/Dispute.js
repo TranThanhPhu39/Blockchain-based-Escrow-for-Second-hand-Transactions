@@ -40,9 +40,10 @@
 const mongoose = require('mongoose');
 
 const DISPUTE_STATUS = {
-  OPEN: 'OPEN', // Đang chờ admin xem xét
+  OPEN:             'OPEN',             // Mới mở, chờ freelancer upload defense
+  REVIEWING:        'REVIEWING',        // Đang trong giai đoạn reviewer bỏ phiếu (3 ngày)
   RESOLVED_RELEASE: 'RESOLVED_RELEASE', // Đã xử lý: release cho freelancer
-  RESOLVED_REFUND: 'RESOLVED_REFUND', // Đã xử lý: refund cho client
+  RESOLVED_REFUND:  'RESOLVED_REFUND',  // Đã xử lý: refund cho client
 };
 
 const disputeSchema = new mongoose.Schema(
@@ -104,6 +105,35 @@ const disputeSchema = new mongoose.Schema(
       },
       default: DISPUTE_STATUS.OPEN,
     },
+
+    // ==================== FREELANCER DEFENSE ====================
+    freelancerDefenseFiles: { type: [String], default: [] },
+    defenseURIOnChain: { type: String },
+
+    // ==================== REVIEWER VOTES (off-chain record) ====================
+    // Mỗi entry được tạo sau khi reviewer đã castDisputeVote() on-chain thành công.
+    // txHash dùng để xác minh — không thể giả mạo vì on-chain đã ghi nhận.
+    votes: [
+      {
+        reviewer:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        txHash:      { type: String, lowercase: true, required: true },
+        voteForFreelancer: { type: Boolean, required: true },
+        // Checklist 7 mục (mirror của DisputeChecklist struct trên chain)
+        deliverablesMatch:          { type: Boolean, default: false },
+        acceptanceCriteriaMet:      { type: Boolean, default: false },
+        deadlineMet:                { type: Boolean, default: false },
+        revisionHistoryReviewed:    { type: Boolean, default: false },
+        submissionHistoryReviewed:  { type: Boolean, default: false },
+        blockchainTimelineReviewed: { type: Boolean, default: false },
+        evidenceReviewed:           { type: Boolean, default: false },
+        reason: { type: String, trim: true },
+        votedAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    reviewStartedAt: { type: Date },
+    finalizedAt:     { type: Date },
+    finalizeTxHash:  { type: String, lowercase: true },
 
     // ==================== RESOLUTION (admin) ====================
 

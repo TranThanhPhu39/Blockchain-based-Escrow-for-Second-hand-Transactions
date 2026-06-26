@@ -148,10 +148,57 @@ const formatAmount = (rawAmount, decimals = 6) => {
   return ethers.formatUnits(rawAmount.toString(), decimals);
 };
 
+/**
+ * ── WRITE: Admin thêm địa chỉ ví vào whitelist reviewer on-chain ──
+ * Chỉ owner (admin wallet) được gọi — hàm addReviewer(address) trong contract.
+ * @param {string} walletAddress - Địa chỉ ví reviewer cần thêm
+ * @returns {Object} { txHash, blockNumber }
+ */
+const addReviewerOnChain = async (walletAddress) => {
+  const contract = getContract();
+  console.log(`📤 addReviewer on-chain: ${walletAddress}`);
+  const tx = await contract.addReviewer(walletAddress);
+  const receipt = await tx.wait(1);
+  console.log(`✅ addReviewer confirmed at block: ${receipt.blockNumber}`);
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber };
+};
+
+/**
+ * ── WRITE: Admin xoá địa chỉ ví khỏi whitelist reviewer on-chain ──
+ * @param {string} walletAddress - Địa chỉ ví reviewer cần xoá
+ * @returns {Object} { txHash, blockNumber }
+ */
+const removeReviewerOnChain = async (walletAddress) => {
+  const contract = getContract();
+  console.log(`📤 removeReviewer on-chain: ${walletAddress}`);
+  const tx = await contract.removeReviewer(walletAddress);
+  const receipt = await tx.wait(1);
+  console.log(`✅ removeReviewer confirmed at block: ${receipt.blockNumber}`);
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber };
+};
+
+/**
+ * ── WRITE: Finalize dispute sau khi đủ phiếu hoặc hết 3 ngày ──
+ * Bất kỳ ai cũng gọi được — backend dùng admin wallet để trigger.
+ * @param {string} escrowIdOnChain - bytes32 hex string
+ * @returns {Object} { txHash, blockNumber }
+ */
+const finalizeDisputeOnChain = async (escrowIdOnChain) => {
+  const contract = getContract();
+  console.log(`📤 finalizeDispute on-chain for escrow: ${escrowIdOnChain}`);
+  const tx = await contract.finalizeDispute(escrowIdOnChain);
+  const receipt = await tx.wait(1);
+  console.log(`✅ finalizeDispute confirmed at block: ${receipt.blockNumber}`);
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber };
+};
+
 module.exports = {
   getEscrowOnChain,
   confirmDelivery,
   resolveDispute,
+  addReviewerOnChain,
+  removeReviewerOnChain,
+  finalizeDisputeOnChain,
   getBlockTimestamp,
   formatAmount,
 };

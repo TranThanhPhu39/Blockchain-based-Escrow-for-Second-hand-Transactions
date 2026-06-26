@@ -10,6 +10,8 @@ const {
   getDisputes,
   getDisputeById,
   resolveDispute,
+  recordVote,
+  finalizeDispute,
 } = require('../controllers/dispute.controller');
 const { protect } = require('../middleware/auth.middleware');
 const { authorize } = require('../middleware/role.middleware');
@@ -30,5 +32,11 @@ router.patch('/:id/raise-tx', protect, attachRaiseTx);
 
 // PATCH /api/disputes/:id/resolve — Admin xử lý tranh chấp (gọi resolveDispute on-chain)
 router.patch('/:id/resolve', protect, authorize('admin'), resolveDispute);
+
+// POST /api/disputes/:id/vote — Reviewer ghi nhận phiếu bầu (sau khi đã ký on-chain qua MetaMask)
+router.post('/:id/vote', protect, authorize('reviewer'), recordVote);
+
+// POST /api/disputes/:id/finalize — Trigger finalizeDispute on-chain (sau đủ phiếu / hết 3 ngày)
+router.post('/:id/finalize', protect, finalizeDispute);
 
 module.exports = router;

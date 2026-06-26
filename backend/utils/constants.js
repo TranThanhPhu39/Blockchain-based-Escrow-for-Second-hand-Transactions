@@ -19,9 +19,10 @@ const ESCROW_STATUS = {
 };
 
 const USER_ROLES = {
-  CLIENT: 'client',         // Người thuê dịch vụ
+  CLIENT:     'client',     // Người thuê dịch vụ
   FREELANCER: 'freelancer', // Người cung cấp dịch vụ
-  ADMIN: 'admin',           // Quản trị viên / Juror giải quyết dispute
+  ADMIN:      'admin',      // Quản trị viên hệ thống
+  REVIEWER:   'reviewer',   // Juror độc lập — bỏ phiếu giải quyết dispute
 };
 
 module.exports = { ESCROW_STATUS, USER_ROLES };

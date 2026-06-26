@@ -146,4 +146,86 @@ const updateWallet = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { register, login, getMe, updateWallet };
+// ==================== PATCH /api/auth/users/:userId/promote-reviewer ====================
+/**
+ * Admin promote một user lên role reviewer.
+ * Đồng thời gọi addReviewer(walletAddress) on-chain để whitelist ví của họ.
+ * Body: (không cần)
+ * Response: { success, user, txHash }
+ */
+const { addReviewerOnChain, removeReviewerOnChain } = require('../services/blockchain.service');
+const { USER_ROLES } = require('../utils/constants');
+
+const promoteToReviewer = asyncHandler(async (req, res) => {
+  if (req.user.role !== USER_ROLES.ADMIN) {
+    res.status(403);
+    throw new Error('Only admin can promote users to reviewer');
+  }
+
+  const target = await User.findById(req.params.userId);
+  if (!target) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  if (!target.walletAddress) {
+    res.status(400);
+    throw new Error('User must have a connected wallet address before becoming a reviewer');
+  }
+
+  if (target.role === USER_ROLES.REVIEWER) {
+    res.status(400);
+    throw new Error('User is already a reviewer');
+  }
+
+  // Gọi on-chain trước — nếu revert thì không đổi DB
+  const { txHash, blockNumber } = await addReviewerOnChain(target.walletAddress);
+
+  target.role = USER_ROLES.REVIEWER;
+  await target.save();
+
+  res.json({
+    success: true,
+    message: `${target.name} has been promoted to reviewer`,
+    user: { id: target._id, name: target.name, email: target.email, role: target.role, walletAddress: target.walletAddress },
+    txHash,
+    blockNumber,
+  });
+});
+
+// ==================== PATCH /api/auth/users/:userId/demote-reviewer ====================
+/**
+ * Admin xoá role reviewer — gọi removeReviewer on-chain + đổi DB về 'client'.
+ */
+const demoteReviewer = asyncHandler(async (req, res) => {
+  if (req.user.role !== USER_ROLES.ADMIN) {
+    res.status(403);
+    throw new Error('Only admin can demote reviewers');
+  }
+
+  const target = await User.findById(req.params.userId);
+  if (!target) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  if (target.role !== USER_ROLES.REVIEWER) {
+    res.status(400);
+    throw new Error('User is not a reviewer');
+  }
+
+  const { txHash, blockNumber } = await removeReviewerOnChain(target.walletAddress);
+
+  target.role = USER_ROLES.CLIENT;
+  await target.save();
+
+  res.json({
+    success: true,
+    message: `${target.name} has been demoted from reviewer`,
+    user: { id: target._id, name: target.name, email: target.email, role: target.role },
+    txHash,
+    blockNumber,
+  });
+});
+
+module.exports = { register, login, getMe, updateWallet, promoteToReviewer, demoteReviewer };

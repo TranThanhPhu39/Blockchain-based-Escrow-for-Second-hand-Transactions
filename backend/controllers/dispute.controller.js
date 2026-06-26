@@ -32,7 +32,10 @@
 const Dispute = require('../models/Dispute');
 const Escrow = require('../models/Escrow');
 const { ESCROW_STATUS, USER_ROLES } = require('../utils/constants');
-const { resolveDispute: resolveDisputeOnChain } = require('../services/blockchain.service');
+const {
+  resolveDispute: resolveDisputeOnChain,
+  finalizeDisputeOnChain,
+} = require('../services/blockchain.service');
 const { createNotificationForMany } = require('../services/notification.service');
 const { NOTIFICATION_TYPES } = require('../models/Notification');
 const asyncHandler = require('../utils/asyncHandler');
@@ -280,10 +283,128 @@ const resolveDisputeController = asyncHandler(async (req, res) => {
   });
 });
 
+// ==================== POST /api/disputes/:id/vote ====================
+/**
+ * Reviewer ghi nhận phiếu bầu vào DB SAU KHI đã castDisputeVote() on-chain thành công.
+ * Reviewer tự ký giao dịch on-chain qua MetaMask (frontend) → lấy txHash → gọi API này.
+ *
+ * Body: {
+ *   txHash,              // bắt buộc — hash giao dịch on-chain đã confirm
+ *   voteForFreelancer,   // boolean — true: freelancer thắng, false: client thắng
+ *   reason,              // string — lý do (mirror của reason on-chain)
+ *   // checklist (7 mục — mirror của DisputeChecklist struct on-chain):
+ *   deliverablesMatch, acceptanceCriteriaMet, deadlineMet,
+ *   revisionHistoryReviewed, submissionHistoryReviewed,
+ *   blockchainTimelineReviewed, evidenceReviewed
+ * }
+ */
+const recordVote = asyncHandler(async (req, res) => {
+  if (req.user.role !== USER_ROLES.REVIEWER) {
+    res.status(403);
+    throw new Error('Only reviewers can cast dispute votes');
+  }
+
+  const { txHash, voteForFreelancer, reason,
+    deliverablesMatch, acceptanceCriteriaMet, deadlineMet,
+    revisionHistoryReviewed, submissionHistoryReviewed,
+    blockchainTimelineReviewed, evidenceReviewed } = req.body;
+
+  if (!txHash || typeof voteForFreelancer !== 'boolean') {
+    res.status(400);
+    throw new Error('txHash and voteForFreelancer (boolean) are required');
+  }
+
+  const dispute = await Dispute.findById(req.params.id);
+  if (!dispute) {
+    res.status(404);
+    throw new Error('Dispute not found');
+  }
+
+  if (!['OPEN', 'REVIEWING'].includes(dispute.status)) {
+    res.status(400);
+    throw new Error(`Cannot vote on a dispute with status '${dispute.status}'`);
+  }
+
+  // Kiểm tra reviewer chưa bỏ phiếu cho dispute này
+  const alreadyVoted = dispute.votes.some(v => v.reviewer.equals(req.user._id));
+  if (alreadyVoted) {
+    res.status(400);
+    throw new Error('You have already submitted a vote for this dispute');
+  }
+
+  dispute.votes.push({
+    reviewer: req.user._id,
+    txHash: txHash.toLowerCase(),
+    voteForFreelancer,
+    reason,
+    deliverablesMatch:          !!deliverablesMatch,
+    acceptanceCriteriaMet:      !!acceptanceCriteriaMet,
+    deadlineMet:                !!deadlineMet,
+    revisionHistoryReviewed:    !!revisionHistoryReviewed,
+    submissionHistoryReviewed:  !!submissionHistoryReviewed,
+    blockchainTimelineReviewed: !!blockchainTimelineReviewed,
+    evidenceReviewed:           !!evidenceReviewed,
+    votedAt: new Date(),
+  });
+
+  if (dispute.status === 'OPEN') {
+    dispute.status = 'REVIEWING';
+    dispute.reviewStartedAt = new Date();
+  }
+
+  await dispute.save();
+
+  res.json({ success: true, message: 'Vote recorded', totalVotes: dispute.votes.length, dispute });
+});
+
+// ==================== POST /api/disputes/:id/finalize ====================
+/**
+ * Trigger finalizeDispute() on-chain bằng admin wallet.
+ * Có thể gọi sau khi đủ 9 phiếu hoặc hết 3 ngày (contract tự kiểm tra).
+ * Bất kỳ ai cũng được phép gọi endpoint này — contract sẽ revert nếu chưa đủ điều kiện.
+ */
+const finalizeDisputeController = asyncHandler(async (req, res) => {
+  const dispute = await Dispute.findById(req.params.id).populate('escrow', 'serviceName escrowIdOnChain client freelancer');
+  if (!dispute) {
+    res.status(404);
+    throw new Error('Dispute not found');
+  }
+
+  if (!['OPEN', 'REVIEWING'].includes(dispute.status)) {
+    res.status(400);
+    throw new Error(`Dispute already finalized (status: ${dispute.status})`);
+  }
+
+  const { txHash, blockNumber } = await finalizeDisputeOnChain(dispute.escrowIdOnChain);
+
+  dispute.finalizedAt   = new Date();
+  dispute.finalizeTxHash = txHash;
+  // Status sẽ được cập nhật chính xác qua eventListener khi chain emit DisputeFinalized.
+  // Tạm set REVIEWING để báo "đang xử lý" — eventListener sẽ set RESOLVED_RELEASE/REFUND.
+  if (dispute.status === 'OPEN') dispute.status = 'REVIEWING';
+  await dispute.save();
+
+  await createNotificationForMany([dispute.escrow.client, dispute.escrow.freelancer], {
+    type: NOTIFICATION_TYPES.DISPUTE_RESOLVED,
+    title: 'Dispute Finalized',
+    message: `The dispute for "${dispute.escrow.serviceName}" has been finalized on-chain. Result will be confirmed shortly.`,
+    escrow: dispute.escrow._id,
+  });
+
+  res.json({
+    success: true,
+    message: 'finalizeDispute called on-chain. Escrow status will update once the transaction is indexed.',
+    txHash,
+    blockNumber,
+  });
+});
+
 module.exports = {
   createDispute,
   attachRaiseTx,
   getDisputes,
   getDisputeById,
   resolveDispute: resolveDisputeController,
+  recordVote,
+  finalizeDispute: finalizeDisputeController,
 };
