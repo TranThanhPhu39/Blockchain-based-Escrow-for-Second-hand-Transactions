@@ -284,7 +284,8 @@ const translations = {
       released: ["Funds Released", "Smart contract released payment to the freelancer."],
       disputeOpened: ["Dispute Opened", "Funds remain locked while evidence is reviewed."],
       disputeResolved: ["Dispute Resolved", "Jury decision finalized the escrow outcome."],
-      locked: ["Job Accepted", "Contract locked. Waiting for client to deposit funds."]
+      locked: ["Job Accepted", "Contract locked. Waiting for client to deposit funds."],
+      requireLogin: ["Account required", "Please create an account to use this feature."]
     },
     profile: {
       title: "User Profile",
@@ -521,7 +522,8 @@ const translations = {
       released: ["Đã giải ngân", "Hợp đồng thông minh đã trả tiền cho freelancer."],
       disputeOpened: ["Đã mở tranh chấp", "Tiền vẫn được khóa trong khi bằng chứng được xem xét."],
       disputeResolved: ["Tranh chấp đã xử lý", "Quyết định của hội đồng đã hoàn tất kết quả ký quỹ."],
-      locked: ["Đã nhận việc", "Hợp đồng đã khóa. Chờ khách hàng nạp tiền."]
+      locked: ["Đã nhận việc", "Hợp đồng đã khóa. Chờ khách hàng nạp tiền."],
+      requireLogin: ["Yêu cầu đăng nhập", "Xin vui lòng tạo tài khoản để sử dụng tính năng này."]
     },
     profile: {
       title: "Hồ sơ người dùng",
@@ -1157,7 +1159,16 @@ function Header({ c, theme, language, setLanguage, themeName, setThemeName, setM
   );
 }
 
-function LandingPage({ c, theme, language, navigate }) {
+function LandingPage({ c, theme, language, navigate, currentUser, addToast }) {
+  function guardedNavigate(route) {
+    if (!currentUser) {
+      addToast("requireLogin");
+      navigate("login");
+      return;
+    }
+    navigate(route);
+  }
+
   return (
     <div className="space-y-10">
       <section className={classNames("relative overflow-hidden rounded-lg border p-6 sm:p-8 lg:p-10", theme.card)}>
@@ -1171,8 +1182,8 @@ function LandingPage({ c, theme, language, navigate }) {
             </h1>
             <p className={classNames("mt-5 max-w-2xl text-base leading-7 sm:text-lg", theme.muted)}>{c.landing.subtitle}</p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <Button theme={theme} icon={Rocket} size="lg" onClick={() => navigate("create")}>{c.common.createJob}</Button>
-              <Button theme={theme} icon={LayoutDashboardIcon} size="lg" variant="secondary" onClick={() => navigate("dashboard")}>{c.common.viewDashboard}</Button>
+              <Button theme={theme} icon={Rocket} size="lg" onClick={() => guardedNavigate("create")}>{c.common.createJob}</Button>
+              <Button theme={theme} icon={LayoutDashboardIcon} size="lg" variant="secondary" onClick={() => guardedNavigate("dashboard")}>{c.common.viewDashboard}</Button>
             </div>
           </motion.div>
           <motion.div
@@ -2753,7 +2764,8 @@ function App() {
       released: Coins,
       disputeOpened: AlertTriangle,
       disputeResolved: Gavel,
-      locked: LockKeyhole
+      locked: LockKeyhole,
+      requireLogin: LogIn
     };
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     setToasts((current) => [
