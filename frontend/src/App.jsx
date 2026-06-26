@@ -26,6 +26,7 @@ import {
   Layers3,
   LockKeyhole,
   LogIn,
+  LogOut,
   Mail,
   Megaphone,
   Menu,
@@ -296,7 +297,8 @@ const translations = {
       security: "Security settings",
       verifications: ["MetaMask linked", "Email verified", "2FA enabled"],
       historyTitle: "Contract History",
-      noHistory: "No completed contracts yet."
+      noHistory: "No completed contracts yet.",
+      logout: "Sign Out"
     },
     footer: {
       company: "Company",
@@ -531,7 +533,8 @@ const translations = {
       security: "Cài đặt bảo mật",
       verifications: ["Đã liên kết MetaMask", "Email đã xác thực", "Đã bật 2FA"],
       historyTitle: "Lịch sử hợp đồng",
-      noHistory: "Chưa có hợp đồng hoàn thành."
+      noHistory: "Chưa có hợp đồng hoàn thành.",
+      logout: "Đăng xuất"
     },
     footer: {
       company: "Công ty",
@@ -2331,7 +2334,7 @@ function NotificationsPage({ c, theme, addToast, apiToken }) {
   );
 }
 
-function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscrow }) {
+function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscrow, setApiToken, setCurrentUser, setWallet }) {
   const initials = currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : "NA";
 
   const completedEscrows = escrows.filter(e => e.status === "RELEASED").filter(e => {
@@ -2340,6 +2343,15 @@ function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscr
     const uid = String(currentUser?._id || currentUser?.id);
     return String(clientId) === uid || String(freelancerId) === uid;
   });
+
+  function handleLogout() {
+    window.localStorage.removeItem("escrowx-token");
+    window.localStorage.removeItem("escrowx-user");
+    setApiToken(null);
+    setCurrentUser(null);
+    setWallet((w) => ({ ...w, connected: false, address: "", short: "" }));
+    navigate("landing");
+  }
 
   return (
     <div className="space-y-6">
@@ -2350,7 +2362,10 @@ function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscr
           </div>
           <h1 className={classNames("mt-4 text-2xl font-black", theme.heading)}>{currentUser?.name || c.profile.name}</h1>
           <p className={classNames("mt-1", theme.muted)}>{currentUser?.role ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) : c.profile.role}</p>
-          <p className={classNames("mt-4 break-all font-mono text-sm", theme.accentText)}>{currentUser?.walletAddress || "0x8A91B4c2E7d9136f2A4F2"}</p>
+          <p className={classNames("mt-4 break-all font-mono text-sm", theme.accentText)}>{currentUser?.walletAddress || ""}</p>
+          <Button theme={theme} icon={LogOut} variant="secondary" className="mt-5 w-full" onClick={handleLogout}>
+            {c.profile.logout}
+          </Button>
         </Card>
         <div className="grid gap-4 md:grid-cols-3">
           <StatCard theme={theme} icon={BadgeCheck} label={c.profile.reputation} value="98/100" detail={c.profile.verification} tone="cyan" />
