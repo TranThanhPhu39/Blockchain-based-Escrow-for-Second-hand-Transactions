@@ -105,7 +105,12 @@ const getMe = asyncHandler(async (req, res) => {
 /**
  * Cập nhật wallet address cho user
  * Body: { walletAddress }
- * Response: { success, user }
+ * Response: { success, reviewerWhitelisted, user }
+ *
+ * Auto-whitelist: sau khi lưu DB, gọi addReviewer(walletAddress) on-chain
+ * bằng admin wallet để user này có thể vote dispute. Non-blocking —
+ * nếu on-chain call fail (đã whitelist, RPC lỗi...) thì chỉ log warn,
+ * wallet vẫn được lưu bình thường.
  */
 const updateWallet = asyncHandler(async (req, res) => {
   const { walletAddress } = req.body;
@@ -122,7 +127,10 @@ const updateWallet = asyncHandler(async (req, res) => {
     throw new Error('Invalid Ethereum wallet address format');
   }
 
-  const duplicate = await User.findOne({ walletAddress: walletAddress.toLowerCase(), _id: { $ne: req.user._id } });
+  const duplicate = await User.findOne({
+    walletAddress: walletAddress.toLowerCase(),
+    _id: { $ne: req.user._id },
+  });
   if (duplicate) {
     res.status(400);
     throw new Error('This wallet address is already registered to another account');
@@ -134,8 +142,20 @@ const updateWallet = asyncHandler(async (req, res) => {
     { new: true, runValidators: true }
   );
 
+  // Auto-whitelist on-chain: cho phép user vote dispute từ bất kỳ wallet nào.
+  // Non-blocking — contract revert (đã whitelist) hoặc RPC lỗi không cancel request.
+  let reviewerWhitelisted = false;
+  try {
+    await addReviewerOnChain(walletAddress.toLowerCase());
+    reviewerWhitelisted = true;
+    console.log(`✅ [Reviewer] Auto-whitelisted ${walletAddress} on-chain`);
+  } catch (err) {
+    console.warn(`⚠️  [Reviewer] Could not whitelist ${walletAddress}: ${err.message}`);
+  }
+
   res.json({
     success: true,
+    reviewerWhitelisted,
     user: {
       id: user._id,
       name: user.name,

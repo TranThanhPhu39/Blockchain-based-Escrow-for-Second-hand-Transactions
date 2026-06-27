@@ -29,10 +29,20 @@ const ESCROW_STATUS = {
 };
 
 const USER_ROLES = {
-  CLIENT:     'client',     // Người thuê dịch vụ
-  FREELANCER: 'freelancer', // Người cung cấp dịch vụ
-  ADMIN:      'admin',      // Quản trị viên hệ thống
-  REVIEWER:   'reviewer',   // Juror độc lập — bỏ phiếu giải quyết dispute
+  // ── v2: context-based permissions ────────────────────────────────────────
+  // Role gắn với user account; quyền thực tế xác định theo context:
+  //   - USER tạo escrow → là "client" trong escrow đó
+  //   - USER accept escrow → là "freelancer" trong escrow đó
+  //   - USER eligible (wallet là reviewer on-chain) → được vote dispute
+  USER:  'user',   // Người dùng thông thường — role mặc định kể từ v2
+  ADMIN: 'admin',  // Quản trị viên hệ thống
+
+  // ── Legacy (v1) — giữ lại để backward compat ─────────────────────────────
+  // Users cũ trong DB vẫn có các role này. Không xóa cho đến khi hoàn tất
+  // migration (Phase 2). Middleware sẽ treat CLIENT/FREELANCER/REVIEWER như USER.
+  CLIENT:     'client',
+  FREELANCER: 'freelancer',
+  REVIEWER:   'reviewer',
 };
 
 module.exports = { ESCROW_STATUS, USER_ROLES };

@@ -143,6 +143,19 @@ const formatAmount = (rawAmount, decimals = 6) => {
 };
 
 /**
+ * ── READ: Kiểm tra wallet có trong whitelist reviewer on-chain ──
+ * Dùng làm eligibility check trước khi cho phép vote dispute.
+ * Contract là source of truth — không phụ thuộc vào DB role.
+ *
+ * @param {string} walletAddress - Địa chỉ ví cần kiểm tra
+ * @returns {boolean} true nếu wallet đã được whitelist là reviewer
+ */
+const checkIsReviewerOnChain = async (walletAddress) => {
+  const contract = getContract();
+  return await contract.isReviewer(walletAddress);
+};
+
+/**
  * ── WRITE: Admin thêm địa chỉ ví vào whitelist reviewer on-chain ──
  * Chỉ owner (admin wallet) được gọi — hàm addReviewer(address) trong contract.
  * @param {string} walletAddress - Địa chỉ ví reviewer cần thêm
@@ -190,6 +203,7 @@ module.exports = {
   getEscrowOnChain,
   confirmDelivery,
   resolveDispute,
+  checkIsReviewerOnChain,
   addReviewerOnChain,
   removeReviewerOnChain,
   finalizeDisputeOnChain,

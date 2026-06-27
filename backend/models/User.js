@@ -40,10 +40,10 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: Object.values(USER_ROLES), // ['client', 'freelancer', 'admin']
-        message: 'Role must be client, freelancer or admin',
+        values: Object.values(USER_ROLES), // ['user','admin','client','freelancer','reviewer']
+        message: 'Invalid role: {VALUE}',
       },
-      default: USER_ROLES.CLIENT, // Mặc định là client khi đăng ký
+      default: USER_ROLES.USER, // Mặc định là 'user' kể từ v2 — quyền context-based
     },
 
     // ---- Blockchain ----

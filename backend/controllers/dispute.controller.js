@@ -31,7 +31,7 @@
 const Dispute = require('../models/Dispute');
 const Escrow = require('../models/Escrow');
 const { ESCROW_STATUS, USER_ROLES } = require('../utils/constants');
-const { finalizeDisputeOnChain } = require('../services/blockchain.service');
+const { finalizeDisputeOnChain, checkIsReviewerOnChain } = require('../services/blockchain.service');
 const { createNotificationForMany } = require('../services/notification.service');
 const { NOTIFICATION_TYPES } = require('../models/Notification');
 const asyncHandler = require('../utils/asyncHandler');
@@ -272,8 +272,13 @@ const resolveDisputeController = asyncHandler(async (req, res) => {
 
 // ==================== POST /api/disputes/:id/vote ====================
 /**
- * Reviewer ghi nhận phiếu bầu vào DB SAU KHI đã castDisputeVote() on-chain thành công.
+ * Ghi nhận phiếu bầu vào DB SAU KHI đã castDisputeVote() on-chain thành công.
  * Reviewer tự ký giao dịch on-chain qua MetaMask (frontend) → lấy txHash → gọi API này.
+ *
+ * Eligibility (v2 — context-based):
+ *   - User phải có walletAddress trong DB
+ *   - walletAddress phải được whitelist on-chain (isReviewer[address] == true)
+ *   - DB role KHÔNG còn là tiêu chí — contract là source of truth
  *
  * Body: {
  *   txHash,              // bắt buộc — hash giao dịch on-chain đã confirm
@@ -286,9 +291,18 @@ const resolveDisputeController = asyncHandler(async (req, res) => {
  * }
  */
 const recordVote = asyncHandler(async (req, res) => {
-  if (req.user.role !== USER_ROLES.REVIEWER) {
+  // Kiểm tra user có wallet chưa
+  if (!req.user.walletAddress) {
     res.status(403);
-    throw new Error('Only reviewers can cast dispute votes');
+    throw new Error('You must connect a wallet before voting on disputes');
+  }
+
+  // Kiểm tra wallet có trong whitelist reviewer on-chain không
+  // Contract là source of truth — không check DB role
+  const isEligible = await checkIsReviewerOnChain(req.user.walletAddress);
+  if (!isEligible) {
+    res.status(403);
+    throw new Error('Your wallet is not registered as a reviewer on-chain. Please connect your wallet first.');
   }
 
   const { txHash, voteForFreelancer, reason,
