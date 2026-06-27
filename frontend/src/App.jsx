@@ -2146,10 +2146,14 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
       </div>
 
       {/* Available jobs — any user can accept escrows as freelancer */}
-      {availableEscrows.length > 0 && (
-        <div className="space-y-4">
-          <PageIntro title={c.create.jobsTitle} subtitle={c.create.jobsSubtitle} theme={theme} />
-          <InlineMessage message={status.message} theme={theme} />
+      <div className="space-y-4">
+        <PageIntro title={c.create.jobsTitle} subtitle={c.create.jobsSubtitle} theme={theme} />
+        <InlineMessage message={status.message} theme={theme} />
+        {availableEscrows.length === 0 ? (
+          <Card theme={theme}>
+            <p className={classNames("py-8 text-center", theme.muted)}>{c.create.noJobs}</p>
+          </Card>
+        ) : (
           <div className="grid gap-4">
             {availableEscrows.map(job => (
               <Card key={job._id} theme={theme}>
@@ -2176,8 +2180,8 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
               </Card>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
