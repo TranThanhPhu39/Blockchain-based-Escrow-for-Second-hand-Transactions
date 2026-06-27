@@ -2252,19 +2252,15 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       setTxStatus({ loading: false, message: "Freelancer chưa kết nối ví. Yêu cầu họ kết nối MetaMask trước." });
       return;
     }
-    setTxStatus({ loading: true, message: "Đang kiểm tra trạng thái on-chain..." });
-    let currentStatus;
+    setTxStatus({ loading: true, message: "" });
     try {
-      currentStatus = await getOnChainStatus(escrow.escrowIdOnChain);
-    } catch (rpcErr) {
-      setTxStatus({ loading: false, message: "Không thể kết nối blockchain. Kiểm tra mạng và thử lại." });
-      return;
-    }
-    if (currentStatus !== -1) {
-      setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
-      return;
-    }
-    try {
+      // Best-effort check: nếu đã tồn tại on-chain thì báo ngay, không gửi tx thừa.
+      // Nếu RPC lỗi thì bỏ qua check, cứ gửi tx — smart contract sẽ reject ContractAlreadyExists.
+      const currentStatus = await getOnChainStatus(escrow.escrowIdOnChain).catch(() => -2);
+      if (currentStatus !== -1 && currentStatus !== -2) {
+        setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
+        return;
+      }
       const { signer, decimals } = await getSignerAndDecimals();
       const amountBig = parseUnits(String(escrow.amount), decimals);
       const contractURI = `${API_BASE_URL}/api/escrows/${escrow._id}`;
@@ -2274,7 +2270,12 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       setTxStatus({ loading: false, message: "Hợp đồng đã đăng ký on-chain. Chờ freelancer chấp nhận để nạp tiền." });
       setTimeout(() => refreshEscrows(), 5000);
     } catch (err) {
-      setTxStatus({ loading: false, message: err.reason || err.message });
+      const msg = err?.reason || err?.message || "";
+      if (msg.includes("ContractAlreadyExists")) {
+        setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
+      } else {
+        setTxStatus({ loading: false, message: msg });
+      }
     }
   }
 
@@ -2284,32 +2285,31 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       setTxStatus({ loading: false, message: "Hợp đồng chưa được đăng ký on-chain." });
       return;
     }
-    setTxStatus({ loading: true, message: "Đang kiểm tra trạng thái on-chain..." });
-    let onChainStatus;
+    setTxStatus({ loading: true, message: "Đang gửi giao dịch chấp nhận..." });
     try {
-      onChainStatus = await getOnChainStatus(escrow.escrowIdOnChain);
-    } catch (rpcErr) {
-      setTxStatus({ loading: false, message: "Không thể kết nối blockchain. Kiểm tra mạng và thử lại." });
-      return;
-    }
-    console.log("[acceptContract] on-chain status:", onChainStatus);
-    if (onChainStatus === -1) {
-      setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước." });
-      return;
-    }
-    if (onChainStatus !== 0) {
-      setTxStatus({ loading: false, message: "Hợp đồng đã được chấp nhận hoặc đã qua trạng thái này." });
-      return;
-    }
-    try {
+      // Best-effort check: giúp hiện thông báo rõ hơn. Nếu RPC lỗi thì bỏ qua.
+      const onChainStatus = await getOnChainStatus(escrow.escrowIdOnChain).catch(() => null);
+      console.log("[acceptContract] on-chain status:", onChainStatus);
+      if (onChainStatus === -1) {
+        setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước." });
+        return;
+      }
+      if (onChainStatus !== null && onChainStatus !== 0) {
+        setTxStatus({ loading: false, message: "Hợp đồng đã được chấp nhận hoặc đã qua trạng thái này." });
+        return;
+      }
       const { signer } = await getSignerAndDecimals();
-      setTxStatus({ loading: true, message: "Đang gửi giao dịch chấp nhận..." });
       const tx = await sendContractTx(signer, "acceptContract", [escrow.escrowIdOnChain], 150000);
       await tx.wait();
       setTxStatus({ loading: false, message: "Đã chấp nhận hợp đồng. Client có thể nạp tiền." });
       setTimeout(() => refreshEscrows(), 5000);
     } catch (err) {
-      setTxStatus({ loading: false, message: err.reason || err.message });
+      const msg = err?.reason || err?.message || "";
+      if (msg.includes("ContractNotFound")) {
+        setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước." });
+      } else {
+        setTxStatus({ loading: false, message: msg });
+      }
     }
   }
 
