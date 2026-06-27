@@ -2286,37 +2286,48 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     // Dùng provider.call() + Interface.decodeFunctionResult() trực tiếp thay vì
     // Contract wrapper, để tránh ambiguity của single-output unwrapping trong ethers v6.
     // Interface.decodeFunctionResult LUÔN trả về Result array (decoded[0] = struct).
-    async function readFromProvider(provider) {
+    async function readFromProvider(label, provider) {
       const iface = new Interface(ESCROW_ABI);
       const callData = iface.encodeFunctionData("getContract", [contractId]);
-      const raw = await provider.call({ to: CONTRACT_ADDRESS, data: callData });
+      let raw;
+      try {
+        raw = await provider.call({ to: CONTRACT_ADDRESS, data: callData });
+      } catch (callErr) {
+        console.warn(`[getOnChainStatus][${label}] provider.call threw:`, callErr?.code, callErr?.message);
+        throw callErr;
+      }
+      console.log(`[getOnChainStatus][${label}] raw=`, raw?.slice(0, 66));
       const decoded = iface.decodeFunctionResult("getContract", raw);
-      const s = decoded[0]; // ContractData struct (first and only output)
+      const s = decoded[0];
+      console.log(`[getOnChainStatus][${label}] exists=${s.exists} status=${s.status}`);
       return s.exists ? Number(s.status) : -1;
     }
 
     let lastErr;
 
-    // 1. Ưu tiên wallet của user (MetaMask/Coin98) — không bị rate limit, không CORS,
-    //    dùng RPC nội bộ của wallet đã kết nối Amoy thành công.
+    // 1. Ưu tiên wallet của user (MetaMask/Coin98)
     const eth = getWalletProvider();
+    console.log("[getOnChainStatus] contractId=", contractId, "CONTRACT_ADDRESS=", CONTRACT_ADDRESS);
     if (eth) {
       try {
         const chainId = await eth.request({ method: "eth_chainId" });
+        console.log("[getOnChainStatus] wallet chainId=", chainId, "expected=", AMOY_CHAIN);
         if (chainId === AMOY_CHAIN) {
-          return await readFromProvider(new BrowserProvider(eth));
+          return await readFromProvider("wallet", new BrowserProvider(eth));
         }
       } catch (err) {
+        console.warn("[getOnChainStatus] wallet error:", err?.code, err?.message);
         if (err?.code === "CALL_EXCEPTION") return -1;
         lastErr = err;
       }
     }
 
-    // 2. Fallback: external RPC list (Alchemy → official → publicnode)
+    // 2. Fallback: external RPC list
     for (const rpc of AMOY_RPC_LIST) {
       try {
-        return await readFromProvider(new JsonRpcProvider(rpc));
+        return await readFromProvider(rpc.slice(0, 40), new JsonRpcProvider(rpc));
       } catch (err) {
+        console.warn("[getOnChainStatus] rpc error:", rpc.slice(0,30), err?.code, err?.message);
         if (err?.code === "CALL_EXCEPTION") return -1;
         lastErr = err;
       }
