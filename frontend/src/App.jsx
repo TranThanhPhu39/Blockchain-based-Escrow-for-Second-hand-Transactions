@@ -2195,9 +2195,17 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   const [txStatus, setTxStatus] = useState({ loading: false, message: "" });
   const [countdown, setCountdown] = useState("");
   const workflow = ["created", "accepted", "deposited", "submitted", "released"];
-  // Run once on mount to get fresh escrow data. DashboardPage handles re-fetch on auth change.
+  // Fetch on mount, rồi auto-poll mỗi 8s để bắt update từ event listener (vd: freelancer đã accept)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { refreshEscrows(); }, []);
+  useEffect(() => {
+    refreshEscrows();
+    const TERMINAL = new Set(["RELEASED", "REFUNDED", "CANCELLED"]);
+    const interval = setInterval(() => {
+      if (!selectedEscrow || TERMINAL.has(selectedEscrow.status)) return;
+      refreshEscrows();
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
   const escrow = selectedEscrow;
   const statusKey = escrowStatusKey(escrow?.status);
 
@@ -2302,7 +2310,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       const tx = await sendContractTx(signer, "acceptContract", [escrow.escrowIdOnChain], 150000);
       await tx.wait();
       setTxStatus({ loading: false, message: "Đã chấp nhận hợp đồng. Client có thể nạp tiền." });
-      setTimeout(() => refreshEscrows(), 5000);
+      setTimeout(() => refreshEscrows(), 10000);
     } catch (err) {
       const msg = err?.reason || err?.message || "";
       if (msg.includes("ContractNotFound")) {
