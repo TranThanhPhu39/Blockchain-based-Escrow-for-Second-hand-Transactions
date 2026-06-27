@@ -58,12 +58,12 @@ const createDispute = asyncHandler(async (req, res) => {
     throw new Error('Escrow not found');
   }
 
-  // Chỉ client hoặc freelancer của escrow này được mở dispute
+  // Chỉ client mới được mở dispute — contract raiseDispute() có _onlyClient modifier.
+  // Freelancer gọi on-chain sẽ revert; reject sớm ở đây để tránh DB record "mồ côi".
   const isClient = escrow.client.equals(req.user._id);
-  const isFreelancer = escrow.freelancer.equals(req.user._id);
-  if (!isClient && !isFreelancer) {
+  if (!isClient) {
     res.status(403);
-    throw new Error('Only the client or freelancer of this escrow can raise a dispute');
+    throw new Error('Only the client of this escrow can raise a dispute');
   }
 
   if (!escrow.escrowIdOnChain) {
