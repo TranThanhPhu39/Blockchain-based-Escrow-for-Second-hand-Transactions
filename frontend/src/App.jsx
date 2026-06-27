@@ -2764,6 +2764,23 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
     if (related) setSelectedDispute(related);
   }, [disputes, selectedEscrow, currentUser]); // eslint-disable-line
 
+  async function handleFinalize() {
+    if (!selectedDispute) return;
+    setStatus({ loading: true, message: "" });
+    try {
+      await apiRequest(`/api/disputes/${selectedDispute._id}/finalize`, {
+        method: "POST", token: apiToken,
+      });
+      addToast("disputeResolved");
+      fetchDisputes();
+      setSelectedDispute(null);
+    } catch (error) {
+      setStatus({ loading: false, message: error.reason || error.message });
+      return;
+    }
+    setStatus({ loading: false, message: "" });
+  }
+
   async function handleVote(voteForFreelancer) {
     if (!selectedDispute) return;
     setStatus({ loading: true, message: "" });
@@ -2921,6 +2938,11 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
               <Button theme={theme} icon={Gavel} variant="secondary" onClick={() => handleVote(false)} disabled={status.loading}>
                 {c.common.voteRefund}
               </Button>
+              {currentUser?.role === "admin" && (
+                <Button theme={theme} icon={Gavel} variant="danger" onClick={handleFinalize} disabled={status.loading}>
+                  {status.loading ? "Đang chốt..." : "Chốt kết quả (Admin)"}
+                </Button>
+              )}
             </div>
           )}
 
@@ -2949,6 +2971,14 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                 <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{selectedDispute.reason}</p>
               </div>
               <p className={classNames("text-sm", theme.muted)}>Đang chờ freelancer nộp bằng chứng phản bác. Sau đó các reviewer sẽ bỏ phiếu.</p>
+              {currentUser?.role === "admin" && (
+                <>
+                  <InlineMessage message={status.message} theme={theme} />
+                  <Button theme={theme} icon={Gavel} variant="danger" onClick={handleFinalize} disabled={status.loading}>
+                    {status.loading ? "Đang chốt..." : "Chốt kết quả (Admin)"}
+                  </Button>
+                </>
+              )}
             </div>
           )}
 

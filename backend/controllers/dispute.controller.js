@@ -429,10 +429,14 @@ const recordVote = asyncHandler(async (req, res) => {
 // ==================== POST /api/disputes/:id/finalize ====================
 /**
  * Trigger finalizeDispute() on-chain bằng admin wallet.
- * Có thể gọi sau khi đủ 9 phiếu hoặc hết 3 ngày (contract tự kiểm tra).
- * Bất kỳ ai cũng được phép gọi endpoint này — contract sẽ revert nếu chưa đủ điều kiện.
+ * Chỉ admin mới được gọi endpoint này.
+ * Contract tự kiểm tra điều kiện (đủ MAX_REVIEWERS hoặc hết DISPUTE_WINDOW).
  */
 const finalizeDisputeController = asyncHandler(async (req, res) => {
+  if (req.user.role !== USER_ROLES.ADMIN) {
+    res.status(403);
+    throw new Error('Only admin can finalize disputes');
+  }
   const dispute = await Dispute.findById(req.params.id).populate('escrow', 'serviceName escrowIdOnChain client freelancer');
   if (!dispute) {
     res.status(404);
