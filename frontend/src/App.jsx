@@ -2242,7 +2242,18 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       setTxStatus({ loading: false, message: "Freelancer chưa kết nối ví. Yêu cầu họ kết nối MetaMask trước." });
       return;
     }
-    setTxStatus({ loading: true, message: "" });
+    setTxStatus({ loading: true, message: "Đang kiểm tra trạng thái on-chain..." });
+    let currentStatus;
+    try {
+      currentStatus = await getOnChainStatus(escrow.escrowIdOnChain);
+    } catch (rpcErr) {
+      setTxStatus({ loading: false, message: "Không thể kết nối blockchain. Kiểm tra mạng và thử lại." });
+      return;
+    }
+    if (currentStatus !== -1) {
+      setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
+      return;
+    }
     try {
       const { signer, decimals } = await getSignerAndDecimals();
       const amountBig = parseUnits(String(escrow.amount), decimals);
