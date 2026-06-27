@@ -123,20 +123,26 @@ const translations = {
     },
     status: {
       created: "CREATED",
+      accepted: "ACCEPTED",
       deposited: "DEPOSITED",
+      submitted: "SUBMITTED",
+      revisionRequested: "REVISION REQUESTED",
+      disputed: "DISPUTED",
+      reviewingDispute: "REVIEWING DISPUTE",
+      released: "RELEASED",
+      refunded: "REFUNDED",
+      cancelled: "CANCELLED",
+      // Legacy / UI-only keys
       locked: "LOCKED",
       delivered: "DELIVERED",
       approved: "APPROVED",
-      released: "RELEASED",
       active: "Active",
       completed: "Completed",
       pending: "Pending",
       inProgress: "In progress",
-      submitted: "Submitted",
       reviewing: "Reviewing",
       resolved: "Resolved",
       open: "Open",
-      refunded: "Refunded",
       connected: "Connected",
       disconnected: "Disconnected"
     },
@@ -361,20 +367,26 @@ const translations = {
     },
     status: {
       created: "ĐÃ TẠO",
+      accepted: "ĐÃ NHẬN VIỆC",
       deposited: "ĐÃ NẠP TIỀN",
+      submitted: "ĐÃ NỘP BÀI",
+      revisionRequested: "YÊU CẦU SỬA",
+      disputed: "TRANH CHẤP",
+      reviewingDispute: "ĐANG XEM XÉT",
+      released: "ĐÃ GIẢI NGÂN",
+      refunded: "ĐÃ HOÀN TIỀN",
+      cancelled: "ĐÃ HỦY",
+      // Legacy / UI-only keys
       locked: "ĐANG KHÓA",
       delivered: "ĐÃ BÀN GIAO",
       approved: "ĐÃ PHÊ DUYỆT",
-      released: "ĐÃ GIẢI NGÂN",
       active: "Đang hoạt động",
       completed: "Đã hoàn thành",
       pending: "Đang chờ",
       inProgress: "Đang thực hiện",
-      submitted: "Đã nộp",
       reviewing: "Đang xem xét",
       resolved: "Đã xử lý",
       open: "Đang mở",
-      refunded: "Đã hoàn tiền",
       connected: "Đã kết nối",
       disconnected: "Chưa kết nối"
     },
@@ -661,19 +673,31 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
 const AMOY_RPC = import.meta.env.VITE_AMOY_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/Zi4sE_2bG68-B6wAeCW4_";
 
-// Polygon Amoy: legacy type-0 tx, 35 Gwei
-const AMOY_GAS_PRICE = 35_000_000_000n;
+// Dynamic fee estimation — EIP-1559 (type-2) preferred, legacy gasPrice as fallback.
+// Polygon Amoy supports EIP-1559; getFeeData() returns maxFeePerGas when available.
+async function getGasParams(provider) {
+  const feeData = await provider.getFeeData();
+  if (feeData.maxFeePerGas != null) {
+    return {
+      maxFeePerGas: feeData.maxFeePerGas,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? feeData.maxFeePerGas,
+    };
+  }
+  // Legacy fallback (type-0): use reported gasPrice, floor at 35 Gwei
+  return { gasPrice: feeData.gasPrice ?? 35_000_000_000n };
+}
 
 // Bypass ethers.js Contract abstraction — encode calldata explicitly then send via signer.
 // This avoids the BrowserProvider+Contract combo stripping calldata on Polygon Amoy.
 async function sendContractTx(signer, functionName, args, gasLimit) {
   const iface = new Interface(ESCROW_ABI);
   const data = iface.encodeFunctionData(functionName, args);
+  const feeParams = await getGasParams(signer.provider);
   console.log(`[tx] ${functionName} data:`, data.slice(0, 20) + "...");
   return signer.sendTransaction({
     to: CONTRACT_ADDRESS,
     data,
-    gasPrice: AMOY_GAS_PRICE,
+    ...feeParams,
     gasLimit: BigInt(gasLimit),
   });
 }
@@ -863,14 +887,22 @@ function formatEscrowAmount(amount) {
 }
 
 function escrowStatusKey(status) {
-  const key = String(status || "CREATED").toLowerCase();
-  if (key === "created") return "created";
-  if (key === "locked") return "locked";
-  if (key === "submitted") return "delivered";
-  if (key === "released") return "released";
-  if (key === "refunded") return "refunded";
-  if (key === "disputed") return "open";
-  return "pending";
+  switch (String(status || "CREATED").toUpperCase()) {
+    case "CREATED":            return "created";
+    case "ACCEPTED":           return "accepted";
+    case "DEPOSITED":          return "deposited";
+    case "SUBMITTED":          return "submitted";
+    case "REVISION_REQUESTED": return "revisionRequested";
+    case "DISPUTED":           return "disputed";
+    case "REVIEWING_DISPUTE":  return "reviewingDispute";
+    case "RELEASED":           return "released";
+    case "REFUNDED":           return "refunded";
+    case "CANCELLED":          return "cancelled";
+    // v1 legacy fallbacks
+    case "LOCKED":             return "deposited";
+    case "IN_PROGRESS":        return "accepted";
+    default:                   return "pending";
+  }
 }
 
 function useStoredState(key, fallback) {
@@ -1730,9 +1762,10 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
   function postedJobStatus(escrow) {
     const s = escrow.status;
     if (s === "RELEASED" || s === "REFUNDED" || s === "CANCELLED") return null;
-    if (s === "DISPUTED")                                    return { label: c.status.open,            tone: "rose"   };
-    if (s === "SUBMITTED")                                   return { label: c.status.submitted,        tone: "amber"  };
-    if (s === "LOCKED" || s === "IN_PROGRESS")               return { label: c.status.locked,           tone: "violet" };
+    if (s === "DISPUTED" || s === "REVIEWING_DISPUTE")       return { label: c.status.open,            tone: "rose"   };
+    if (s === "SUBMITTED" || s === "REVISION_REQUESTED")     return { label: c.status.submitted,        tone: "amber"  };
+    if (s === "DEPOSITED")                                   return { label: c.status.deposited,        tone: "violet" };
+    if (s === "ACCEPTED")                                    return { label: c.status.accepted,         tone: "cyan"   };
     if (s === "CREATED" && escrow.freelancer)                return { label: c.create.statusAssigned,   tone: "cyan"   };
     return { label: c.create.statusOpen, tone: "emerald" };
   }
@@ -2170,17 +2203,20 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refreshEscrows, currentUser }) {
   const [txStatus, setTxStatus] = useState({ loading: false, message: "" });
   const [countdown, setCountdown] = useState("");
-  const workflow = ["created", "deposited", "locked", "delivered", "approved", "released"];
-  useEffect(() => { refreshEscrows(); }, [refreshEscrows]);
+  const workflow = ["created", "accepted", "deposited", "submitted", "released"];
+  // Run once on mount to get fresh escrow data. DashboardPage handles re-fetch on auth change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { refreshEscrows(); }, []);
   const escrow = selectedEscrow;
   const statusKey = escrowStatusKey(escrow?.status);
 
   const isClient     = escrow && currentUser && String(escrow.client?._id    || escrow.client)     === String(currentUser._id || currentUser.id);
   const isFreelancer = escrow && currentUser && String(escrow.freelancer?._id || escrow.freelancer) === String(currentUser._id || currentUser.id);
   // canRegister: client chưa đăng ký on-chain (escrowIdOnChain tồn tại nhưng on-chain chưa có)
-  const canRegister  = isClient     && ["CREATED"].includes(escrow?.status) && escrow?.freelancer;
-  const canAccept    = isFreelancer && ["CREATED"].includes(escrow?.status);
-  const canDeposit   = isClient     && ["CREATED", "LOCKED"].includes(escrow?.status) && escrow?.freelancer;
+  const canRegister  = isClient     && escrow?.status === "CREATED" && escrow?.freelancer;
+  const canAccept    = isFreelancer && escrow?.status === "CREATED";
+  // canDeposit: chỉ khi freelancer đã acceptContract() on-chain → eventListener set status = ACCEPTED
+  const canDeposit   = isClient     && escrow?.status === "ACCEPTED" && escrow?.freelancer;
 
   useEffect(() => {
     if (escrow?.status !== "SUBMITTED" || !escrow?.autoReleaseAt) { setCountdown(""); return; }
@@ -2295,9 +2331,10 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
 
       // onChainStatus === 1 (ACCEPTED) → approve ERC20, then deposit
       const amountBig = parseUnits(String(escrow.amount), decimals);
+      const feeParams = await getGasParams(signer.provider);
       console.log("[deposit] calling approve...");
       const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig,
-        { gasPrice: AMOY_GAS_PRICE, gasLimit: 100000n });
+        { ...feeParams, gasLimit: 100000n });
       await approveTx.wait();
       console.log("[deposit] calling deposit...");
       const depositTx = await sendContractTx(signer, "deposit", [escrow.escrowIdOnChain], 200000);
