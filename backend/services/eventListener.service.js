@@ -167,12 +167,12 @@ const handleFundsDeposited = async (contractId, client, amount, event) => {
     const escrow = await findEscrowByChainId(normalizedId);
     if (!escrow) return;
 
-    escrow.status          = ESCROW_STATUS.LOCKED;
+    escrow.status          = ESCROW_STATUS.DEPOSITED;
     escrow.txHash          = txHash;
     escrow.contractAddress = contractAddr.toLowerCase();
     escrow.escrowIdOnChain = normalizedId;
     await escrow.save();
-    console.log(`✅ Escrow ${escrow._id} → LOCKED`);
+    console.log(`✅ Escrow ${escrow._id} → DEPOSITED`);
 
     await saveTransactionLog({
       escrowDbId:      escrow._id,
@@ -206,9 +206,9 @@ const handleContractAccepted = async (contractId, freelancer, event) => {
     const escrow = await findEscrowByChainId(normalizedId);
     if (!escrow) return;
 
-    escrow.status = ESCROW_STATUS.IN_PROGRESS;
+    escrow.status = ESCROW_STATUS.ACCEPTED;
     await escrow.save();
-    console.log(`✅ Escrow ${escrow._id} → IN_PROGRESS`);
+    console.log(`✅ Escrow ${escrow._id} → ACCEPTED`);
 
     await saveTransactionLog({
       escrowDbId:      escrow._id,
@@ -280,9 +280,9 @@ const handleRevisionRequested = async (contractId, client, reason, revisionCount
     const escrow = await findEscrowByChainId(normalizedId);
     if (!escrow) return;
 
-    escrow.status = ESCROW_STATUS.IN_PROGRESS;
+    escrow.status = ESCROW_STATUS.REVISION_REQUESTED;
     await escrow.save();
-    console.log(`✅ Escrow ${escrow._id} → IN_PROGRESS (revision #${revisionCount})`);
+    console.log(`✅ Escrow ${escrow._id} → REVISION_REQUESTED (round #${revisionCount})`);
 
     await saveTransactionLog({
       escrowDbId:      escrow._id,

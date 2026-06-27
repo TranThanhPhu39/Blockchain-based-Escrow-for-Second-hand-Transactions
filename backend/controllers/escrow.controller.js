@@ -31,6 +31,7 @@
 const Escrow = require('../models/Escrow');
 const User = require('../models/User');
 const { ESCROW_STATUS, USER_ROLES } = require('../utils/constants');
+const { computeContractHash } = require('../utils/contractHash');
 const asyncHandler = require('../utils/asyncHandler');
 
 // ============================================================
@@ -143,12 +144,13 @@ const createEscrow = asyncHandler(async (req, res) => {
     status: ESCROW_STATUS.CREATED,
   });
 
-  // FIX: set escrowIdOnChain NGAY LÚC TẠO, không chờ event listener.
-  // escrow._id vừa được Mongo sinh ra ở Escrow.create() phía trên,
-  // nên ta encode nó sang bytes32 rồi lưu lại — đảm bảo escrow này
-  // LUÔN tìm được qua escrowIdOnChain ngay từ khi vừa tạo, dù listener
-  // có bắt được event on-chain hay không.
+  // Set escrowIdOnChain ngay lúc tạo — không chờ event listener.
   escrow.escrowIdOnChain = objectIdToBytes32(escrow._id);
+
+  // Tính contractMetadataHash server-side từ các điều khoản bất biến.
+  // Bỏ qua hash do client gửi lên (nếu có) — luôn dùng giá trị server tính.
+  escrow.contractMetadataHash = computeContractHash(escrow);
+
   await escrow.save();
 
   // Populate để trả về thông tin đầy đủ ngay
@@ -349,6 +351,52 @@ const approveWork = asyncHandler(async (req, res) => {
   });
 });
 
+// ==================== GET /api/escrows/:id/verify-hash ====================
+/**
+ * Xác minh tính toàn vẹn của hợp đồng: tính lại SHA-256 từ các field hiện tại
+ * trong DB và so sánh với contractMetadataHash đã lưu lúc tạo.
+ * Nếu không khớp → dữ liệu trong DB có thể đã bị thay đổi sau khi ký.
+ * Response: { success, valid, storedHash, computedHash, escrowId }
+ */
+const verifyContractHash = asyncHandler(async (req, res) => {
+  const escrow = await Escrow.findById(req.params.id);
+
+  if (!escrow) {
+    res.status(404);
+    throw new Error('Escrow not found');
+  }
+
+  // Chỉ client, freelancer, hoặc admin mới được verify
+  const isClient     = escrow.client.equals(req.user._id);
+  const isFreelancer = escrow.freelancer?.equals(req.user._id) ?? false;
+  const isAdmin      = req.user.role === USER_ROLES.ADMIN;
+
+  if (!isClient && !isFreelancer && !isAdmin) {
+    res.status(403);
+    throw new Error('You are not authorized to verify this contract');
+  }
+
+  if (!escrow.contractMetadataHash) {
+    res.status(400);
+    throw new Error('This contract does not have a stored hash. It may have been created before this feature was added.');
+  }
+
+  const computedHash = computeContractHash(escrow);
+  const storedHash   = escrow.contractMetadataHash;
+  const valid        = computedHash === storedHash;
+
+  res.json({
+    success: true,
+    valid,
+    storedHash,
+    computedHash,
+    escrowId: escrow._id,
+    message: valid
+      ? 'Contract integrity verified. Data has not been tampered with.'
+      : 'WARNING: Computed hash does not match stored hash. Contract data may have been modified.',
+  });
+});
+
 // ==================== GET /api/escrows/available ====================
 /**
  * Freelancer xem danh sách hợp đồng chưa có người nhận
@@ -411,4 +459,5 @@ module.exports = {
   lockEscrow,
   submitDeliverable,
   approveWork,
+  verifyContractHash,
 };

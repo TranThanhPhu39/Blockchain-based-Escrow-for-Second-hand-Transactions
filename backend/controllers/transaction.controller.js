@@ -1,17 +1,15 @@
 // ============================================================
 // controllers/transaction.controller.js — Xử lý Transaction Logs (Backend 2)
 //
-// TransactionLog đã được TẠO SẴN bởi
-// backend/services/eventListener.service.js#saveTransactionLog()
-// mỗi khi 1 on-chain event được xử lý (EscrowCreated, FundsDeposited,
-// ItemShipped, DisputeRaised, FundsReleased, BuyerRefunded, EscrowCancelled).
+// TransactionLog được tạo bởi eventListener.service.js#saveTransactionLog()
+// mỗi khi 1 on-chain event được xử lý (EscrowContract v2 — 14 events):
+//   ContractCreated, ContractAccepted, FundsDeposited, WorkSubmitted,
+//   RevisionRequested, WorkApproved, DisputeRaised, DefenseUploaded,
+//   DisputeVoteCast, DisputeFinalized, FundsReleased, ClientRefunded,
+//   ContractCancelled, FreelancerBanned
 //
-// Controller này CHỈ ĐỌC dữ liệu đó — không có hàm tạo/sửa/xoá log,
-// vì txHash trên blockchain là nguồn sự thật duy nhất, ghi log là
-// trách nhiệm riêng của event listener.
-//
-// Dùng để render "lịch sử giao dịch" / timeline cho 1 escrow trên
-// EscrowDetailsPage, hoặc xem toàn bộ log nếu là admin.
+// Controller này CHỈ ĐỌC — không tạo/sửa/xoá log.
+// txHash trên blockchain là nguồn sự thật duy nhất.
 // ============================================================
 
 const TransactionLog = require('../models/TransactionLog');
@@ -35,9 +33,10 @@ const getTransactionsByEscrow = asyncHandler(async (req, res) => {
   }
 
   // Kiểm tra quyền truy cập — chỉ client, freelancer của escrow, hoặc admin
-  const isClient = escrow.client.equals(req.user._id);
-  const isFreelancer = escrow.freelancer.equals(req.user._id);
-  const isAdmin = req.user.role === USER_ROLES.ADMIN;
+  // freelancer có thể null (escrow CREATED chưa ai nhận) — dùng ?. để tránh crash
+  const isClient     = escrow.client.equals(req.user._id);
+  const isFreelancer = escrow.freelancer?.equals(req.user._id) ?? false;
+  const isAdmin      = req.user.role === USER_ROLES.ADMIN;
 
   if (!isClient && !isFreelancer && !isAdmin) {
     res.status(403);

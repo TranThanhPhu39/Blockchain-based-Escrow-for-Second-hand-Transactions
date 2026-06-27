@@ -15,6 +15,7 @@ const {
   lockEscrow,
   submitDeliverable,
   approveWork,
+  verifyContractHash,
 } = require('../controllers/escrow.controller');
 const { protect } = require('../middleware/auth.middleware');
 const { authorize } = require('../middleware/role.middleware');
@@ -42,5 +43,8 @@ router.patch('/:id/submit', protect, authorize('user'), submitDeliverable);
 
 // PATCH /api/escrows/:id/approve — Phê duyệt (controller verify user là client của escrow này)
 router.patch('/:id/approve', protect, authorize('user'), approveWork);
+
+// GET /api/escrows/:id/verify-hash — Xác minh tính toàn vẹn hợp đồng (SHA-256)
+router.get('/:id/verify-hash', protect, verifyContractHash);
 
 module.exports = router;

@@ -134,6 +134,60 @@ const attachRaiseTx = asyncHandler(async (req, res) => {
   res.json({ success: true, dispute });
 });
 
+// ==================== PATCH /api/disputes/:id/defense ====================
+/**
+ * Freelancer ghi nhận bằng chứng phản bác (defense) vào DB sau khi
+ * đã gọi uploadDefense(contractId, defenseURI) on-chain qua MetaMask.
+ *
+ * Flow đúng:
+ *   1. Freelancer upload files qua POST /api/uploads → lấy URLs
+ *   2. Freelancer gọi contract.uploadDefense(escrowIdOnChain, defenseURI) qua MetaMask
+ *   3. Freelancer gọi API này để lưu files + URI vào DB
+ *   4. eventListener độc lập bắt DefenseUploaded event → lưu TransactionLog
+ *
+ * Body: {
+ *   defenseFiles: string[],    // bắt buộc — URLs đã upload qua /api/uploads
+ *   defenseURIOnChain?: string // URI đã gửi on-chain (để audit)
+ * }
+ * Response: { success, dispute }
+ */
+const submitDefense = asyncHandler(async (req, res) => {
+  const { defenseFiles, defenseURIOnChain } = req.body;
+
+  if (!Array.isArray(defenseFiles) || defenseFiles.length === 0) {
+    res.status(400);
+    throw new Error('defenseFiles (non-empty array of URLs) is required');
+  }
+
+  const dispute = await Dispute.findById(req.params.id).populate('escrow', 'freelancer serviceName');
+  if (!dispute) {
+    res.status(404);
+    throw new Error('Dispute not found');
+  }
+
+  // Chỉ freelancer của escrow này được submit defense
+  if (!dispute.escrow.freelancer?.equals(req.user._id)) {
+    res.status(403);
+    throw new Error('Only the freelancer of this escrow can submit a defense');
+  }
+
+  // Chỉ submit khi dispute còn đang OPEN hoặc REVIEWING
+  if (!['OPEN', 'REVIEWING'].includes(dispute.status)) {
+    res.status(400);
+    throw new Error(`Cannot submit defense when dispute status is '${dispute.status}'`);
+  }
+
+  dispute.freelancerDefenseFiles = defenseFiles;
+  if (defenseURIOnChain) dispute.defenseURIOnChain = defenseURIOnChain;
+  await dispute.save();
+
+  res.json({
+    success: true,
+    message: 'Defense submitted. Reviewers can now access your evidence.',
+    dispute,
+  });
+});
+
 // ==================== GET /api/disputes ====================
 /**
  * Danh sách disputes.
@@ -403,6 +457,7 @@ const finalizeDisputeController = asyncHandler(async (req, res) => {
 module.exports = {
   createDispute,
   attachRaiseTx,
+  submitDefense,
   getDisputes,
   getDisputeById,
   resolveDispute: resolveDisputeController,
