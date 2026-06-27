@@ -2309,25 +2309,52 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     }
     setTxStatus({ loading: true, message: "" });
     try {
-      // Best-effort check: nếu đã tồn tại on-chain thì báo ngay, không gửi tx thừa.
-      // Nếu RPC lỗi thì bỏ qua check, cứ gửi tx — smart contract sẽ reject ContractAlreadyExists.
+      // Gọi getSignerAndDecimals() TRƯỚC để switch wallet sang Amoy.
+      // Sau đó getOnChainStatus() dùng wallet provider (đã trên Amoy) → không bị lỗi RPC.
+      const { signer, decimals } = await getSignerAndDecimals();
+
       const currentStatus = await getOnChainStatus(escrow.escrowIdOnChain).catch(() => -2);
-      if (currentStatus !== -1 && currentStatus !== -2) {
-        setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
+
+      if (currentStatus === 1) {
+        // Freelancer đã accept on-chain → cập nhật UI ngay, không cần gửi tx
+        setOnChainNum(1);
+        setTxStatus({ loading: false, message: "Freelancer đã chấp nhận hợp đồng. Bạn có thể nạp tiền bên dưới." });
         return;
       }
-      const { signer, decimals } = await getSignerAndDecimals();
+      if (currentStatus > 1) {
+        setOnChainNum(currentStatus);
+        setTxStatus({ loading: false, message: "Hợp đồng đã qua trạng thái đăng ký." });
+        return;
+      }
+      if (currentStatus === 0) {
+        setOnChainNum(0);
+        setTxStatus({ loading: false, message: "Hợp đồng đã đăng ký on-chain. Chờ freelancer chấp nhận." });
+        return;
+      }
+
+      // currentStatus === -1 (chưa có on-chain) hoặc -2 (RPC lỗi) → gửi tx tạo mới
       const amountBig = parseUnits(String(escrow.amount), decimals);
       const contractURI = `${API_BASE_URL}/api/escrows/${escrow._id}`;
       const tx = await sendContractTx(signer, "createContract",
         [escrow.escrowIdOnChain, freelancerWallet, amountBig, contractURI], 300000);
       await tx.wait();
+      setOnChainNum(0);
       setTxStatus({ loading: false, message: "Hợp đồng đã đăng ký on-chain. Chờ freelancer chấp nhận để nạp tiền." });
       setTimeout(() => refreshEscrows(), 5000);
     } catch (err) {
       const msg = err?.reason || err?.message || "";
       if (msg.includes("ContractAlreadyExists")) {
-        setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
+        // Contract đã tồn tại nhưng status check trước đó fail → thử đọc lại
+        const statusNow = await getOnChainStatus(escrow.escrowIdOnChain).catch(() => -2);
+        if (statusNow === 1) {
+          setOnChainNum(1);
+          setTxStatus({ loading: false, message: "Freelancer đã chấp nhận hợp đồng. Bạn có thể nạp tiền bên dưới." });
+        } else if (statusNow >= 0) {
+          setOnChainNum(statusNow);
+          setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
+        } else {
+          setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
+        }
       } else {
         setTxStatus({ loading: false, message: msg });
       }
