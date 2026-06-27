@@ -647,15 +647,20 @@ const getLastProcessedBlock = async (contractAddress, provider) => {
 
   if (!state) {
     const currentBlock = await provider.getBlockNumber();
+    // START_BLOCK_NUMBER: set trên Railway để rescan events bị lỡ.
+    // Nếu không set → dùng currentBlock (chỉ bắt events từ đây trở đi).
+    const startBlock = process.env.START_BLOCK_NUMBER
+      ? Math.min(parseInt(process.env.START_BLOCK_NUMBER, 10), currentBlock)
+      : currentBlock;
     state = await withTimeout(
       EventListenerState.create({
         contractAddress: addr,
-        lastProcessedBlock: currentBlock,
+        lastProcessedBlock: startBlock,
       }),
       8000,
       'MongoDB create (EventListenerState)'
     );
-    console.log(`🆕 EventListenerState khởi tạo lần đầu tại block ${currentBlock}`);
+    console.log(`🆕 EventListenerState khởi tạo tại block ${startBlock} (current=${currentBlock})`);
   }
 
   return state.lastProcessedBlock;
