@@ -2615,7 +2615,9 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
             [selectedEscrow.escrowIdOnChain, submissionURI], 200000);
           await tx.wait();
         } catch (chainErr) {
-          if (!String(chainErr.reason || chainErr.message).includes("InvalidStatus")) throw chainErr;
+          // User rejected → rethrow so flow stops
+          if (chainErr.code === "ACTION_REJECTED") throw chainErr;
+          // Contract revert (already submitted, wrong status…) → continue to DB update
         }
       }
       const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/submit`, {

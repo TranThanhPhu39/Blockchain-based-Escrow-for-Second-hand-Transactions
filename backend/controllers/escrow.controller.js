@@ -271,8 +271,9 @@ const submitDeliverable = asyncHandler(async (req, res) => {
     throw new Error('Only the freelancer can submit deliverables');
   }
 
-  // Chỉ submit khi DEPOSITED (client đã nạp tiền) hoặc REVISION_REQUESTED (client yêu cầu sửa)
-  if (escrow.status !== ESCROW_STATUS.DEPOSITED && escrow.status !== ESCROW_STATUS.REVISION_REQUESTED) {
+  // Cho phép DEPOSITED, REVISION_REQUESTED, hoặc SUBMITTED (idempotent re-submit)
+  const submittableStatuses = [ESCROW_STATUS.DEPOSITED, ESCROW_STATUS.REVISION_REQUESTED, ESCROW_STATUS.SUBMITTED];
+  if (!submittableStatuses.includes(escrow.status)) {
     res.status(400);
     throw new Error(
       `Cannot submit deliverable when escrow status is '${escrow.status}'. Escrow must be DEPOSITED or REVISION_REQUESTED.`
