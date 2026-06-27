@@ -30,7 +30,7 @@ router.get('/:id', protect, getDisputeById);
 // PATCH /api/disputes/:id/raise-tx — Gắn txHash sau khi raiseDispute on-chain confirm
 router.patch('/:id/raise-tx', protect, attachRaiseTx);
 
-// PATCH /api/disputes/:id/resolve — Admin xử lý tranh chấp (gọi resolveDispute on-chain)
+// PATCH /api/disputes/:id/resolve — Admin trigger finalizeDispute() on-chain (contract v2: reviewer voting)
 router.patch('/:id/resolve', protect, authorize('admin'), resolveDispute);
 
 // POST /api/disputes/:id/vote — Reviewer ghi nhận phiếu bầu (sau khi đã ký on-chain qua MetaMask)

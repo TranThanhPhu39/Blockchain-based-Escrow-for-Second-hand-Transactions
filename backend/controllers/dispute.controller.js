@@ -21,21 +21,17 @@
 //       (xem attachRaiseTx bên dưới) — tuỳ chọn, chỉ để audit, vì
 //       eventListener vẫn ghi nhận DisputeRaised độc lập qua TransactionLog.
 //
-// 3. resolveDispute (admin) gọi THẬT lên smart contract bằng admin
-//    wallet (xem blockchain.service.js#resolveDispute — admin wallet
-//    PHẢI là owner của contract, đã thiết lập từ lúc deploy). Đây là
-//    nơi DUY NHẤT trong toàn hệ thống mà backend tự ký giao dịch thay
-//    người dùng — vì resolveDispute có modifier onlyOwner trên contract,
-//    không thể để Client/Freelancer tự gọi.
+// 3. Admin resolve dispute bằng cách trigger finalizeDispute() on-chain
+//    qua PATCH /api/disputes/:id/resolve (hoặc POST /:id/finalize).
+//    Contract v2 không có resolveDispute() — kết quả do reviewer voting
+//    quyết định, admin chỉ trigger finalization sau khi đủ điều kiện
+//    (≥9 phiếu hoặc hết 3 ngày — contract tự kiểm tra và revert nếu chưa đủ).
 // ============================================================
 
 const Dispute = require('../models/Dispute');
 const Escrow = require('../models/Escrow');
 const { ESCROW_STATUS, USER_ROLES } = require('../utils/constants');
-const {
-  resolveDispute: resolveDisputeOnChain,
-  finalizeDisputeOnChain,
-} = require('../services/blockchain.service');
+const { finalizeDisputeOnChain } = require('../services/blockchain.service');
 const { createNotificationForMany } = require('../services/notification.service');
 const { NOTIFICATION_TYPES } = require('../models/Notification');
 const asyncHandler = require('../utils/asyncHandler');
@@ -211,16 +207,16 @@ const getDisputeById = asyncHandler(async (req, res) => {
 
 // ==================== PATCH /api/disputes/:id/resolve ====================
 /**
- * Admin xử lý tranh chấp — gọi THẬT lên smart contract (resolveDispute)
- * bằng admin wallet, sau đó lưu lại resolution trong DB.
+ * Admin trigger finalizeDispute() on-chain bằng admin wallet.
+ * Contract v2 không có resolveDispute() — kết quả do reviewer voting quyết định.
+ * Admin chỉ trigger finalization; contract tự revert nếu chưa đủ điều kiện
+ * (chưa đủ 9 phiếu VÀ chưa hết 3 ngày).
  *
- * Body: { releaseToFreelancer: boolean, resolutionNote? }
+ * Body: { resolutionNote? }
  * Response: { success, dispute, txHash, blockNumber }
  *
- * LƯU Ý: Escrow.status sẽ tự chuyển RELEASED/REFUNDED khi
- * eventListener.service.js bắt được event FundsReleased/BuyerRefunded
- * tương ứng từ giao dịch này — không set status thủ công ở đây,
- * giữ đúng nguyên tắc "status DB chỉ đúng khi đã xác nhận on-chain".
+ * Escrow.status sẽ tự chuyển RELEASED/REFUNDED khi eventListener bắt được
+ * event DisputeFinalized/FundsReleased/ClientRefunded từ giao dịch này.
  */
 const resolveDisputeController = asyncHandler(async (req, res) => {
   if (req.user.role !== USER_ROLES.ADMIN) {
@@ -228,12 +224,7 @@ const resolveDisputeController = asyncHandler(async (req, res) => {
     throw new Error('Only admin can resolve disputes');
   }
 
-  const { releaseToFreelancer, resolutionNote } = req.body;
-
-  if (typeof releaseToFreelancer !== 'boolean') {
-    res.status(400);
-    throw new Error('releaseToFreelancer (boolean) is required');
-  }
+  const { resolutionNote } = req.body;
 
   const dispute = await Dispute.findById(req.params.id).populate('escrow');
   if (!dispute) {
@@ -241,42 +232,38 @@ const resolveDisputeController = asyncHandler(async (req, res) => {
     throw new Error('Dispute not found');
   }
 
-  if (dispute.status !== 'OPEN') {
+  if (!['OPEN', 'REVIEWING'].includes(dispute.status)) {
     res.status(400);
-    throw new Error(`This dispute has already been resolved (status: ${dispute.status})`);
+    throw new Error(`Dispute cannot be finalized (status: ${dispute.status})`);
   }
 
-  // Gọi THẬT lên smart contract — admin wallet (owner) ký transaction
-  // Có thể revert nếu escrow không ở trạng thái DISPUTED on-chain,
-  // hoặc admin wallet không phải owner của contract (xem error message
-  // gốc từ ethers.js sẽ được error.middleware.js trả về cho client).
-  const { txHash, blockNumber } = await resolveDisputeOnChain(
-    dispute.escrowIdOnChain,
-    releaseToFreelancer
-  );
+  // Trigger finalizeDispute() on-chain — contract kiểm tra đủ điều kiện
+  // (≥9 phiếu hoặc hết 3 ngày). Nếu chưa đủ, contract revert và
+  // error.middleware.js sẽ trả error message gốc từ ethers.js về client.
+  const { txHash, blockNumber } = await finalizeDisputeOnChain(dispute.escrowIdOnChain);
 
-  dispute.status = releaseToFreelancer ? 'RESOLVED_RELEASE' : 'RESOLVED_REFUND';
-  dispute.releaseToFreelancer = releaseToFreelancer;
-  dispute.resolutionNote = resolutionNote;
-  dispute.resolvedBy = req.user._id;
+  if (resolutionNote) dispute.resolutionNote = resolutionNote;
+  dispute.resolvedBy    = req.user._id;
+  dispute.resolvedAt    = new Date();
   dispute.resolveTxHash = txHash;
-  dispute.resolvedAt = new Date();
+  dispute.finalizedAt   = new Date();
+  dispute.finalizeTxHash = txHash;
+  // Status sẽ được set chính xác bởi eventListener khi DisputeFinalized confirm.
+  // Tạm set REVIEWING để frontend biết "đang xử lý" nếu status vẫn là OPEN.
+  if (dispute.status === 'OPEN') dispute.status = 'REVIEWING';
   await dispute.save();
 
-  // Báo cho cả client và freelancer của escrow này biết kết quả
   const escrow = dispute.escrow;
   await createNotificationForMany([escrow.client, escrow.freelancer], {
     type: NOTIFICATION_TYPES.DISPUTE_RESOLVED,
-    title: 'Dispute Resolved',
-    message: releaseToFreelancer
-      ? `The dispute for "${escrow.serviceName}" has been resolved. Funds will be released to the freelancer.`
-      : `The dispute for "${escrow.serviceName}" has been resolved. Funds will be refunded to the client.`,
+    title: 'Dispute Finalized',
+    message: `The dispute for "${escrow.serviceName}" has been finalized on-chain. Result will be confirmed shortly.`,
     escrow: escrow._id,
   });
 
   res.json({
     success: true,
-    message: 'Dispute resolved on-chain. Escrow status will update once the transaction is indexed.',
+    message: 'Dispute finalized on-chain. Escrow status will update once the transaction is indexed.',
     dispute,
     txHash,
     blockNumber,

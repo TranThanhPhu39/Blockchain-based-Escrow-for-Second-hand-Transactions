@@ -228,9 +228,10 @@ const getEscrowById = asyncHandler(async (req, res) => {
   }
 
   // Kiểm tra quyền truy cập: chỉ client, freelancer, hoặc admin
-  const isClient = escrow.client._id.equals(req.user._id);
-  const isFreelancer = escrow.freelancer._id.equals(req.user._id);
-  const isAdmin = req.user.role === USER_ROLES.ADMIN;
+  // freelancer có thể null (escrow CREATED chưa ai nhận) — dùng ?. để tránh crash
+  const isClient     = escrow.client._id.equals(req.user._id);
+  const isFreelancer = escrow.freelancer?._id?.equals(req.user._id) ?? false;
+  const isAdmin      = req.user.role === USER_ROLES.ADMIN;
 
   if (!isClient && !isFreelancer && !isAdmin) {
     res.status(403);
@@ -285,8 +286,9 @@ const submitDeliverable = asyncHandler(async (req, res) => {
   };
   escrow.status = ESCROW_STATUS.SUBMITTED;
 
-  // Auto release sau X ngày nếu client không approve
-  const autoReleaseDays = parseInt(process.env.AUTO_RELEASE_DAYS) || 5;
+  // Dùng autoReleasePeriod per-contract (client set khi tạo hợp đồng)
+  // fallback 5 ngày nếu field bị thiếu (escrow cũ trước khi có field này)
+  const autoReleaseDays = escrow.autoReleasePeriod || 5;
   escrow.autoReleaseAt = new Date(Date.now() + autoReleaseDays * 24 * 60 * 60 * 1000);
 
   await escrow.save();
@@ -304,11 +306,17 @@ const submitDeliverable = asyncHandler(async (req, res) => {
 
 // ==================== PATCH /api/escrows/:id/approve ====================
 /**
- * Client approve công việc → trigger release funds cho freelancer
- * Response: { success, escrow }
+ * Verify client có quyền approve → frontend gọi contract.approveWork() qua MetaMask
+ * Response: { success, escrowIdOnChain } — frontend dùng escrowIdOnChain để gọi on-chain
  *
- * Lưu ý: Việc thực sự release tiền trên blockchain được thực hiện bởi Backend 3
- * Ở đây chỉ đánh dấu intent trong DB, Backend 3 sẽ gọi smart contract
+ * KHÔNG thay đổi status trong DB ở đây. Flow đúng:
+ *   1. Frontend gọi endpoint này để verify permission
+ *   2. Frontend gọi contract.approveWork(escrowIdOnChain) qua MetaMask
+ *   3. Contract emit WorkApproved + FundsReleased
+ *   4. eventListener bắt event → cập nhật status = RELEASED trong DB
+ *
+ * Nếu set RELEASED sớm ở bước 1 mà transaction fail ở bước 2
+ * (gas hết, user reject...) → DB nói RELEASED nhưng tiền chưa move.
  */
 const approveWork = asyncHandler(async (req, res) => {
   const escrow = await Escrow.findById(req.params.id);
@@ -332,16 +340,12 @@ const approveWork = asyncHandler(async (req, res) => {
     );
   }
 
-  // Đánh dấu để Backend 3 biết cần release
-  // Backend 3 sẽ gọi smart contract releaseFunds(escrowIdOnChain)
-  // Sau khi smart contract emit FundsReleased event, Backend 3 update status → RELEASED
-  escrow.status = ESCROW_STATUS.RELEASED;
-  await escrow.save();
-
+  // Không ghi DB — status sẽ được cập nhật bởi eventListener
+  // khi WorkApproved / FundsReleased event được xác nhận on-chain.
   res.json({
     success: true,
-    message: 'Work approved. Funds will be released to freelancer.',
-    escrow,
+    message: 'Authorized. Please call approveWork() on-chain via MetaMask.',
+    escrowIdOnChain: escrow.escrowIdOnChain,
   });
 });
 
