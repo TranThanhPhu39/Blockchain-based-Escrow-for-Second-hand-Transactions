@@ -712,7 +712,26 @@ const ESCROW_ABI = [
   "function raiseDispute(bytes32 contractId, string evidenceURI)",
   "function cancelContract(bytes32 contractId)",
   "function paymentToken() view returns (address)",
-  "function getContract(bytes32 contractId) view returns (tuple(bool exists, address buyer, address seller, uint256 amount, uint8 status, string evidenceURI, string submissionURI, uint256 disputeDeadline, uint256 createdAt, uint256 updatedAt))"
+  // getContract trả về struct → dùng JSON ABI format với type:"tuple" để ethers.js decode đúng
+  {
+    name: "getContract", type: "function", stateMutability: "view",
+    inputs: [{ name: "contractId", type: "bytes32" }],
+    outputs: [{
+      name: "", type: "tuple",
+      components: [
+        { name: "exists",        type: "bool"    },
+        { name: "client",        type: "address" },
+        { name: "freelancer",    type: "address" },
+        { name: "amount",        type: "uint256" },
+        { name: "status",        type: "uint8"   },
+        { name: "contractURI",   type: "string"  },
+        { name: "submissionURI", type: "string"  },
+        { name: "revisionCount", type: "uint256" },
+        { name: "createdAt",     type: "uint256" },
+        { name: "updatedAt",     type: "uint256" },
+      ]
+    }]
+  }
 ];
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -2267,7 +2286,9 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     async function readFromProvider(provider) {
       const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, provider);
       const onChain = await escrowRead.getContract(contractId);
-      return onChain[0] ? Number(onChain[4]) : -1;
+      // ABI returns ((tuple)) → onChain[0] là struct, onChain[0][0]=exists, onChain[0][4]=status
+      const data = onChain[0];
+      return data[0] ? Number(data[4]) : -1;
     }
 
     let lastErr;
