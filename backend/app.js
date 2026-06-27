@@ -34,9 +34,20 @@ app.use(helmet());
 
 // 2. cors: cho phép frontend (chạy ở port/domain khác) gọi API
 //    Không có cors thì browser sẽ block request do Same-Origin Policy
+//    CLIENT_URL hỗ trợ nhiều origin, phân cách bằng dấu phẩy
+//    VD: CLIENT_URL=https://app.vercel.app,http://localhost:5173
+const _allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: function (origin, callback) {
+      // Cho phép requests không có origin (curl, Postman, mobile app)
+      if (!origin || _allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
+    },
     credentials: true, // Cho phép gửi cookies và Authorization header
   })
 );
