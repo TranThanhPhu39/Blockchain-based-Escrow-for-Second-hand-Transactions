@@ -2880,10 +2880,40 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                 <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
                 <p className={classNames("mt-1 text-xs break-all", theme.faint)}>ID: {selectedDispute._id}</p>
               </div>
+
+              {/* Bằng chứng từ client */}
               <div className={classNames("rounded-lg border p-4", theme.soft)}>
-                <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>Lý do tranh chấp</p>
-                <p className={classNames("text-sm leading-5", theme.text)}>{selectedDispute.reason}</p>
+                <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>Lý do tranh chấp (client)</p>
+                <p className={classNames("text-sm leading-5", theme.text)}>{selectedDispute.reason || "—"}</p>
+                {selectedDispute.evidenceFiles?.length > 0 && (
+                  <div className="mt-2 grid gap-1">
+                    {selectedDispute.evidenceFiles.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noreferrer"
+                        className={classNames("text-xs underline break-all", theme.accentText)}>
+                        {url}
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Bằng chứng phản bác từ freelancer */}
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>Bằng chứng phản bác (freelancer)</p>
+                {selectedDispute.freelancerDefenseFiles?.length > 0 ? (
+                  <div className="grid gap-1">
+                    {selectedDispute.freelancerDefenseFiles.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noreferrer"
+                        className={classNames("text-xs underline break-all", theme.accentText)}>
+                        {url}
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={classNames("text-xs", theme.faint)}>Freelancer chưa nộp bằng chứng phản bác.</p>
+                )}
+              </div>
+
               <InlineMessage message={status.message} theme={theme} />
               <Button theme={theme} icon={Vote} variant="success" onClick={() => handleVote(true)} disabled={status.loading}>
                 {status.loading ? "Đang xử lý..." : c.common.voteRelease}
