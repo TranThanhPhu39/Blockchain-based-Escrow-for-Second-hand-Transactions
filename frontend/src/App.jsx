@@ -2286,9 +2286,9 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     async function readFromProvider(provider) {
       const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, provider);
       const onChain = await escrowRead.getContract(contractId);
-      // ABI returns ((tuple)) → onChain[0] là struct, onChain[0][0]=exists, onChain[0][4]=status
-      const data = onChain[0];
-      return data[0] ? Number(data[4]) : -1;
+      // JSON tuple ABI: ethers v6 unwraps single-output → onChain IS the struct trực tiếp
+      // onChain[0]=exists(bool), onChain[4]=status(uint8)
+      return onChain[0] ? Number(onChain[4]) : -1;
     }
 
     let lastErr;
