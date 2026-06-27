@@ -10,7 +10,8 @@ const MOCK_USDC_ABI = [
   "function decimals() view returns (uint8)"
 ];
 
-const MOCK_USDC_ADDRESS = process.env.MOCK_USDC_ADDRESS || "0xd802C175b40E07dB11E472E9aDA3Aeb3bd7dBCf4";
+// Ưu tiên env var, fallback về địa chỉ deploy thực tế trên Amoy
+const MOCK_USDC_ADDRESS = process.env.MOCK_USDC_ADDRESS || "0x715143e3223040A204C27375368FD15F26B4c066";
 const FAUCET_AMOUNT = ethers.parseUnits("10000", 6); // 10,000 mUSDC
 
 // POST /api/faucet  { address: "0x..." }
