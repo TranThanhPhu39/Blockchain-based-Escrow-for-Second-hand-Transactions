@@ -674,17 +674,23 @@ const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
 const AMOY_RPC = import.meta.env.VITE_AMOY_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/Zi4sE_2bG68-B6wAeCW4_";
 
 // Dynamic fee estimation — EIP-1559 (type-2) preferred, legacy gasPrice as fallback.
-// Polygon Amoy supports EIP-1559; getFeeData() returns maxFeePerGas when available.
+// Polygon Amoy minimum tip cap = 25 Gwei; enforce a 30 Gwei floor to avoid rejection.
+const AMOY_MIN_PRIORITY = 30_000_000_000n; // 30 Gwei — above Amoy's 25 Gwei minimum
+const AMOY_MIN_FEE     = 35_000_000_000n; // 35 Gwei floor for maxFeePerGas / gasPrice
 async function getGasParams(provider) {
   const feeData = await provider.getFeeData();
   if (feeData.maxFeePerGas != null) {
-    return {
-      maxFeePerGas: feeData.maxFeePerGas,
-      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? feeData.maxFeePerGas,
-    };
+    const tip = feeData.maxPriorityFeePerGas != null && feeData.maxPriorityFeePerGas > AMOY_MIN_PRIORITY
+      ? feeData.maxPriorityFeePerGas
+      : AMOY_MIN_PRIORITY;
+    const fee = feeData.maxFeePerGas > tip ? feeData.maxFeePerGas : tip + AMOY_MIN_PRIORITY;
+    return { maxFeePerGas: fee, maxPriorityFeePerGas: tip };
   }
-  // Legacy fallback (type-0): use reported gasPrice, floor at 35 Gwei
-  return { gasPrice: feeData.gasPrice ?? 35_000_000_000n };
+  // Legacy fallback (type-0)
+  const gasPrice = feeData.gasPrice != null && feeData.gasPrice > AMOY_MIN_FEE
+    ? feeData.gasPrice
+    : AMOY_MIN_FEE;
+  return { gasPrice };
 }
 
 // Bypass ethers.js Contract abstraction — encode calldata explicitly then send via signer.
