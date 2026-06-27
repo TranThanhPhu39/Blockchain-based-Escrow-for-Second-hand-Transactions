@@ -712,7 +712,26 @@ const ESCROW_ABI = [
   "function raiseDispute(bytes32 contractId, string evidenceURI)",
   "function cancelContract(bytes32 contractId)",
   "function paymentToken() view returns (address)",
-  "function getContract(bytes32 contractId) view returns ((bool, address, address, uint256, uint8, string, string, uint256, uint256, uint256))"
+  // getContract trả về struct → dùng JSON ABI format với type:"tuple" để ethers.js decode đúng
+  {
+    name: "getContract", type: "function", stateMutability: "view",
+    inputs: [{ name: "contractId", type: "bytes32" }],
+    outputs: [{
+      name: "", type: "tuple",
+      components: [
+        { name: "exists",        type: "bool"    },
+        { name: "client",        type: "address" },
+        { name: "freelancer",    type: "address" },
+        { name: "amount",        type: "uint256" },
+        { name: "status",        type: "uint8"   },
+        { name: "contractURI",   type: "string"  },
+        { name: "submissionURI", type: "string"  },
+        { name: "revisionCount", type: "uint256" },
+        { name: "createdAt",     type: "uint256" },
+        { name: "updatedAt",     type: "uint256" },
+      ]
+    }]
+  }
 ];
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
