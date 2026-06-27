@@ -712,7 +712,7 @@ const ESCROW_ABI = [
   "function raiseDispute(bytes32 contractId, string evidenceURI)",
   "function cancelContract(bytes32 contractId)",
   "function paymentToken() view returns (address)",
-  "function getContract(bytes32 contractId) view returns (bool, address, address, uint256, uint8, string, string, uint256, uint256, uint256)"
+  "function getContract(bytes32 contractId) view returns (tuple(bool exists, address buyer, address seller, uint256 amount, uint8 status, string evidenceURI, string submissionURI, uint256 disputeDeadline, uint256 createdAt, uint256 updatedAt))"
 ];
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
