@@ -49,7 +49,7 @@ const initBlockchain = async () => {
     //   3. Signer: để gọi write functions (resolveDispute, ...)
     contract = new ethers.Contract(
       process.env.CONTRACT_ADDRESS,
-      EscrowABI.abi,
+      EscrowABI,
       signer   // dùng signer thay vì provider → có thể gọi write functions
     );
     console.log(`✅ Contract loaded at: ${process.env.CONTRACT_ADDRESS}`);
