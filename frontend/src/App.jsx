@@ -1614,6 +1614,7 @@ function CheckboxRow({ label, checked, onChange, theme }) {
 }
 
 function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows, setSelectedEscrow, currentUser, escrows, availableEscrows, refreshAvailableEscrows }) {
+  const [tab, setTab] = useState("post");
   // ── Controlled form state (all sections) ─────────────────────────────────
   const [fd, setFd] = useState({
     // Job Information
@@ -1775,9 +1776,14 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
     return errors[field] ? <p className="mt-1 text-xs font-bold text-rose-400">{errors[field]}</p> : null;
   }
 
-  // ── CLIENT VIEW ───────────────────────────────────────────────────────────
+  // ── TABBED VIEW: "post" = đăng hợp đồng | "find" = tìm việc ──────────────
   return (
     <div className="space-y-6">
+      <div className={classNames("grid grid-cols-2 gap-1 rounded-lg p-1", theme.soft)}>
+        <button type="button" onClick={() => setTab("post")} className={classNames("rounded-md py-2.5 text-sm font-black transition-all", tab === "post" ? theme.accentBg : theme.muted)}>{c.create.title}</button>
+        <button type="button" onClick={() => setTab("find")} className={classNames("rounded-md py-2.5 text-sm font-black transition-all", tab === "find" ? theme.accentBg : theme.muted)}>{c.create.jobsTitle}</button>
+      </div>
+      {tab === "post" && <>
       <PageIntro title={c.create.title} subtitle={c.create.subtitle} theme={theme} />
       <div className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
 
@@ -2144,9 +2150,8 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
           )}
         </div>
       </div>
-
-      {/* Available jobs — any user can accept escrows as freelancer */}
-      <div className="space-y-4">
+      </>}
+      {tab === "find" && <>
         <PageIntro title={c.create.jobsTitle} subtitle={c.create.jobsSubtitle} theme={theme} />
         <InlineMessage message={status.message} theme={theme} />
         {availableEscrows.length === 0 ? (
@@ -2181,7 +2186,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
             ))}
           </div>
         )}
-      </div>
+      </>}
     </div>
   );
 }
