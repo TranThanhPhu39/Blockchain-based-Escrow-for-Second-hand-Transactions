@@ -2754,6 +2754,16 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
 
   useEffect(() => { fetchDisputes(); }, [apiToken]); // eslint-disable-line
 
+  // Nếu freelancer đang có selectedEscrow và đã có dispute → tự chọn dispute đó
+  useEffect(() => {
+    if (!selectedEscrow || !disputes.length || !currentUser) return;
+    const uid = currentUser?._id || currentUser?.id;
+    const isFreelancer = String(selectedEscrow.freelancer?._id || selectedEscrow.freelancer) === String(uid);
+    if (!isFreelancer) return;
+    const related = disputes.find(d => String(d.escrow?._id || d.escrow) === String(selectedEscrow._id));
+    if (related) setSelectedDispute(related);
+  }, [disputes, selectedEscrow, currentUser]); // eslint-disable-line
+
   async function handleVote(voteForFreelancer) {
     if (!selectedDispute) return;
     setStatus({ loading: true, message: "" });
