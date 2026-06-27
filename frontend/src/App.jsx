@@ -1355,7 +1355,6 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
             name: form.get("name"),
             email: form.get("email"),
             password,
-            role: normalizeRole(form.get("role"))
           };
       const auth = await apiRequest(`/api/auth/${isLogin ? "login" : "register"}`, {
         method: "POST",
@@ -1450,12 +1449,6 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
               </Field>
               <Field theme={theme} label={c.common.walletAddress} icon={Wallet}>
                 <TextInput theme={theme} name="walletAddress" placeholder="0x..." />
-              </Field>
-              <Field theme={theme} label={c.common.role} icon={Users}>
-                <SelectInput theme={theme} name="role" defaultValue="client">
-                  <option value="client">{c.common.client}</option>
-                  <option value="freelancer">{c.common.freelancer}</option>
-                </SelectInput>
               </Field>
             </>
           )}
