@@ -710,6 +710,8 @@ const ESCROW_ABI = [
   "function approveWork(bytes32 contractId)",
   "function requestRevision(bytes32 contractId, string reason)",
   "function raiseDispute(bytes32 contractId, string evidenceURI)",
+  "function uploadDefense(bytes32 contractId, string defenseURI)",
+  "function castDisputeVote(bytes32 contractId, bool deliverablesMatch, bool acceptanceCriteriaMet, bool deadlineMet, bool revisionHistoryReviewed, bool submissionHistoryReviewed, bool blockchainTimelineReviewed, bool evidenceReviewed, bool voteForFreelancer, string reason)",
   "function cancelContract(bytes32 contractId)",
   "function paymentToken() view returns (address)",
   // getContract trả về struct → dùng JSON ABI format với type:"tuple" để ethers.js decode đúng
@@ -2738,16 +2740,76 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
   );
 }
 
-function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refreshEscrows }) {
+function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selectedEscrow, refreshEscrows }) {
   const [disputes, setDisputes] = useState([]);
+  const [selectedDispute, setSelectedDispute] = useState(null);
   const [status, setStatus] = useState({ loading: false, message: "" });
 
-  useEffect(() => {
+  const fetchDisputes = () => {
     if (!apiToken) return;
     apiRequest("/api/disputes", { token: apiToken })
       .then((data) => setDisputes(data.disputes || []))
       .catch(() => {});
-  }, [apiToken]);
+  };
+
+  useEffect(() => { fetchDisputes(); }, [apiToken]); // eslint-disable-line
+
+  async function handleVote(voteForFreelancer) {
+    if (!selectedDispute) return;
+    setStatus({ loading: true, message: "" });
+    try {
+      const { signer } = await getSignerAndDecimals();
+      const reason = voteForFreelancer ? "Bỏ phiếu giải ngân cho freelancer" : "Bỏ phiếu hoàn tiền cho khách hàng";
+      const tx = await sendContractTx(signer, "castDisputeVote", [
+        selectedDispute.escrowIdOnChain,
+        true, true, true, true, true, true, true,
+        voteForFreelancer,
+        reason,
+      ], 300000);
+      const receipt = await tx.wait();
+      await apiRequest(`/api/disputes/${selectedDispute._id}/vote`, {
+        method: "POST", token: apiToken,
+        body: JSON.stringify({
+          txHash: receipt.hash, voteForFreelancer, reason,
+          deliverablesMatch: true, acceptanceCriteriaMet: true, deadlineMet: true,
+          revisionHistoryReviewed: true, submissionHistoryReviewed: true,
+          blockchainTimelineReviewed: true, evidenceReviewed: true,
+        })
+      });
+      addToast("disputeResolved");
+      fetchDisputes();
+      setSelectedDispute(null);
+    } catch (error) {
+      setStatus({ loading: false, message: error.reason || error.message });
+      return;
+    }
+    setStatus({ loading: false, message: "" });
+  }
+
+  async function handleUploadDefense(event) {
+    event.preventDefault();
+    if (!selectedDispute) return;
+    setStatus({ loading: true, message: "" });
+    try {
+      const form = new FormData(event.currentTarget);
+      const defenseURI = form.get("defenseURI") || "";
+      const { signer } = await getSignerAndDecimals();
+      const tx = await sendContractTx(signer, "uploadDefense",
+        [selectedDispute.escrowIdOnChain, defenseURI], 200000);
+      await tx.wait();
+      await apiRequest(`/api/disputes/${selectedDispute._id}/defense`, {
+        method: "PATCH", token: apiToken,
+        body: JSON.stringify({ defenseFiles: [defenseURI || "defense-submitted"] })
+      });
+      addToast("submitted");
+      fetchDisputes();
+      event.target.reset();
+    } catch (error) {
+      setStatus({ loading: false, message: error.reason || error.message });
+      return;
+    }
+    setStatus({ loading: false, message: "" });
+  }
 
   async function handleCreate(event) {
     event.preventDefault();
@@ -2789,13 +2851,69 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
     setStatus({ loading: false, message: "" });
   }
 
+  const uid = currentUser?._id || currentUser?.id;
+  const isDisputeClient     = selectedDispute && String(selectedDispute.escrow?.client)     === String(uid);
+  const isDisputeFreelancer = selectedDispute && String(selectedDispute.escrow?.freelancer) === String(uid);
+  const isReviewer          = selectedDispute && !isDisputeClient && !isDisputeFreelancer;
+
   return (
     <div className="space-y-6">
       <PageIntro title={c.dispute.title} subtitle={c.dispute.subtitle} theme={theme} />
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
         <Card theme={theme}>
           <SectionTitle theme={theme} title={c.dispute.evidence} />
-          {selectedEscrow ? (
+
+          {/* ── Reviewer: bỏ phiếu cho dispute đã chọn ── */}
+          {isReviewer && (
+            <div className="grid gap-4">
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
+                <p className={classNames("mt-1 text-xs break-all", theme.faint)}>ID: {selectedDispute._id}</p>
+              </div>
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>Lý do tranh chấp</p>
+                <p className={classNames("text-sm leading-5", theme.text)}>{selectedDispute.reason}</p>
+              </div>
+              <InlineMessage message={status.message} theme={theme} />
+              <Button theme={theme} icon={Vote} variant="success" onClick={() => handleVote(true)} disabled={status.loading}>
+                {status.loading ? "Đang xử lý..." : c.common.voteRelease}
+              </Button>
+              <Button theme={theme} icon={Gavel} variant="secondary" onClick={() => handleVote(false)} disabled={status.loading}>
+                {c.common.voteRefund}
+              </Button>
+            </div>
+          )}
+
+          {/* ── Freelancer: nộp bằng chứng phản bác ── */}
+          {isDisputeFreelancer && (
+            <form onSubmit={handleUploadDefense} className="grid gap-4">
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
+                <p className={classNames("mt-1 text-xs", theme.faint)}>Trạng thái: {selectedDispute.status}</p>
+              </div>
+              <Field theme={theme} label="Link bằng chứng phản bác" icon={UploadCloud}>
+                <TextInput theme={theme} name="defenseURI" placeholder="https://drive.google.com/..." required />
+              </Field>
+              <InlineMessage message={status.message} theme={theme} />
+              <Button theme={theme} icon={UploadCloud} type="submit" disabled={status.loading}>
+                {status.loading ? "Đang nộp..." : "Nộp bằng chứng phản bác"}
+              </Button>
+            </form>
+          )}
+
+          {/* ── Client: xem trạng thái dispute đã mở ── */}
+          {isDisputeClient && (
+            <div className="grid gap-4">
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
+                <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{selectedDispute.reason}</p>
+              </div>
+              <p className={classNames("text-sm", theme.muted)}>Đang chờ freelancer nộp bằng chứng phản bác. Sau đó các reviewer sẽ bỏ phiếu.</p>
+            </div>
+          )}
+
+          {/* ── Không chọn dispute → tạo mới hoặc demo ── */}
+          {!selectedDispute && selectedEscrow && (
             <form onSubmit={handleCreate} className="grid gap-4">
               <div className={classNames("rounded-lg border p-4", theme.soft)}>
                 <p className={classNames("text-sm font-bold", theme.text)}>{selectedEscrow.serviceName}</p>
@@ -2809,7 +2927,9 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
                 {status.loading ? "Opening..." : c.common.openDispute}
               </Button>
             </form>
-          ) : (
+          )}
+
+          {!selectedDispute && !selectedEscrow && (
             <div className="grid gap-3 md:grid-cols-3">
               {[
                 [FileText, c.dispute.deliverables, "https://github.com/client/job-2379"],
@@ -2825,27 +2945,33 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
             </div>
           )}
         </Card>
+
         <Card theme={theme}>
           <SectionTitle theme={theme} title={c.dispute.outcome} />
           {disputes.length ? (
             <div className="grid gap-3">
               {disputes.map((d) => (
-                <div key={d._id} className={classNames("rounded-lg border p-4", theme.soft)}>
+                <button
+                  key={d._id}
+                  type="button"
+                  onClick={() => setSelectedDispute(selectedDispute?._id === d._id ? null : d)}
+                  className={classNames(
+                    "w-full rounded-lg border p-4 text-left transition hover:opacity-80",
+                    theme.soft,
+                    selectedDispute?._id === d._id ? "ring-2 ring-cyan-400" : ""
+                  )}
+                >
                   <div className="flex items-start justify-between gap-2">
                     <p className={classNames("text-sm font-bold", theme.text)}>{d.escrow?.serviceName || "—"}</p>
                     <Badge theme={theme} tone={d.status === "OPEN" ? "amber" : "emerald"}>{d.status}</Badge>
                   </div>
                   <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{d.reason}</p>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
             <>
               <p className={classNames("text-sm leading-6", theme.muted)}>{c.dispute.outcomeCopy}</p>
-              <div className="mt-5 grid gap-3">
-                <Button theme={theme} icon={Vote} variant="success" disabled>{c.common.voteRelease}</Button>
-                <Button theme={theme} icon={Gavel} variant="secondary" disabled>{c.common.voteRefund}</Button>
-              </div>
               <p className={classNames("mt-4 text-xs", theme.faint)}>{c.dispute.adminNote}</p>
             </>
           )}
