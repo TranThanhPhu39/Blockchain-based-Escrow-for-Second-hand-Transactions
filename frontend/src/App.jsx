@@ -1439,12 +1439,12 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
             <TextInput theme={theme} name="email" type="email" placeholder="founder@escrowx.io" required />
           </Field>
           <Field theme={theme} label={c.common.password} icon={LockKeyhole}>
-            <TextInput theme={theme} name="password" type="password" placeholder="password" required minLength={6} />
+            <TextInput theme={theme} name="password" type="password" placeholder="password" required minLength={8} />
           </Field>
           {!isLogin && (
             <>
               <Field theme={theme} label={c.common.confirmPassword} icon={LockKeyhole}>
-                <TextInput theme={theme} name="confirmPassword" type="password" placeholder="password" required minLength={6} />
+                <TextInput theme={theme} name="confirmPassword" type="password" placeholder="password" required minLength={8} />
               </Field>
               <Field theme={theme} label={c.common.walletAddress} icon={Wallet}>
                 <TextInput theme={theme} name="walletAddress" placeholder="0x..." />
