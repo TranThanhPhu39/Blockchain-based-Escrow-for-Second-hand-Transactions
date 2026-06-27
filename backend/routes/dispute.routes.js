@@ -16,11 +16,12 @@ const {
 } = require('../controllers/dispute.controller');
 const { protect } = require('../middleware/auth.middleware');
 const { authorize } = require('../middleware/role.middleware');
+const { createDisputeRules, validateRequest } = require('../middleware/validators');
 
 const router = express.Router();
 
 // POST /api/disputes — Client/Freelancer tạo dispute record (kiểm tra quyền trong controller)
-router.post('/', protect, createDispute);
+router.post('/', protect, createDisputeRules, validateRequest, createDispute);
 
 // GET /api/disputes — Xem danh sách (admin xem tất cả, user thường chỉ xem dispute liên quan đến mình)
 router.get('/', protect, getDisputes);
@@ -42,6 +43,7 @@ router.patch('/:id/resolve', protect, authorize('admin'), resolveDispute);
 router.post('/:id/vote', protect, recordVote);
 
 // POST /api/disputes/:id/finalize — Trigger finalizeDispute on-chain (sau đủ phiếu / hết 3 ngày)
-router.post('/:id/finalize', protect, finalizeDispute);
+// authorize('admin'): mỗi call gửi tx on-chain tốn gas admin wallet — chỉ admin mới được trigger
+router.post('/:id/finalize', protect, authorize('admin'), finalizeDispute);
 
 module.exports = router;

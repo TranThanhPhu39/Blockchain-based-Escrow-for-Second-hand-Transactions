@@ -16,14 +16,16 @@ const {
   submitDeliverable,
   approveWork,
   verifyContractHash,
+  getOnChainStatus,
 } = require('../controllers/escrow.controller');
 const { protect } = require('../middleware/auth.middleware');
 const { authorize } = require('../middleware/role.middleware');
+const { createEscrowRules, validateRequest } = require('../middleware/validators');
 
 const router = express.Router();
 
 // POST /api/escrows — Bất kỳ user nào cũng có thể tạo hợp đồng (trở thành client)
-router.post('/', protect, authorize('user'), createEscrow);
+router.post('/', protect, authorize('user'), createEscrowRules, validateRequest, createEscrow);
 
 // GET /api/escrows — Xem danh sách của user hiện tại
 router.get('/', protect, getEscrows);
@@ -46,5 +48,8 @@ router.patch('/:id/approve', protect, authorize('user'), approveWork);
 
 // GET /api/escrows/:id/verify-hash — Xác minh tính toàn vẹn hợp đồng (SHA-256)
 router.get('/:id/verify-hash', protect, verifyContractHash);
+
+// GET /api/escrows/:id/on-chain-status — So sánh DB status với on-chain status
+router.get('/:id/on-chain-status', protect, getOnChainStatus);
 
 module.exports = router;

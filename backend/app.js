@@ -21,6 +21,7 @@ const faucetRoutes = require('./routes/faucet.routes');
 
 // Import error handler (phải đặt CUỐI CÙNG)
 const errorMiddleware = require('./middleware/error.middleware');
+const { globalLimiter } = require('./middleware/rateLimiter.middleware');
 
 const app = express();
 
@@ -57,12 +58,15 @@ app.use(
 //    Rất hữu ích khi debug
 app.use(morgan('dev'));
 
-// 4. express.json(): parse body của request có Content-Type: application/json
+// 4. globalLimiter: giới hạn 200 req/15min cho toàn bộ /api/*
+app.use('/api/', globalLimiter);
+
+// 5. express.json(): parse body của request có Content-Type: application/json
 //    Sau middleware này, req.body sẽ là object JavaScript
 //    Không có middleware này thì req.body = undefined
 app.use(express.json());
 
-// 5. express.urlencoded: parse body dạng form HTML
+// 6. express.urlencoded: parse body dạng form HTML
 //    extended: false dùng querystring library (đơn giản hơn, đủ dùng)
 app.use(express.urlencoded({ extended: false }));
 

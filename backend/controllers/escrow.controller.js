@@ -32,6 +32,7 @@ const Escrow = require('../models/Escrow');
 const User = require('../models/User');
 const { ESCROW_STATUS, USER_ROLES } = require('../utils/constants');
 const { computeContractHash } = require('../utils/contractHash');
+const { getEscrowOnChain } = require('../services/blockchain.service');
 const asyncHandler = require('../utils/asyncHandler');
 
 // ============================================================
@@ -397,6 +398,63 @@ const verifyContractHash = asyncHandler(async (req, res) => {
   });
 });
 
+// ==================== GET /api/escrows/:id/on-chain-status ====================
+/**
+ * So sánh trạng thái on-chain (thực tế trên blockchain) với trạng thái DB.
+ * Phát hiện nếu eventListener bỏ lỡ event và DB đang bị lệch với chain.
+ *
+ * Response: {
+ *   success,
+ *   inSync,           // true nếu DB status khớp với on-chain status
+ *   dbStatus,         // status hiện tại trong DB
+ *   onChainStatus,    // status đọc trực tiếp từ smart contract
+ *   onChainData,      // toàn bộ dữ liệu on-chain (amount, client, freelancer, ...)
+ *   escrowIdOnChain
+ * }
+ */
+const getOnChainStatus = asyncHandler(async (req, res) => {
+  const escrow = await Escrow.findById(req.params.id);
+
+  if (!escrow) {
+    res.status(404);
+    throw new Error('Escrow not found');
+  }
+
+  // Kiểm tra quyền truy cập — chỉ client, freelancer, hoặc admin
+  const isClient     = escrow.client.equals(req.user._id);
+  const isFreelancer = escrow.freelancer?.equals(req.user._id) ?? false;
+  const isAdmin      = req.user.role === USER_ROLES.ADMIN;
+
+  if (!isClient && !isFreelancer && !isAdmin) {
+    res.status(403);
+    throw new Error('You are not authorized to view on-chain status for this escrow');
+  }
+
+  if (!escrow.escrowIdOnChain) {
+    res.status(400);
+    throw new Error('This escrow does not have an on-chain ID yet');
+  }
+
+  // Đọc trực tiếp từ smart contract (view function — không tốn gas)
+  const onChainData = await getEscrowOnChain(escrow.escrowIdOnChain);
+
+  const dbStatus     = escrow.status;
+  const onChainStatus = onChainData.status; // string từ STATUS_MAP (Task 3)
+  const inSync       = dbStatus === onChainStatus;
+
+  res.json({
+    success: true,
+    inSync,
+    dbStatus,
+    onChainStatus,
+    onChainData,
+    escrowIdOnChain: escrow.escrowIdOnChain,
+    message: inSync
+      ? 'DB is in sync with on-chain status.'
+      : `DB status ('${dbStatus}') differs from on-chain status ('${onChainStatus}'). EventListener may have missed an event.`,
+  });
+});
+
 // ==================== GET /api/escrows/available ====================
 /**
  * Freelancer xem danh sách hợp đồng chưa có người nhận
@@ -460,4 +518,5 @@ module.exports = {
   submitDeliverable,
   approveWork,
   verifyContractHash,
+  getOnChainStatus,
 };

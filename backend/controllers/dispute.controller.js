@@ -247,9 +247,9 @@ const getDisputeById = asyncHandler(async (req, res) => {
     throw new Error('Dispute not found');
   }
 
-  const isAdmin = req.user.role === USER_ROLES.ADMIN;
-  const isClient = dispute.escrow.client.equals(req.user._id);
-  const isFreelancer = dispute.escrow.freelancer.equals(req.user._id);
+  const isAdmin      = req.user.role === USER_ROLES.ADMIN;
+  const isClient     = dispute.escrow.client.equals(req.user._id);
+  const isFreelancer = dispute.escrow.freelancer?.equals(req.user._id) ?? false;
 
   if (!isAdmin && !isClient && !isFreelancer) {
     res.status(403);

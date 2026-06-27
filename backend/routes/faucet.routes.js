@@ -1,5 +1,6 @@
 const express = require('express');
 const { ethers } = require('ethers');
+const { faucetLimiter } = require('../middleware/rateLimiter.middleware');
 
 const router = express.Router();
 
@@ -13,7 +14,8 @@ const MOCK_USDC_ADDRESS = process.env.MOCK_USDC_ADDRESS || "0xd802C175b40E07dB11
 const FAUCET_AMOUNT = ethers.parseUnits("10000", 6); // 10,000 mUSDC
 
 // POST /api/faucet  { address: "0x..." }
-router.post('/', async (req, res) => {
+// faucetLimiter: 5 req/hour per IP — mỗi call tốn gas admin wallet
+router.post('/', faucetLimiter, async (req, res) => {
   const { address } = req.body;
   if (!address || !ethers.isAddress(address)) {
     return res.status(400).json({ message: 'Invalid wallet address' });

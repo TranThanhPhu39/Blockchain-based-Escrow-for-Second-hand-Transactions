@@ -10,12 +10,15 @@ const express = require('express');
 const { register, login, getMe, updateWallet, promoteToReviewer, demoteReviewer } = require('../controllers/auth.controller');
 const { protect } = require('../middleware/auth.middleware');
 const { authorize } = require('../middleware/role.middleware');
+const { authLimiter } = require('../middleware/rateLimiter.middleware');
+const { registerRules, loginRules, validateRequest } = require('../middleware/validators');
 
 const router = express.Router();
 
 // Public routes — không cần đăng nhập
-router.post('/register', register);
-router.post('/login', login);
+// authLimiter: 10 req/15min (chỉ đếm failed requests) — ngăn brute force
+router.post('/register', authLimiter, registerRules, validateRequest, register);
+router.post('/login', authLimiter, loginRules, validateRequest, login);
 
 // Protected routes — cần JWT token hợp lệ
 // protect chạy trước, nếu pass thì chạy controller
