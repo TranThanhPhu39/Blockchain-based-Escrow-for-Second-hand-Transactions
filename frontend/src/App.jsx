@@ -1107,7 +1107,6 @@ function ProgressBar({ value, theme }) {
 
 function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
   const isLoggedIn = !!currentUser;
-  const isFreelancer = currentUser?.role === "freelancer";
   const isAdmin = currentUser?.role === "admin";
 
   const allNav = [
@@ -1135,7 +1134,7 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
   });
 
   function navLabel(id) {
-    if (id === "create") return isFreelancer ? c.nav.jobs : c.nav.create;
+    if (id === "create") return c.nav.create;
     if (id === "login") return c.nav.auth;
     return c.nav[id];
   }
@@ -1695,8 +1694,6 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
     return e;
   }
 
-  const isFreelancer = currentUser?.role === "freelancer";
-
   // ── Helpers ──────────────────────────────────────────────────────────────
   async function handleSubmit(event) {
     event.preventDefault();
@@ -1776,48 +1773,6 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
   function Err({ field }) {
     return errors[field] ? <p className="mt-1 text-xs font-bold text-rose-400">{errors[field]}</p> : null;
-  }
-
-  // ── FREELANCER VIEW ───────────────────────────────────────────────────────
-  if (isFreelancer) {
-    return (
-      <div className="space-y-6">
-        <PageIntro title={c.create.jobsTitle} subtitle={c.create.jobsSubtitle} theme={theme} />
-        <InlineMessage message={status.message} theme={theme} />
-        {availableEscrows.length === 0 ? (
-          <Card theme={theme}>
-            <p className={classNames("py-8 text-center", theme.muted)}>{c.create.noJobs}</p>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {availableEscrows.map(job => (
-              <Card key={job._id} theme={theme}>
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className={classNames("text-base font-black", theme.heading)}>{job.serviceName}</p>
-                      {job.serviceCategory && <Badge theme={theme} tone="violet">{job.serviceCategory}</Badge>}
-                      <Badge theme={theme} tone="emerald">{c.create.statusOpen}</Badge>
-                    </div>
-                    {job.jobDescription && (
-                      <p className={classNames("mt-2 line-clamp-2 text-sm leading-6", theme.muted)}>{job.jobDescription}</p>
-                    )}
-                    <div className="mt-3 flex flex-wrap gap-4 text-sm">
-                      <span className={theme.faint}>{c.common.amount}: <span className={classNames("font-bold", theme.accentText)}>{formatEscrowAmount(job.amount)}</span></span>
-                      {job.deadline && <span className={theme.faint}>{c.common.deadline}: <span className={classNames("font-bold", theme.text)}>{new Date(job.deadline).toLocaleDateString()}</span></span>}
-                      <span className={theme.faint}>{c.details.client}: <span className={classNames("font-bold", theme.text)}>{job.client?.name || "—"}</span></span>
-                    </div>
-                  </div>
-                  <Button theme={theme} icon={LockKeyhole} variant="primary" disabled={status.loading && status.lockingId === job._id} onClick={() => handleLock(job._id)}>
-                    {status.loading && status.lockingId === job._id ? "Accepting..." : c.create.lockBtn}
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-    );
   }
 
   // ── CLIENT VIEW ───────────────────────────────────────────────────────────
@@ -2189,6 +2144,40 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
           )}
         </div>
       </div>
+
+      {/* Available jobs — any user can accept escrows as freelancer */}
+      {availableEscrows.length > 0 && (
+        <div className="space-y-4">
+          <PageIntro title={c.create.jobsTitle} subtitle={c.create.jobsSubtitle} theme={theme} />
+          <InlineMessage message={status.message} theme={theme} />
+          <div className="grid gap-4">
+            {availableEscrows.map(job => (
+              <Card key={job._id} theme={theme}>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={classNames("text-base font-black", theme.heading)}>{job.serviceName}</p>
+                      {job.serviceCategory && <Badge theme={theme} tone="violet">{job.serviceCategory}</Badge>}
+                      <Badge theme={theme} tone="emerald">{c.create.statusOpen}</Badge>
+                    </div>
+                    {job.jobDescription && (
+                      <p className={classNames("mt-2 line-clamp-2 text-sm leading-6", theme.muted)}>{job.jobDescription}</p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                      <span className={theme.faint}>{c.common.amount}: <span className={classNames("font-bold", theme.accentText)}>{formatEscrowAmount(job.amount)}</span></span>
+                      {job.deadline && <span className={theme.faint}>{c.common.deadline}: <span className={classNames("font-bold", theme.text)}>{new Date(job.deadline).toLocaleDateString()}</span></span>}
+                      <span className={theme.faint}>{c.details.client}: <span className={classNames("font-bold", theme.text)}>{job.client?.name || "—"}</span></span>
+                    </div>
+                  </div>
+                  <Button theme={theme} icon={LockKeyhole} variant="primary" disabled={status.loading && status.lockingId === job._id} onClick={() => handleLock(job._id)}>
+                    {status.loading && status.lockingId === job._id ? "Accepting..." : c.create.lockBtn}
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3324,7 +3313,7 @@ function App() {
   }, [apiToken]);
 
   const refreshAvailableEscrows = useCallback(async () => {
-    if (!apiToken || currentUser?.role !== "freelancer") return;
+    if (!apiToken || currentUser?.role === "admin") return;
     try {
       const data = await apiRequest("/api/escrows/available", { token: apiToken });
       setAvailableEscrows(data.escrows || []);
