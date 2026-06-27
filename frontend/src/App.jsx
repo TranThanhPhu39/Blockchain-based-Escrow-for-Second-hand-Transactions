@@ -2227,8 +2227,11 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       const onChain = await escrowRead.getContract(contractId);
       // ABI returns unnamed tuple → use index: [0]=exists (bool), [4]=status (uint8)
       return onChain[0] ? Number(onChain[4]) : -1;
-    } catch {
-      return -1;
+    } catch (err) {
+      // CALL_EXCEPTION = contract revert (ContractNotFound) → contract thật sự chưa tồn tại on-chain
+      // Các lỗi khác (mạng, RPC rate limit...) phải throw để caller hiển thị đúng thông báo
+      if (err?.code === "CALL_EXCEPTION") return -1;
+      throw err;
     }
   }
 
@@ -2261,17 +2264,23 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       return;
     }
     setTxStatus({ loading: true, message: "Đang kiểm tra trạng thái on-chain..." });
+    let onChainStatus;
     try {
-      const onChainStatus = await getOnChainStatus(escrow.escrowIdOnChain);
-      console.log("[acceptContract] on-chain status:", onChainStatus);
-      if (onChainStatus === -1) {
-        setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước." });
-        return;
-      }
-      if (onChainStatus !== 0) {
-        setTxStatus({ loading: false, message: "Hợp đồng đã được chấp nhận hoặc đã qua trạng thái này." });
-        return;
-      }
+      onChainStatus = await getOnChainStatus(escrow.escrowIdOnChain);
+    } catch (rpcErr) {
+      setTxStatus({ loading: false, message: "Không thể kết nối blockchain. Kiểm tra mạng và thử lại." });
+      return;
+    }
+    console.log("[acceptContract] on-chain status:", onChainStatus);
+    if (onChainStatus === -1) {
+      setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước." });
+      return;
+    }
+    if (onChainStatus !== 0) {
+      setTxStatus({ loading: false, message: "Hợp đồng đã được chấp nhận hoặc đã qua trạng thái này." });
+      return;
+    }
+    try {
       const { signer } = await getSignerAndDecimals();
       setTxStatus({ loading: true, message: "Đang gửi giao dịch chấp nhận..." });
       const tx = await sendContractTx(signer, "acceptContract", [escrow.escrowIdOnChain], 150000);
