@@ -2282,13 +2282,17 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   async function getOnChainStatus(contractId) {
     const AMOY_CHAIN = "0x13882";
 
-    // Helper: đọc trạng thái từ một provider bất kỳ
+    // Helper: đọc trạng thái từ một provider bất kỳ.
+    // Dùng provider.call() + Interface.decodeFunctionResult() trực tiếp thay vì
+    // Contract wrapper, để tránh ambiguity của single-output unwrapping trong ethers v6.
+    // Interface.decodeFunctionResult LUÔN trả về Result array (decoded[0] = struct).
     async function readFromProvider(provider) {
-      const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, provider);
-      const onChain = await escrowRead.getContract(contractId);
-      // JSON tuple ABI: ethers v6 unwraps single-output → onChain IS the struct trực tiếp
-      // onChain[0]=exists(bool), onChain[4]=status(uint8)
-      return onChain[0] ? Number(onChain[4]) : -1;
+      const iface = new Interface(ESCROW_ABI);
+      const callData = iface.encodeFunctionData("getContract", [contractId]);
+      const raw = await provider.call({ to: CONTRACT_ADDRESS, data: callData });
+      const decoded = iface.decodeFunctionResult("getContract", raw);
+      const s = decoded[0]; // ContractData struct (first and only output)
+      return s.exists ? Number(s.status) : -1;
     }
 
     let lastErr;
