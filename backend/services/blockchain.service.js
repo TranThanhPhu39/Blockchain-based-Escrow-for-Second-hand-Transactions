@@ -16,58 +16,61 @@ const { getContract, getProvider } = require('../config/blockchain');
 const { ethers } = require('ethers');
 
 /**
- * ── READ: Lấy trạng thái escrow từ smart contract ──────────
+ * ── READ: Lấy trạng thái contract từ smart contract ──────────
  * Dùng để đồng bộ: so sánh status trên chain vs DB
  *
- * Struct Escrow trong contract trả về theo đúng thứ tự:
- *   (bool exists, address buyer, address seller, uint256 amount,
- *    uint8 status, string evidenceURI, uint256 createdAt, uint256 updatedAt)
+ * ContractData struct (EscrowContract v2):
+ *   (bool exists, address client, address freelancer, uint256 amount,
+ *    uint8 status, string contractURI, string submissionURI,
+ *    uint256 revisionCount, uint256 createdAt, uint256 updatedAt)
  *
  * @param {string} escrowIdOnChain - bytes32 hex string
- * @returns {Object} { exists, client, freelancer, amount, status, evidenceURI, createdAt, updatedAt }
+ * @returns {Object} { exists, client, freelancer, amount, status, contractURI, submissionURI, revisionCount, createdAt, updatedAt }
  */
 const getEscrowOnChain = async (escrowIdOnChain) => {
   const contract = getContract();
 
   // Gọi view function — chỉ đọc, không tốn gas
-  // getEscrow() revert với EscrowNotFound nếu escrowId không tồn tại
-  const result = await contract.getEscrow(escrowIdOnChain);
+  // getContract() revert với ContractNotFound nếu escrowId không tồn tại
+  const result = await contract.getContract(escrowIdOnChain);
 
   // Status trên chain là số (uint8), map sang string cho dễ đọc
-  // Phải đồng bộ với enum Status trong EscrowContract.sol
+  // Đồng bộ với enum Status trong EscrowContract.sol (v2 — 10 trạng thái)
   const STATUS_MAP = {
     0: 'CREATED',
-    1: 'LOCKED',
-    2: 'SHIPPED',
-    3: 'DISPUTED',
-    4: 'RELEASED',
-    5: 'REFUNDED',
-    6: 'CANCELLED',
+    1: 'ACCEPTED',
+    2: 'DEPOSITED',
+    3: 'SUBMITTED',
+    4: 'REVISION_REQUESTED',
+    5: 'DISPUTED',
+    6: 'REVIEWING_DISPUTE',
+    7: 'RELEASED',
+    8: 'REFUNDED',
+    9: 'CANCELLED',
   };
 
   return {
-    exists: result.exists,
-    client: result.buyer,
-    freelancer: result.seller,
-    amount: result.amount.toString(), // BigInt → String để tránh mất precision
-    status: STATUS_MAP[Number(result.status)] || 'UNKNOWN',
-    evidenceURI: result.evidenceURI,
-    createdAt: new Date(Number(result.createdAt) * 1000),
-    updatedAt: new Date(Number(result.updatedAt) * 1000),
+    exists:        result.exists,
+    client:        result.client,
+    freelancer:    result.freelancer,
+    amount:        result.amount.toString(), // BigInt → String để tránh mất precision
+    status:        STATUS_MAP[Number(result.status)] || 'UNKNOWN',
+    contractURI:   result.contractURI,
+    submissionURI: result.submissionURI,
+    revisionCount: Number(result.revisionCount),
+    createdAt:     new Date(Number(result.createdAt) * 1000),
+    updatedAt:     new Date(Number(result.updatedAt) * 1000),
   };
 };
 
 /**
- * ── WRITE: Client confirm đã nhận deliverable → release tiền cho freelancer ──
- * Gọi khi Client xác nhận hài lòng với công việc (escrow đang ở SHIPPED on-chain)
+ * ── WRITE: Client approve công việc → release tiền cho freelancer ──
+ * Gọi khi Client xác nhận hài lòng với công việc (contract đang ở SUBMITTED on-chain)
  *
- * Tương ứng hàm confirmDelivery(bytes32 escrowId) trong contract.
- * CHỈ buyer (client) trên contract mới được gọi hàm này — nếu signer
- * (admin wallet) không phải buyer, transaction sẽ revert Unauthorized.
- * Trong luồng hiện tại, việc gọi hàm này nên được thực hiện trực tiếp
- * từ phía Client (qua frontend/ethers.js với wallet của Client), không
- * phải từ backend admin wallet — function này chỉ dùng cho mục đích
- * test/script nội bộ nếu cần.
+ * Tương ứng hàm approveWork(bytes32 contractId) trong EscrowContract v2.
+ * CHỈ client (người tạo contract) mới được gọi — _onlyClient modifier.
+ * Trong luồng hiện tại, client tự ký từ frontend/MetaMask; function này
+ * chỉ dùng cho mục đích script/test nội bộ nếu cần.
  *
  * @param {string} escrowIdOnChain - bytes32 hex string
  * @returns {Object} { txHash, blockNumber }
@@ -75,13 +78,13 @@ const getEscrowOnChain = async (escrowIdOnChain) => {
 const confirmDelivery = async (escrowIdOnChain) => {
   const contract = getContract();
 
-  console.log(`📤 Calling confirmDelivery for escrow ${escrowIdOnChain}...`);
+  console.log(`📤 Calling approveWork for escrow ${escrowIdOnChain}...`);
 
-  const tx = await contract.confirmDelivery(escrowIdOnChain);
+  const tx = await contract.approveWork(escrowIdOnChain);
   console.log(`⏳ Transaction sent: ${tx.hash}`);
 
   const receipt = await tx.wait(1);
-  console.log(`✅ confirmDelivery confirmed at block: ${receipt.blockNumber}`);
+  console.log(`✅ approveWork confirmed at block: ${receipt.blockNumber}`);
 
   return {
     txHash: receipt.hash,
@@ -90,34 +93,25 @@ const confirmDelivery = async (escrowIdOnChain) => {
 };
 
 /**
- * ── WRITE: Admin resolve dispute ───────────────────────────
- * Gọi khi admin xử lý tranh chấp — release cho freelancer hoặc
- * refund cho client, tuỳ kết quả phân định.
+ * ── DEPRECATED: resolveDispute không còn tồn tại trong EscrowContract v2 ──
  *
- * Tương ứng hàm resolveDispute(bytes32 escrowId, bool releaseToSeller)
- * trong contract — hàm này có modifier onlyOwner, nên signer dùng
- * trong getContract() (ADMIN_PRIVATE_KEY) PHẢI là địa chỉ Owner
- * của contract (initialOwner lúc deploy).
+ * Contract v2 đã chuyển sang mô hình voting phi tập trung:
+ *   1. Reviewer gọi castDisputeVote() qua MetaMask (frontend)
+ *   2. Sau đủ 9 phiếu hoặc hết 3 ngày → gọi finalizeDisputeOnChain()
  *
- * @param {string} escrowIdOnChain - bytes32 hex string
- * @param {boolean} releaseToFreelancer - true: release cho freelancer, false: refund client
- * @returns {Object} { txHash, blockNumber }
+ * Hàm này được giữ lại để không break import trong dispute.controller.js
+ * trong thời gian chờ refactor (Task 7). Throw error rõ ràng thay vì
+ * crash với "TypeError: contract.resolveDispute is not a function".
+ *
+ * @deprecated Dùng finalizeDisputeOnChain() thay thế
+ * @throws {Error} Luôn throw — không gọi được on-chain
  */
 const resolveDispute = async (escrowIdOnChain, releaseToFreelancer) => {
-  const contract = getContract();
-
-  console.log(`📤 Calling resolveDispute for escrow ${escrowIdOnChain} (releaseToFreelancer=${releaseToFreelancer})...`);
-
-  const tx = await contract.resolveDispute(escrowIdOnChain, releaseToFreelancer);
-  console.log(`⏳ Transaction sent: ${tx.hash}`);
-
-  const receipt = await tx.wait(1);
-  console.log(`✅ resolveDispute confirmed at block: ${receipt.blockNumber}`);
-
-  return {
-    txHash: receipt.hash,
-    blockNumber: receipt.blockNumber,
-  };
+  throw new Error(
+    '[resolveDispute] Deprecated: EscrowContract v2 không có hàm resolveDispute(). ' +
+      'Dispute được giải quyết qua reviewer voting + finalizeDispute(). ' +
+      'Dùng POST /api/disputes/:id/finalize thay thế.'
+  );
 };
 
 /**
