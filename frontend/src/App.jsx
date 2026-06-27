@@ -712,7 +712,7 @@ const ESCROW_ABI = [
   "function raiseDispute(bytes32 contractId, string evidenceURI)",
   "function cancelContract(bytes32 contractId)",
   "function paymentToken() view returns (address)",
-  "function getContract(bytes32 contractId) view returns (bool, address, address, uint256, uint8, string, string, uint256, uint256, uint256)"
+  "function getContract(bytes32 contractId) view returns ((bool, address, address, uint256, uint8, string, string, uint256, uint256, uint256))"
 ];
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
@@ -2267,7 +2267,9 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     async function readFromProvider(provider) {
       const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, provider);
       const onChain = await escrowRead.getContract(contractId);
-      return onChain[0] ? Number(onChain[4]) : -1;
+      // ABI returns ((tuple)) → onChain[0] là struct, onChain[0][0]=exists, onChain[0][4]=status
+      const data = onChain[0];
+      return data[0] ? Number(data[4]) : -1;
     }
 
     let lastErr;
