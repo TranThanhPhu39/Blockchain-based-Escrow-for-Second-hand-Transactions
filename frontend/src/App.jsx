@@ -673,24 +673,13 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
 const AMOY_RPC = import.meta.env.VITE_AMOY_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/Zi4sE_2bG68-B6wAeCW4_";
 
-// Dynamic fee estimation — EIP-1559 (type-2) preferred, legacy gasPrice as fallback.
-// Polygon Amoy minimum tip cap = 25 Gwei; enforce a 30 Gwei floor to avoid rejection.
-const AMOY_MIN_PRIORITY = 30_000_000_000n; // 30 Gwei — above Amoy's 25 Gwei minimum
-const AMOY_MIN_FEE     = 35_000_000_000n; // 35 Gwei floor for maxFeePerGas / gasPrice
-async function getGasParams(provider) {
-  const feeData = await provider.getFeeData();
-  if (feeData.maxFeePerGas != null) {
-    const tip = feeData.maxPriorityFeePerGas != null && feeData.maxPriorityFeePerGas > AMOY_MIN_PRIORITY
-      ? feeData.maxPriorityFeePerGas
-      : AMOY_MIN_PRIORITY;
-    const fee = feeData.maxFeePerGas > tip ? feeData.maxFeePerGas : tip + AMOY_MIN_PRIORITY;
-    return { maxFeePerGas: fee, maxPriorityFeePerGas: tip };
-  }
-  // Legacy fallback (type-0)
-  const gasPrice = feeData.gasPrice != null && feeData.gasPrice > AMOY_MIN_FEE
-    ? feeData.gasPrice
-    : AMOY_MIN_FEE;
-  return { gasPrice };
+// Polygon Amoy requires minimum 25 Gwei tip cap. Hardcode safe values for testnet
+// to avoid RPC fee estimation returning values below the network minimum.
+function getGasParams() {
+  return {
+    maxPriorityFeePerGas: 30_000_000_000n, // 30 Gwei tip (above Amoy's 25 Gwei min)
+    maxFeePerGas:         60_000_000_000n, // 60 Gwei cap (30 base + 30 tip buffer)
+  };
 }
 
 // Bypass ethers.js Contract abstraction — encode calldata explicitly then send via signer.
@@ -698,7 +687,7 @@ async function getGasParams(provider) {
 async function sendContractTx(signer, functionName, args, gasLimit) {
   const iface = new Interface(ESCROW_ABI);
   const data = iface.encodeFunctionData(functionName, args);
-  const feeParams = await getGasParams(signer.provider);
+  const feeParams = getGasParams();
   console.log(`[tx] ${functionName} data:`, data.slice(0, 20) + "...");
   return signer.sendTransaction({
     to: CONTRACT_ADDRESS,
@@ -2328,7 +2317,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
 
       // onChainStatus === 1 (ACCEPTED) → approve ERC20, then deposit
       const amountBig = parseUnits(String(escrow.amount), decimals);
-      const feeParams = await getGasParams(signer.provider);
+      const feeParams = getGasParams();
       console.log("[deposit] calling approve...");
       const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig,
         { ...feeParams, gasLimit: 100000n });
