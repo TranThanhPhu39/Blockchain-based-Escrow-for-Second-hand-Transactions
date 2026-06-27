@@ -2261,23 +2261,43 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
 
   // on-chain status: 0=CREATED 1=ACCEPTED 2=DEPOSITED 3=SUBMITTED 4=REVISION 5=DISPUTED 7=RELEASED 8=REFUNDED 9=CANCELLED
   async function getOnChainStatus(contractId) {
+    const AMOY_CHAIN = "0x13882";
+
+    // Helper: đọc trạng thái từ một provider bất kỳ
+    async function readFromProvider(provider) {
+      const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, provider);
+      const onChain = await escrowRead.getContract(contractId);
+      return onChain[0] ? Number(onChain[4]) : -1;
+    }
+
     let lastErr;
-    for (const rpc of AMOY_RPC_LIST) {
+
+    // 1. Ưu tiên wallet của user (MetaMask/Coin98) — không bị rate limit, không CORS,
+    //    dùng RPC nội bộ của wallet đã kết nối Amoy thành công.
+    const eth = getWalletProvider();
+    if (eth) {
       try {
-        const readProvider = new JsonRpcProvider(rpc);
-        const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
-        const onChain = await escrowRead.getContract(contractId);
-        // ABI returns unnamed tuple → use index: [0]=exists (bool), [4]=status (uint8)
-        return onChain[0] ? Number(onChain[4]) : -1;
+        const chainId = await eth.request({ method: "eth_chainId" });
+        if (chainId === AMOY_CHAIN) {
+          return await readFromProvider(new BrowserProvider(eth));
+        }
       } catch (err) {
-        // CALL_EXCEPTION = contract revert (ContractNotFound) → contract không tồn tại on-chain
         if (err?.code === "CALL_EXCEPTION") return -1;
-        // RPC lỗi → thử endpoint tiếp theo
         lastErr = err;
       }
     }
-    // Tất cả RPC đều thất bại
-    throw lastErr;
+
+    // 2. Fallback: external RPC list (Alchemy → official → publicnode)
+    for (const rpc of AMOY_RPC_LIST) {
+      try {
+        return await readFromProvider(new JsonRpcProvider(rpc));
+      } catch (err) {
+        if (err?.code === "CALL_EXCEPTION") return -1;
+        lastErr = err;
+      }
+    }
+
+    throw lastErr ?? new Error("All providers failed");
   }
 
   // Step 1 (client): Register contract on-chain → freelancer can then accept
