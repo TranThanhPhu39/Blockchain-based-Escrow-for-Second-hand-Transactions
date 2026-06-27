@@ -69,11 +69,24 @@ const transactionLogSchema = new mongoose.Schema(
       required: [true, 'Event type is required'],
       enum: {
         values: [
+          // ── Current contract events (EscrowContract v2) ──────────
+          'ContractCreated',       // client tạo hợp đồng
+          'ContractAccepted',      // freelancer chấp nhận
+          'FundsDeposited',        // client nạp tiền
+          'WorkSubmitted',         // freelancer nộp bài
+          'RevisionRequested',     // client yêu cầu sửa
+          'WorkApproved',          // client duyệt → release
+          'DisputeRaised',         // client mở tranh chấp
+          'DefenseUploaded',       // freelancer upload defense
+          'DisputeVoteCast',       // reviewer bỏ phiếu
+          'DisputeFinalized',      // kết quả dispute chốt
+          'FundsReleased',         // tiền chuyển cho freelancer
+          'ClientRefunded',        // tiền hoàn về client
+          'ContractCancelled',     // hợp đồng bị huỷ
+          'FreelancerBanned',      // freelancer bị ban
+          // ── Legacy events (contract v1 — giữ để backward compat) ─
           'EscrowCreated',
-          'FundsDeposited',
           'ItemShipped',
-          'DisputeRaised',
-          'FundsReleased',
           'BuyerRefunded',
           'EscrowCancelled',
         ],
