@@ -2191,11 +2191,17 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
   );
 }
 
+// Map on-chain uint8 → status string (khớp với enum Status trong contract)
+const ON_CHAIN_STATUS_MAP = ["CREATED","ACCEPTED","DEPOSITED","SUBMITTED","REVISION_REQUESTED","DISPUTED","REVIEWING_DISPUTE","RELEASED","REFUNDED","CANCELLED"];
+
 function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refreshEscrows, currentUser }) {
   const [txStatus, setTxStatus] = useState({ loading: false, message: "" });
   const [countdown, setCountdown] = useState("");
+  // onChainNum: trạng thái đọc trực tiếp từ blockchain (không qua DB / event listener)
+  // null = chưa fetch, -1 = contract chưa tồn tại on-chain, 0-9 = status enum
+  const [onChainNum, setOnChainNum] = useState(null);
   const workflow = ["created", "accepted", "deposited", "submitted", "released"];
-  // Fetch on mount, rồi auto-poll mỗi 8s để bắt update từ event listener (vd: freelancer đã accept)
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     refreshEscrows();
@@ -2206,16 +2212,37 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     }, 8000);
     return () => clearInterval(interval);
   }, []);
+
   const escrow = selectedEscrow;
-  const statusKey = escrowStatusKey(escrow?.status);
 
   const isClient     = escrow && currentUser && String(escrow.client?._id    || escrow.client)     === String(currentUser._id || currentUser.id);
   const isFreelancer = escrow && currentUser && String(escrow.freelancer?._id || escrow.freelancer) === String(currentUser._id || currentUser.id);
-  // canRegister: client chưa đăng ký on-chain (escrowIdOnChain tồn tại nhưng on-chain chưa có)
-  const canRegister  = isClient     && escrow?.status === "CREATED" && escrow?.freelancer;
-  const canAccept    = isFreelancer && escrow?.status === "CREATED";
-  // canDeposit: chỉ khi freelancer đã acceptContract() on-chain → eventListener set status = ACCEPTED
-  const canDeposit   = isClient     && escrow?.status === "ACCEPTED" && escrow?.freelancer;
+
+  // Đọc on-chain status mỗi 8s để không phụ thuộc vào event listener
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!escrow?.escrowIdOnChain) return;
+    let cancelled = false;
+    const fetchStatus = () => {
+      getOnChainStatus(escrow.escrowIdOnChain)
+        .then(n => { if (!cancelled) setOnChainNum(n); })
+        .catch(() => {});
+    };
+    fetchStatus();
+    const t = setInterval(fetchStatus, 8000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [escrow?.escrowIdOnChain]);
+
+  // resolvedStatus: ưu tiên on-chain (real-time) hơn DB (có thể lag)
+  const resolvedStatus = (onChainNum !== null && onChainNum >= 0)
+    ? ON_CHAIN_STATUS_MAP[onChainNum]
+    : escrow?.status;
+
+  const statusKey = escrowStatusKey(resolvedStatus || escrow?.status);
+
+  const canRegister  = isClient     && resolvedStatus === "CREATED" && escrow?.freelancer;
+  const canAccept    = isFreelancer && resolvedStatus === "CREATED";
+  const canDeposit   = isClient     && resolvedStatus === "ACCEPTED" && escrow?.freelancer;
 
   useEffect(() => {
     if (escrow?.status !== "SUBMITTED" || !escrow?.autoReleaseAt) { setCountdown(""); return; }
