@@ -672,6 +672,11 @@ function routeHash(route) {
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
 const AMOY_RPC = import.meta.env.VITE_AMOY_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/Zi4sE_2bG68-B6wAeCW4_";
+const AMOY_RPC_LIST = [
+  AMOY_RPC,
+  "https://rpc-amoy.polygon.technology/",
+  "https://polygon-amoy-bor-rpc.publicnode.com",
+];
 
 // Polygon Amoy requires minimum 25 Gwei tip cap. Hardcode safe values for testnet
 // to avoid RPC fee estimation returning values below the network minimum.
@@ -2221,18 +2226,23 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
 
   // on-chain status: 0=CREATED 1=ACCEPTED 2=DEPOSITED 3=SUBMITTED 4=REVISION 5=DISPUTED 7=RELEASED 8=REFUNDED 9=CANCELLED
   async function getOnChainStatus(contractId) {
-    try {
-      const readProvider = new JsonRpcProvider(AMOY_RPC);
-      const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
-      const onChain = await escrowRead.getContract(contractId);
-      // ABI returns unnamed tuple → use index: [0]=exists (bool), [4]=status (uint8)
-      return onChain[0] ? Number(onChain[4]) : -1;
-    } catch (err) {
-      // CALL_EXCEPTION = contract revert (ContractNotFound) → contract thật sự chưa tồn tại on-chain
-      // Các lỗi khác (mạng, RPC rate limit...) phải throw để caller hiển thị đúng thông báo
-      if (err?.code === "CALL_EXCEPTION") return -1;
-      throw err;
+    let lastErr;
+    for (const rpc of AMOY_RPC_LIST) {
+      try {
+        const readProvider = new JsonRpcProvider(rpc);
+        const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+        const onChain = await escrowRead.getContract(contractId);
+        // ABI returns unnamed tuple → use index: [0]=exists (bool), [4]=status (uint8)
+        return onChain[0] ? Number(onChain[4]) : -1;
+      } catch (err) {
+        // CALL_EXCEPTION = contract revert (ContractNotFound) → contract không tồn tại on-chain
+        if (err?.code === "CALL_EXCEPTION") return -1;
+        // RPC lỗi → thử endpoint tiếp theo
+        lastErr = err;
+      }
     }
+    // Tất cả RPC đều thất bại
+    throw lastErr;
   }
 
   // Step 1 (client): Register contract on-chain → freelancer can then accept
