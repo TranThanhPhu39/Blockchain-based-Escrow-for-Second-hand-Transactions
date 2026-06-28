@@ -202,11 +202,22 @@ const getDisputes = asyncHandler(async (req, res) => {
   if (status) filter.status = status;
 
   if (req.user.role !== USER_ROLES.ADMIN) {
-    // Tìm escrows mà user này tham gia, rồi lọc dispute theo các escrow đó
-    const myEscrows = await Escrow.find({
-      $or: [{ client: req.user._id }, { freelancer: req.user._id }],
-    }).select('_id');
-    filter.escrow = { $in: myEscrows.map((e) => e._id) };
+    // Reviewer on-chain thấy tất cả disputes OPEN/REVIEWING để bỏ phiếu
+    let isReviewer = false;
+    if (req.user.walletAddress) {
+      isReviewer = await checkIsReviewerOnChain(req.user.walletAddress).catch(() => false);
+    }
+
+    if (isReviewer) {
+      // Nếu không filter theo status cụ thể, mặc định chỉ show OPEN/REVIEWING
+      if (!filter.status) filter.status = { $in: ['OPEN', 'REVIEWING'] };
+    } else {
+      // Client/Freelancer: chỉ xem disputes của escrow mà họ tham gia
+      const myEscrows = await Escrow.find({
+        $or: [{ client: req.user._id }, { freelancer: req.user._id }],
+      }).select('_id');
+      filter.escrow = { $in: myEscrows.map((e) => e._id) };
+    }
   }
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -250,8 +261,11 @@ const getDisputeById = asyncHandler(async (req, res) => {
   const isAdmin      = req.user.role === USER_ROLES.ADMIN;
   const isClient     = dispute.escrow.client.equals(req.user._id);
   const isFreelancer = dispute.escrow.freelancer?.equals(req.user._id) ?? false;
+  const isReviewer   = req.user.walletAddress
+    ? await checkIsReviewerOnChain(req.user.walletAddress).catch(() => false)
+    : false;
 
-  if (!isAdmin && !isClient && !isFreelancer) {
+  if (!isAdmin && !isClient && !isFreelancer && !isReviewer) {
     res.status(403);
     throw new Error('You are not authorized to view this dispute');
   }
@@ -415,10 +429,14 @@ const recordVote = asyncHandler(async (req, res) => {
 // ==================== POST /api/disputes/:id/finalize ====================
 /**
  * Trigger finalizeDispute() on-chain bằng admin wallet.
- * Có thể gọi sau khi đủ 9 phiếu hoặc hết 3 ngày (contract tự kiểm tra).
- * Bất kỳ ai cũng được phép gọi endpoint này — contract sẽ revert nếu chưa đủ điều kiện.
+ * Chỉ admin mới được gọi endpoint này.
+ * Contract tự kiểm tra điều kiện (đủ MAX_REVIEWERS hoặc hết DISPUTE_WINDOW).
  */
 const finalizeDisputeController = asyncHandler(async (req, res) => {
+  if (req.user.role !== USER_ROLES.ADMIN) {
+    res.status(403);
+    throw new Error('Only admin can finalize disputes');
+  }
   const dispute = await Dispute.findById(req.params.id).populate('escrow', 'serviceName escrowIdOnChain client freelancer');
   if (!dispute) {
     res.status(404);

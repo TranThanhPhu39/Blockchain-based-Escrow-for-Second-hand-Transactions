@@ -273,12 +273,12 @@ const submitDeliverable = asyncHandler(async (req, res) => {
     throw new Error('Only the freelancer can submit deliverables');
   }
 
-  // Chỉ submit khi đang ở LOCKED hoặc IN_PROGRESS
-  // (client đã deposit tiền)
-  if (escrow.status !== ESCROW_STATUS.LOCKED && escrow.status !== ESCROW_STATUS.IN_PROGRESS) {
+  // Cho phép DEPOSITED, REVISION_REQUESTED, hoặc SUBMITTED (idempotent re-submit)
+  const submittableStatuses = [ESCROW_STATUS.DEPOSITED, ESCROW_STATUS.REVISION_REQUESTED, ESCROW_STATUS.SUBMITTED];
+  if (!submittableStatuses.includes(escrow.status)) {
     res.status(400);
     throw new Error(
-      `Cannot submit deliverable when escrow status is '${escrow.status}'. Escrow must be LOCKED or IN_PROGRESS.`
+      `Cannot submit deliverable when escrow status is '${escrow.status}'. Escrow must be DEPOSITED or REVISION_REQUESTED.`
     );
   }
 

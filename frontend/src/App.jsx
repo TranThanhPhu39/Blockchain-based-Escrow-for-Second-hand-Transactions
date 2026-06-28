@@ -710,6 +710,8 @@ const ESCROW_ABI = [
   "function approveWork(bytes32 contractId)",
   "function requestRevision(bytes32 contractId, string reason)",
   "function raiseDispute(bytes32 contractId, string evidenceURI)",
+  "function uploadDefense(bytes32 contractId, string defenseURI)",
+  "function castDisputeVote(bytes32 contractId, bool deliverablesMatch, bool acceptanceCriteriaMet, bool deadlineMet, bool revisionHistoryReviewed, bool submissionHistoryReviewed, bool blockchainTimelineReviewed, bool evidenceReviewed, bool voteForFreelancer, string reason)",
   "function cancelContract(bytes32 contractId)",
   "function paymentToken() view returns (address)",
   // getContract trả về struct → dùng JSON ABI format với type:"tuple" để ethers.js decode đúng
@@ -2282,37 +2284,52 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   async function getOnChainStatus(contractId) {
     const AMOY_CHAIN = "0x13882";
 
-    // Helper: đọc trạng thái từ một provider bất kỳ
-    async function readFromProvider(provider) {
-      const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, provider);
-      const onChain = await escrowRead.getContract(contractId);
-      // ABI returns ((tuple)) → onChain[0] là struct, onChain[0][0]=exists, onChain[0][4]=status
-      const data = onChain[0];
-      return data[0] ? Number(data[4]) : -1;
+    // Helper: đọc trạng thái từ một provider bất kỳ.
+    // Dùng provider.call() + Interface.decodeFunctionResult() trực tiếp thay vì
+    // Contract wrapper, để tránh ambiguity của single-output unwrapping trong ethers v6.
+    // Interface.decodeFunctionResult LUÔN trả về Result array (decoded[0] = struct).
+    async function readFromProvider(label, provider) {
+      const iface = new Interface(ESCROW_ABI);
+      const callData = iface.encodeFunctionData("getContract", [contractId]);
+      let raw;
+      try {
+        raw = await provider.call({ to: CONTRACT_ADDRESS, data: callData });
+      } catch (callErr) {
+        console.warn(`[getOnChainStatus][${label}] provider.call threw:`, callErr?.code, callErr?.message);
+        throw callErr;
+      }
+      console.log(`[getOnChainStatus][${label}] raw=`, raw?.slice(0, 66));
+      const decoded = iface.decodeFunctionResult("getContract", raw);
+      const s = decoded[0];
+      console.log(`[getOnChainStatus][${label}] exists=${s.exists} status=${s.status}`);
+      return s.exists ? Number(s.status) : -1;
     }
 
     let lastErr;
 
-    // 1. Ưu tiên wallet của user (MetaMask/Coin98) — không bị rate limit, không CORS,
-    //    dùng RPC nội bộ của wallet đã kết nối Amoy thành công.
+    // 1. Ưu tiên wallet của user (MetaMask/Coin98)
     const eth = getWalletProvider();
+    console.log("[getOnChainStatus] contractId=", contractId, "CONTRACT_ADDRESS=", CONTRACT_ADDRESS);
     if (eth) {
       try {
         const chainId = await eth.request({ method: "eth_chainId" });
+        console.log("[getOnChainStatus] wallet chainId=", chainId, "expected=", AMOY_CHAIN);
         if (chainId === AMOY_CHAIN) {
-          return await readFromProvider(new BrowserProvider(eth));
+          return await readFromProvider("wallet", new BrowserProvider(eth));
         }
       } catch (err) {
+        console.warn("[getOnChainStatus] wallet error:", err?.code, err?.message);
         if (err?.code === "CALL_EXCEPTION") return -1;
         lastErr = err;
       }
     }
 
-    // 2. Fallback: external RPC list (Alchemy → official → publicnode)
+    // 2. Fallback: external RPC list
     for (const rpc of AMOY_RPC_LIST) {
       try {
-        return await readFromProvider(new JsonRpcProvider(rpc));
+        return await readFromProvider(rpc.slice(0, 40), new JsonRpcProvider(rpc));
       } catch (err) {
+        console.warn("[getOnChainStatus] rpc error:", rpc.slice(0,30), err?.code, err?.message);
         if (err?.code === "CALL_EXCEPTION") return -1;
         lastErr = err;
       }
@@ -2600,7 +2617,9 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
             [selectedEscrow.escrowIdOnChain, submissionURI], 200000);
           await tx.wait();
         } catch (chainErr) {
-          if (!String(chainErr.reason || chainErr.message).includes("InvalidStatus")) throw chainErr;
+          // User rejected → rethrow so flow stops
+          if (chainErr.code === "ACTION_REJECTED") throw chainErr;
+          // Contract revert (already submitted, wrong status…) → continue to DB update
         }
       }
       const result = await apiRequest(`/api/escrows/${selectedEscrow._id}/submit`, {
@@ -2721,16 +2740,103 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
   );
 }
 
-function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refreshEscrows }) {
+function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selectedEscrow, refreshEscrows }) {
   const [disputes, setDisputes] = useState([]);
+  const [selectedDispute, setSelectedDispute] = useState(null);
   const [status, setStatus] = useState({ loading: false, message: "" });
 
-  useEffect(() => {
+  const fetchDisputes = () => {
     if (!apiToken) return;
     apiRequest("/api/disputes", { token: apiToken })
       .then((data) => setDisputes(data.disputes || []))
       .catch(() => {});
-  }, [apiToken]);
+  };
+
+  useEffect(() => { fetchDisputes(); }, [apiToken]); // eslint-disable-line
+
+  // Nếu freelancer đang có selectedEscrow và đã có dispute → tự chọn dispute đó
+  useEffect(() => {
+    if (!selectedEscrow || !disputes.length || !currentUser) return;
+    const uid = currentUser?._id || currentUser?.id;
+    const isFreelancer = String(selectedEscrow.freelancer?._id || selectedEscrow.freelancer) === String(uid);
+    if (!isFreelancer) return;
+    const related = disputes.find(d => String(d.escrow?._id || d.escrow) === String(selectedEscrow._id));
+    if (related) setSelectedDispute(related);
+  }, [disputes, selectedEscrow, currentUser]); // eslint-disable-line
+
+  async function handleFinalize() {
+    if (!selectedDispute) return;
+    setStatus({ loading: true, message: "" });
+    try {
+      await apiRequest(`/api/disputes/${selectedDispute._id}/finalize`, {
+        method: "POST", token: apiToken,
+      });
+      addToast("disputeResolved");
+      fetchDisputes();
+      setSelectedDispute(null);
+    } catch (error) {
+      setStatus({ loading: false, message: error.reason || error.message });
+      return;
+    }
+    setStatus({ loading: false, message: "" });
+  }
+
+  async function handleVote(voteForFreelancer) {
+    if (!selectedDispute) return;
+    setStatus({ loading: true, message: "" });
+    try {
+      const { signer } = await getSignerAndDecimals();
+      const reason = voteForFreelancer ? "Bỏ phiếu giải ngân cho freelancer" : "Bỏ phiếu hoàn tiền cho khách hàng";
+      const tx = await sendContractTx(signer, "castDisputeVote", [
+        selectedDispute.escrowIdOnChain,
+        true, true, true, true, true, true, true,
+        voteForFreelancer,
+        reason,
+      ], 300000);
+      const receipt = await tx.wait();
+      await apiRequest(`/api/disputes/${selectedDispute._id}/vote`, {
+        method: "POST", token: apiToken,
+        body: JSON.stringify({
+          txHash: receipt.hash, voteForFreelancer, reason,
+          deliverablesMatch: true, acceptanceCriteriaMet: true, deadlineMet: true,
+          revisionHistoryReviewed: true, submissionHistoryReviewed: true,
+          blockchainTimelineReviewed: true, evidenceReviewed: true,
+        })
+      });
+      addToast("disputeResolved");
+      fetchDisputes();
+      setSelectedDispute(null);
+    } catch (error) {
+      setStatus({ loading: false, message: error.reason || error.message });
+      return;
+    }
+    setStatus({ loading: false, message: "" });
+  }
+
+  async function handleUploadDefense(event) {
+    event.preventDefault();
+    if (!selectedDispute) return;
+    setStatus({ loading: true, message: "" });
+    try {
+      const form = new FormData(event.currentTarget);
+      const defenseURI = form.get("defenseURI") || "";
+      const { signer } = await getSignerAndDecimals();
+      const tx = await sendContractTx(signer, "uploadDefense",
+        [selectedDispute.escrowIdOnChain, defenseURI], 200000);
+      await tx.wait();
+      await apiRequest(`/api/disputes/${selectedDispute._id}/defense`, {
+        method: "PATCH", token: apiToken,
+        body: JSON.stringify({ defenseFiles: [defenseURI || "defense-submitted"] })
+      });
+      addToast("submitted");
+      fetchDisputes();
+      event.target.reset();
+    } catch (error) {
+      setStatus({ loading: false, message: error.reason || error.message });
+      return;
+    }
+    setStatus({ loading: false, message: "" });
+  }
 
   async function handleCreate(event) {
     event.preventDefault();
@@ -2772,13 +2878,112 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
     setStatus({ loading: false, message: "" });
   }
 
+  const uid = currentUser?._id || currentUser?.id;
+  const isDisputeClient     = selectedDispute && String(selectedDispute.escrow?.client)     === String(uid);
+  const isDisputeFreelancer = selectedDispute && String(selectedDispute.escrow?.freelancer) === String(uid);
+  const isReviewer          = selectedDispute && !isDisputeClient && !isDisputeFreelancer;
+
   return (
     <div className="space-y-6">
       <PageIntro title={c.dispute.title} subtitle={c.dispute.subtitle} theme={theme} />
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
         <Card theme={theme}>
           <SectionTitle theme={theme} title={c.dispute.evidence} />
-          {selectedEscrow ? (
+
+          {/* ── Reviewer: bỏ phiếu cho dispute đã chọn ── */}
+          {isReviewer && (
+            <div className="grid gap-4">
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
+                <p className={classNames("mt-1 text-xs break-all", theme.faint)}>ID: {selectedDispute._id}</p>
+              </div>
+
+              {/* Bằng chứng từ client */}
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>Lý do tranh chấp (client)</p>
+                <p className={classNames("text-sm leading-5", theme.text)}>{selectedDispute.reason || "—"}</p>
+                {selectedDispute.evidenceFiles?.length > 0 && (
+                  <div className="mt-2 grid gap-1">
+                    {selectedDispute.evidenceFiles.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noreferrer"
+                        className={classNames("text-xs underline break-all", theme.accentText)}>
+                        {url}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Bằng chứng phản bác từ freelancer */}
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>Bằng chứng phản bác (freelancer)</p>
+                {selectedDispute.freelancerDefenseFiles?.length > 0 ? (
+                  <div className="grid gap-1">
+                    {selectedDispute.freelancerDefenseFiles.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noreferrer"
+                        className={classNames("text-xs underline break-all", theme.accentText)}>
+                        {url}
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={classNames("text-xs", theme.faint)}>Freelancer chưa nộp bằng chứng phản bác.</p>
+                )}
+              </div>
+
+              <InlineMessage message={status.message} theme={theme} />
+              <Button theme={theme} icon={Vote} variant="success" onClick={() => handleVote(true)} disabled={status.loading}>
+                {status.loading ? "Đang xử lý..." : c.common.voteRelease}
+              </Button>
+              <Button theme={theme} icon={Gavel} variant="secondary" onClick={() => handleVote(false)} disabled={status.loading}>
+                {c.common.voteRefund}
+              </Button>
+              {currentUser?.role === "admin" && (
+                <Button theme={theme} icon={Gavel} variant="danger" onClick={handleFinalize} disabled={status.loading}>
+                  {status.loading ? "Đang chốt..." : "Chốt kết quả (Admin)"}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* ── Freelancer: nộp bằng chứng phản bác ── */}
+          {isDisputeFreelancer && (
+            <form onSubmit={handleUploadDefense} className="grid gap-4">
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
+                <p className={classNames("mt-1 text-xs", theme.faint)}>Trạng thái: {selectedDispute.status}</p>
+              </div>
+              <Field theme={theme} label="Link bằng chứng phản bác" icon={UploadCloud}>
+                <TextInput theme={theme} name="defenseURI" placeholder="https://drive.google.com/..." required />
+              </Field>
+              <InlineMessage message={status.message} theme={theme} />
+              <Button theme={theme} icon={UploadCloud} type="submit" disabled={status.loading}>
+                {status.loading ? "Đang nộp..." : "Nộp bằng chứng phản bác"}
+              </Button>
+            </form>
+          )}
+
+          {/* ── Client: xem trạng thái dispute đã mở ── */}
+          {isDisputeClient && (
+            <div className="grid gap-4">
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
+                <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{selectedDispute.reason}</p>
+              </div>
+              <p className={classNames("text-sm", theme.muted)}>Đang chờ freelancer nộp bằng chứng phản bác. Sau đó các reviewer sẽ bỏ phiếu.</p>
+              {currentUser?.role === "admin" && (
+                <>
+                  <InlineMessage message={status.message} theme={theme} />
+                  <Button theme={theme} icon={Gavel} variant="danger" onClick={handleFinalize} disabled={status.loading}>
+                    {status.loading ? "Đang chốt..." : "Chốt kết quả (Admin)"}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Không chọn dispute → tạo mới hoặc demo ── */}
+          {!selectedDispute && selectedEscrow && (
             <form onSubmit={handleCreate} className="grid gap-4">
               <div className={classNames("rounded-lg border p-4", theme.soft)}>
                 <p className={classNames("text-sm font-bold", theme.text)}>{selectedEscrow.serviceName}</p>
@@ -2792,7 +2997,9 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
                 {status.loading ? "Opening..." : c.common.openDispute}
               </Button>
             </form>
-          ) : (
+          )}
+
+          {!selectedDispute && !selectedEscrow && (
             <div className="grid gap-3 md:grid-cols-3">
               {[
                 [FileText, c.dispute.deliverables, "https://github.com/client/job-2379"],
@@ -2808,27 +3015,33 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, selectedEscrow, refre
             </div>
           )}
         </Card>
+
         <Card theme={theme}>
           <SectionTitle theme={theme} title={c.dispute.outcome} />
           {disputes.length ? (
             <div className="grid gap-3">
               {disputes.map((d) => (
-                <div key={d._id} className={classNames("rounded-lg border p-4", theme.soft)}>
+                <button
+                  key={d._id}
+                  type="button"
+                  onClick={() => setSelectedDispute(selectedDispute?._id === d._id ? null : d)}
+                  className={classNames(
+                    "w-full rounded-lg border p-4 text-left transition hover:opacity-80",
+                    theme.soft,
+                    selectedDispute?._id === d._id ? "ring-2 ring-cyan-400" : ""
+                  )}
+                >
                   <div className="flex items-start justify-between gap-2">
                     <p className={classNames("text-sm font-bold", theme.text)}>{d.escrow?.serviceName || "—"}</p>
                     <Badge theme={theme} tone={d.status === "OPEN" ? "amber" : "emerald"}>{d.status}</Badge>
                   </div>
                   <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{d.reason}</p>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
             <>
               <p className={classNames("text-sm leading-6", theme.muted)}>{c.dispute.outcomeCopy}</p>
-              <div className="mt-5 grid gap-3">
-                <Button theme={theme} icon={Vote} variant="success" disabled>{c.common.voteRelease}</Button>
-                <Button theme={theme} icon={Gavel} variant="secondary" disabled>{c.common.voteRefund}</Button>
-              </div>
               <p className={classNames("mt-4 text-xs", theme.faint)}>{c.dispute.adminNote}</p>
             </>
           )}
