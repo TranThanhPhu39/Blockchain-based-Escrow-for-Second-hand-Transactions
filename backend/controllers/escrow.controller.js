@@ -34,6 +34,7 @@ const { ESCROW_STATUS, USER_ROLES } = require('../utils/constants');
 const { computeContractHash } = require('../utils/contractHash');
 const { getEscrowOnChain } = require('../services/blockchain.service');
 const asyncHandler = require('../utils/asyncHandler');
+const { broadcastAll } = require('../services/sse.service');
 
 // ============================================================
 // FIX: Encode MongoDB ObjectId (12 byte / 24 hex char) sang bytes32
@@ -153,6 +154,7 @@ const createEscrow = asyncHandler(async (req, res) => {
   escrow.contractMetadataHash = computeContractHash(escrow);
 
   await escrow.save();
+  broadcastAll();
 
   // Populate để trả về thông tin đầy đủ ngay
   const populatedEscrow = await Escrow.findById(escrow._id)
@@ -295,6 +297,7 @@ const submitDeliverable = asyncHandler(async (req, res) => {
   escrow.autoReleaseAt = new Date(Date.now() + autoReleaseDays * 24 * 60 * 60 * 1000);
 
   await escrow.save();
+  broadcastAll();
 
   const updatedEscrow = await Escrow.findById(escrow._id)
     .populate('client', 'name email walletAddress')
@@ -497,6 +500,7 @@ const lockEscrow = asyncHandler(async (req, res) => {
 
   escrow.freelancer = req.user._id;
   await escrow.save();
+  broadcastAll();
 
   const updatedEscrow = await Escrow.findById(escrow._id)
     .populate('client', 'name email walletAddress')

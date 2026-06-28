@@ -3461,6 +3461,19 @@ function App() {
     refreshAvailableEscrows();
   }, [refreshAvailableEscrows]);
 
+  // SSE: nhận push từ server khi bất kỳ escrow nào thay đổi → tự refresh không cần reload
+  useEffect(() => {
+    if (!apiToken) return;
+    const es = new EventSource(
+      `${API_BASE_URL}/api/escrows/events?token=${encodeURIComponent(apiToken)}`
+    );
+    es.addEventListener("escrow-updated", () => {
+      refreshEscrows();
+      refreshAvailableEscrows();
+    });
+    return () => es.close();
+  }, [apiToken, refreshEscrows, refreshAvailableEscrows]);
+
   const pageProps = {
     c,
     theme,

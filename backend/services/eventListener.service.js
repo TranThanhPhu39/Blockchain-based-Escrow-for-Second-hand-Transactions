@@ -19,6 +19,7 @@ const Escrow               = require('../models/Escrow');
 const TransactionLog       = require('../models/TransactionLog');
 const EventListenerState   = require('../models/EventListenerState');
 const { ESCROW_STATUS }     = require('../utils/constants');
+const { broadcastAll }      = require('./sse.service');
 
 // ============================================================
 // CONFIG polling
@@ -736,6 +737,8 @@ const pollOnceInner = async () => {
       const args = [...log.args, { log }];
       await handler(...args);
     }
+
+    if (allLogs.length > 0) broadcastAll();
 
     await saveLastProcessedBlock(contractAddress, toBlock);
     fromBlock = toBlock + 1;

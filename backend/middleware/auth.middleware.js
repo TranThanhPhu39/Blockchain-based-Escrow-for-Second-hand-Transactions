@@ -21,9 +21,10 @@ const protect = asyncHandler(async (req, res, next) => {
   // Token được gửi trong header: "Authorization: Bearer eyJhbGci..."
   // Optional chaining (?.) để tránh lỗi nếu header không tồn tại
   if (req.headers.authorization?.startsWith('Bearer')) {
-    // Split 'Bearer eyJhbGci...' thành ['Bearer', 'eyJhbGci...']
-    // Lấy phần từ index 1 là token thực sự
     token = req.headers.authorization.split(' ')[1];
+  } else if (req.query.token) {
+    // SSE (EventSource) không thể set header — nhận token qua query param
+    token = req.query.token;
   }
 
   if (!token) {

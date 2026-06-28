@@ -21,6 +21,7 @@ const {
 const { protect } = require('../middleware/auth.middleware');
 const { authorize } = require('../middleware/role.middleware');
 const { createEscrowRules, validateRequest } = require('../middleware/validators');
+const { addClient, removeClient } = require('../services/sse.service');
 
 const router = express.Router();
 
@@ -29,6 +30,17 @@ router.post('/', protect, authorize('user'), createEscrowRules, validateRequest,
 
 // GET /api/escrows — Xem danh sách của user hiện tại
 router.get('/', protect, getEscrows);
+
+// GET /api/escrows/events — SSE: push escrow-updated khi có thay đổi (đặt trước /:id)
+router.get('/events', protect, (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  addClient(res);
+  res.write('event: connected\ndata: {}\n\n');
+  req.on('close', () => removeClient(res));
+});
 
 // GET /api/escrows/available — Danh sách hợp đồng chưa có freelancer (đặt trước /:id)
 // admin cũng xem được để monitor
