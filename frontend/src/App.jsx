@@ -635,12 +635,6 @@ const jobs = {
   ]
 };
 
-const feed = [
-  { en: "JOB-2401 locked 450 USDT", vi: "JOB-2401 đã khóa 450 USDT", tone: "cyan" },
-  { en: "JOB-2403 submitted audit report", vi: "JOB-2403 đã nộp báo cáo kiểm toán", tone: "violet" },
-  { en: "JOB-2394 released funds to freelancer", vi: "JOB-2394 đã giải ngân cho freelancer", tone: "emerald" },
-  { en: "JOB-2379 entered jury review", vi: "JOB-2379 chuyển sang hội đồng xem xét", tone: "amber" }
-];
 
 const demand = [
   ["Web Development", 34],
@@ -1528,17 +1522,6 @@ function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, 
           {tab === "disputes" ? <JobsTable type="disputes" rows={disputeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
         </Card>
         <div className="grid gap-4">
-          <Card theme={theme}>
-            <SectionTitle theme={theme} title={c.dashboard.feedTitle} />
-            <div className="grid gap-3">
-              {feed.map((item) => (
-                <div key={item.en} className={classNames("flex items-center gap-3 rounded-lg border p-3", theme.soft)}>
-                  <span className={classNames("h-2.5 w-2.5 rounded-full", item.tone === "cyan" ? "bg-cyan-400" : item.tone === "emerald" ? "bg-emerald-400" : item.tone === "amber" ? "bg-amber-400" : "bg-violet-400")} />
-                  <p className={classNames("text-sm", theme.text)}>{text(item, language)}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
           <Card theme={theme}>
             <SectionTitle theme={theme} title={c.dashboard.adoptionTitle} />
             <div className="grid gap-4">
@@ -2489,10 +2472,10 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     <div className="space-y-6">
       <PageIntro title={c.details.title} subtitle={c.details.subtitle} theme={theme} />
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard theme={theme} icon={Briefcase} label={c.details.jobId} value={escrow?._id ? escrow._id.slice(-8) : "JOB-2402"} detail={escrow?.serviceName || "Landing Page Development"} tone="cyan" />
-        <StatCard theme={theme} icon={CircleDollarSign} label={c.details.escrowAmount} value={formatEscrowAmount(escrow?.amount || "1250")} detail="Polygon" tone="emerald" />
-        <StatCard theme={theme} icon={Clock3} label={c.common.deadline} value={escrow?.deadline ? new Date(escrow.deadline).toLocaleDateString() : "Jun 28"} detail="Escrow deadline" tone="amber" />
-        <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status[statusKey] || escrow?.status || c.status.locked} detail={escrow ? "On-chain record" : "Demo data"} tone="violet" />
+        <StatCard theme={theme} icon={Briefcase} label={c.details.jobId} value={escrow?._id ? escrow._id.slice(-8) : "—"} detail={escrow?.serviceName || "—"} tone="cyan" />
+        <StatCard theme={theme} icon={CircleDollarSign} label={c.details.escrowAmount} value={formatEscrowAmount(escrow?.amount || "0")} detail="Polygon" tone="emerald" />
+        <StatCard theme={theme} icon={Clock3} label={c.common.deadline} value={escrow?.deadline ? new Date(escrow.deadline).toLocaleDateString() : "—"} detail="Escrow deadline" tone="amber" />
+        <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status[statusKey] || escrow?.status || "—"} detail="On-chain record" tone="violet" />
       </div>
       {/* Step 1: Client đăng ký hợp đồng on-chain */}
       {canRegister && (
@@ -2579,10 +2562,10 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
         </div>
         <div className="mt-6 grid gap-3 md:grid-cols-2">
           {[
-            [c.details.client, escrow?.client?.walletAddress || escrow?.client?.name || "0x91B4...3F21"],
-            [c.details.freelancer, escrow?.freelancer?.walletAddress || escrow?.freelancer?.name || ""],
+            [c.details.client, escrow?.client?.walletAddress || escrow?.client?.name || "—"],
+            [c.details.freelancer, escrow?.freelancer?.walletAddress || escrow?.freelancer?.name || "—"],
             [c.details.contractAddress, escrow?.contractAddress || "Not deployed yet"],
-            [c.common.deadline, escrow?.deadline ? new Date(escrow.deadline).toLocaleString() : "2026-06-28 18:00 ICT"]
+            [c.common.deadline, escrow?.deadline ? new Date(escrow.deadline).toLocaleString() : "—"]
           ].map(([label, value]) => (
             <div key={label} className={classNames("rounded-lg border p-4", theme.soft)}>
               <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{label}</p>
