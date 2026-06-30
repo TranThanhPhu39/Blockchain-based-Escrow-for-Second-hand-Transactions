@@ -1047,8 +1047,8 @@ function getTheme(mode) {
   return {
     isDark,
     page: isDark
-      ? "bg-slate-950 text-slate-100"
-      : "bg-slate-50 text-slate-950",
+      ? "text-slate-100"
+      : "text-slate-950",
     background: isDark
       ? "bg-[radial-gradient(circle_at_20%_0%,rgba(139,92,246,0.18),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(147,51,234,0.2),transparent_26%),linear-gradient(135deg,#020617_0%,#150b2e_48%,#020617_100%)]"
       : "bg-[radial-gradient(circle_at_20%_0%,rgba(139,92,246,0.16),transparent_30%),linear-gradient(135deg,#f8fafc_0%,#f3effd_52%,#f8fafc_100%)]",
@@ -1150,6 +1150,114 @@ function Brand({ name, theme, className = "" }) {
       {name.slice(0, -1)}
       <span className={theme.accentText}>{name.slice(-1)}</span>
     </span>
+  );
+}
+
+function GalaxyBackground() {
+  return (
+    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+      {/* Deep space base */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 120% 80% at 50% 0%, #0d0520 0%, #06060B 55%, #020208 100%)" }} />
+
+      {/* Large nebula cloud — top-left purple */}
+      <div className="absolute" style={{ top: "-20%", left: "-20%", width: "75vw", height: "75vw", background: "radial-gradient(ellipse at 40% 40%, rgba(124,58,237,0.28) 0%, rgba(109,94,248,0.12) 35%, rgba(80,30,180,0.05) 60%, transparent 75%)", filter: "blur(50px)" }} />
+
+      {/* Large nebula cloud — top-right blue-violet */}
+      <div className="absolute" style={{ top: "-10%", right: "-25%", width: "70vw", height: "65vw", background: "radial-gradient(ellipse at 60% 35%, rgba(109,94,248,0.22) 0%, rgba(139,92,246,0.10) 40%, rgba(60,20,140,0.04) 65%, transparent 80%)", filter: "blur(55px)" }} />
+
+      {/* Pink-magenta nebula arm — center-right */}
+      <div className="absolute" style={{ top: "20%", right: "-10%", width: "55vw", height: "55vw", background: "radial-gradient(ellipse at 55% 45%, rgba(217,70,239,0.18) 0%, rgba(180,50,220,0.08) 40%, transparent 70%)", filter: "blur(65px)" }} />
+
+      {/* Deep indigo core — center */}
+      <div className="absolute" style={{ top: "15%", left: "20%", width: "60vw", height: "50vw", background: "radial-gradient(ellipse at 50% 50%, rgba(99,60,210,0.14) 0%, rgba(70,30,160,0.06) 50%, transparent 75%)", filter: "blur(80px)" }} />
+
+      {/* Aurora band — sweeping diagonal */}
+      <div className="absolute" style={{ top: "35%", left: "-5%", width: "110vw", height: "30vw", background: "linear-gradient(105deg, transparent 0%, rgba(109,94,248,0.06) 20%, rgba(124,58,237,0.10) 40%, rgba(217,70,239,0.07) 60%, rgba(139,92,246,0.05) 80%, transparent 100%)", filter: "blur(40px)", transform: "rotate(-6deg)" }} />
+
+      {/* Bottom nebula — blue-violet */}
+      <div className="absolute" style={{ bottom: "-25%", left: "5%", width: "60vw", height: "60vw", background: "radial-gradient(ellipse at 45% 55%, rgba(109,94,248,0.20) 0%, rgba(80,50,200,0.08) 45%, transparent 70%)", filter: "blur(60px)" }} />
+
+      {/* Bottom-right magenta glow */}
+      <div className="absolute" style={{ bottom: "-15%", right: "-10%", width: "55vw", height: "50vw", background: "radial-gradient(ellipse at 55% 50%, rgba(217,70,239,0.14) 0%, rgba(150,40,200,0.06) 45%, transparent 70%)", filter: "blur(70px)" }} />
+
+      {/* Bright galactic core glow */}
+      <div className="absolute" style={{ top: "8%", left: "45%", width: "20vw", height: "20vw", background: "radial-gradient(circle, rgba(196,181,253,0.15) 0%, rgba(139,92,246,0.08) 40%, transparent 70%)", filter: "blur(30px)" }} />
+
+      {/* Dense star field layer 1 — tiny white stars */}
+      <div className="absolute inset-0" style={{
+        backgroundImage: [
+          "radial-gradient(1px 1px at  5%  8%, rgba(255,255,255,0.80) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 12% 22%, rgba(255,255,255,0.65) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 18%  5%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 23% 38%, rgba(255,255,255,0.55) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 30% 14%, rgba(255,255,255,0.75) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 36% 52%, rgba(255,255,255,0.60) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 42%  3%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 48% 28%, rgba(255,255,255,0.55) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 55% 67%, rgba(255,255,255,0.65) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 60% 11%, rgba(255,255,255,0.80) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 66% 44%, rgba(255,255,255,0.60) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 72%  7%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 78% 59%, rgba(255,255,255,0.55) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 83% 25%, rgba(255,255,255,0.75) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 88%  3%, rgba(255,255,255,0.65) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 93% 73%, rgba(255,255,255,0.60) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 97% 42%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at  8% 55%, rgba(255,255,255,0.65) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 15% 78%, rgba(255,255,255,0.55) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 27% 91%, rgba(255,255,255,0.60) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 40% 83%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 52% 95%, rgba(255,255,255,0.55) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 63% 80%, rgba(255,255,255,0.65) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 74% 88%, rgba(255,255,255,0.60) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 85% 76%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(1px 1px at 95% 91%, rgba(255,255,255,0.55) 0%, transparent 100%)"
+        ].join(", ")
+      }} />
+
+      {/* Star field layer 2 — slightly larger lavender-tinted stars */}
+      <div className="absolute inset-0" style={{
+        backgroundImage: [
+          "radial-gradient(1.5px 1.5px at  9% 31%, rgba(196,181,253,0.90) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 19% 65%, rgba(196,181,253,0.75) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 32%  9%, rgba(255,255,255,0.85) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 44% 48%, rgba(196,181,253,0.70) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 58% 19%, rgba(255,255,255,0.90) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 67% 72%, rgba(196,181,253,0.80) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 76% 35%, rgba(255,255,255,0.75) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 87% 55%, rgba(196,181,253,0.85) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at  3% 85%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(1.5px 1.5px at 50% 75%, rgba(196,181,253,0.80) 0%, transparent 100%)",
+          "radial-gradient(2px 2px   at 25% 50%, rgba(255,255,255,0.90) 0%, transparent 100%)",
+          "radial-gradient(2px 2px   at 70% 15%, rgba(196,181,253,0.85) 0%, transparent 100%)",
+          "radial-gradient(2px 2px   at 90% 70%, rgba(255,255,255,0.80) 0%, transparent 100%)"
+        ].join(", ")
+      }} />
+
+      {/* Bright hero stars (larger glowing dots) */}
+      <div className="absolute inset-0" style={{
+        backgroundImage: [
+          "radial-gradient(2.5px 2.5px at 14% 17%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.3) 60%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 37% 62%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.3) 60%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 62%  8%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.3) 60%, transparent 100%)",
+          "radial-gradient(3px   3px   at 80% 44%, rgba(255,255,255,1.0) 0%, rgba(217,70,239,0.25) 60%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at 91% 20%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.3) 60%, transparent 100%)",
+          "radial-gradient(2.5px 2.5px at  4% 72%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.3) 60%, transparent 100%)",
+          "radial-gradient(3px   3px   at 55% 88%, rgba(255,255,255,1.0) 0%, rgba(109,94,248,0.3) 60%, transparent 100%)"
+        ].join(", ")
+      }} />
+
+      {/* Soft cosmic dust band */}
+      <div className="absolute" style={{ top: "10%", left: "0", right: "0", height: "40%", background: "radial-gradient(ellipse 80% 100% at 60% 30%, rgba(139,92,246,0.04) 0%, transparent 70%)", filter: "blur(20px)" }} />
+
+      {/* Thin gradient ring decoration */}
+      <div className="absolute" style={{ top: "5%", right: "5%", width: "300px", height: "300px", borderRadius: "50%", background: "transparent", border: "1px solid rgba(124,58,237,0.12)", boxShadow: "0 0 60px rgba(124,58,237,0.06) inset, 0 0 30px rgba(124,58,237,0.04)", filter: "blur(1px)" }} />
+      <div className="absolute" style={{ bottom: "15%", left: "8%", width: "200px", height: "200px", borderRadius: "50%", background: "transparent", border: "1px solid rgba(109,94,248,0.10)", filter: "blur(1px)" }} />
+
+      {/* Vertical ambient light shafts */}
+      <div className="absolute" style={{ top: 0, left: "30%", width: "1px", height: "40%", background: "linear-gradient(to bottom, rgba(196,181,253,0.12), rgba(124,58,237,0.06), transparent)", filter: "blur(2px)" }} />
+      <div className="absolute" style={{ top: 0, left: "68%", width: "1px", height: "30%", background: "linear-gradient(to bottom, rgba(217,70,239,0.08), transparent)", filter: "blur(2px)" }} />
+    </div>
   );
 }
 
@@ -3873,13 +3981,14 @@ function App() {
 
   return (
     <div className={classNames("min-h-screen overflow-hidden", theme.page)}>
-      <div className={classNames("fixed inset-0 -z-10", theme.background)} />
-      <div
-        className={classNames(
-          "pointer-events-none fixed inset-0 -z-10",
-          theme.isDark ? "galaxy-bg opacity-90" : "app-grid opacity-70"
-        )}
-      />
+      {theme.isDark ? (
+        <GalaxyBackground />
+      ) : (
+        <>
+          <div className={classNames("fixed inset-0 -z-10", theme.background)} />
+          <div className="app-grid pointer-events-none fixed inset-0 -z-10 opacity-70" />
+        </>
+      )}
       <Sidebar c={c} theme={theme} route={route} navigate={navigate} open={mobileOpen} setOpen={setMobileOpen} currentUser={currentUser} />
       <div className="lg:pl-72">
         <Header
