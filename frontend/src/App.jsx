@@ -1898,9 +1898,9 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
   // ── TABBED VIEW: "post" = đăng hợp đồng | "find" = tìm việc ──────────────
   return (
     <div className="space-y-6">
-      <div className={classNames("grid grid-cols-2 gap-1 rounded-lg p-1", theme.soft)}>
-        <button type="button" onClick={() => setTab("post")} className={classNames("rounded-md py-2.5 text-sm font-black transition-all", tab === "post" ? theme.accentBg : theme.muted)}>{c.create.title}</button>
-        <button type="button" onClick={() => setTab("find")} className={classNames("rounded-md py-2.5 text-sm font-black transition-all", tab === "find" ? theme.accentBg : theme.muted)}>{c.create.jobsTitle}</button>
+      <div className={classNames("grid grid-cols-2 gap-1 rounded-lg border p-1 shadow-sm", theme.soft)}>
+        <button type="button" onClick={() => setTab("post")} className={classNames("rounded-md border py-2.5 text-sm font-black transition-all", tab === "post" ? theme.accentBg : classNames("border-transparent", theme.muted, theme.softHover))}>{c.create.title}</button>
+        <button type="button" onClick={() => setTab("find")} className={classNames("rounded-md border py-2.5 text-sm font-black transition-all", tab === "find" ? theme.accentBg : classNames("border-transparent", theme.muted, theme.softHover))}>{c.create.jobsTitle}</button>
       </div>
       {tab === "post" && <>
       <PageIntro title={c.create.title} subtitle={c.create.subtitle} theme={theme} />
