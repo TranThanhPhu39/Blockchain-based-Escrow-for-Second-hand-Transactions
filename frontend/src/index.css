@@ -56,6 +56,21 @@ textarea:focus-visible {
   background-size: 28px 28px;
 }
 
+.galaxy-bg {
+  background-image:
+    radial-gradient(1.6px 1.6px at 20px 30px, rgba(237, 233, 254, 0.85), transparent),
+    radial-gradient(1.2px 1.2px at 90px 80px, rgba(196, 181, 253, 0.7), transparent),
+    radial-gradient(1.8px 1.8px at 150px 45px, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(1.2px 1.2px at 210px 120px, rgba(196, 181, 253, 0.6), transparent),
+    radial-gradient(1.4px 1.4px at 50px 150px, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(2px 2px at 260px 200px, rgba(167, 139, 250, 0.8), transparent),
+    radial-gradient(1.2px 1.2px at 320px 60px, rgba(237, 233, 254, 0.6), transparent),
+    radial-gradient(1.6px 1.6px at 110px 250px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.2px 1.2px at 280px 280px, rgba(196, 181, 253, 0.55), transparent);
+  background-repeat: repeat;
+  background-size: 360px 320px;
+}
+
 .hero-grid {
   background-image:
     linear-gradient(rgba(139, 92, 246, 0.09) 1px, transparent 1px),

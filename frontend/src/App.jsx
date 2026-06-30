@@ -1144,6 +1144,15 @@ function Badge({ children, theme, tone = "neutral", className = "" }) {
   );
 }
 
+function Brand({ name, theme, className = "" }) {
+  return (
+    <span className={className}>
+      {name.slice(0, -1)}
+      <span className={theme.accentText}>{name.slice(-1)}</span>
+    </span>
+  );
+}
+
 function Field({ label, icon: Icon, theme, children }) {
   return (
     <label className={classNames("grid gap-2 text-sm font-bold", theme.text)}>
@@ -1269,7 +1278,7 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
           <LockKeyhole className="h-5 w-5" />
         </div>
         <div>
-          <p className={classNames("text-lg font-black", theme.heading)}>{c.brand}</p>
+          <Brand name={c.brand} theme={theme} className={classNames("text-lg font-black", theme.heading)} />
           <p className={classNames("text-xs", theme.faint)}>{c.product}</p>
         </div>
       </div>
@@ -1331,7 +1340,7 @@ function Header({ c, theme, language, setLanguage, themeName, setThemeName, setM
         <div className="flex min-w-0 items-center gap-3">
           <Button theme={theme} icon={Menu} variant="ghost" size="sm" className="lg:hidden" onClick={() => setMobileOpen(true)} />
           <div className="min-w-0">
-            <p className={classNames("truncate text-sm font-black", theme.heading)}>{c.brand}</p>
+            <Brand name={c.brand} theme={theme} className={classNames("block truncate text-sm font-black", theme.heading)} />
             <p className={classNames("truncate text-xs", theme.faint)}>{c.product}</p>
           </div>
         </div>
@@ -3472,7 +3481,7 @@ function Footer({ c, theme }) {
     <footer className={classNames("mt-10 rounded-2xl border p-6", theme.card)}>
       <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
         <div>
-          <p className={classNames("text-xl font-black", theme.heading)}>{c.brand}</p>
+          <Brand name={c.brand} theme={theme} className={classNames("text-xl font-black", theme.heading)} />
           <p className={classNames("mt-2 max-w-xl text-sm leading-6", theme.muted)}>{c.product}</p>
           <p className={classNames("mt-4 text-xs", theme.faint)}>{c.footer.rights}</p>
         </div>
@@ -3865,7 +3874,12 @@ function App() {
   return (
     <div className={classNames("min-h-screen overflow-hidden", theme.page)}>
       <div className={classNames("fixed inset-0 -z-10", theme.background)} />
-      <div className="app-grid pointer-events-none fixed inset-0 -z-10 opacity-70" />
+      <div
+        className={classNames(
+          "pointer-events-none fixed inset-0 -z-10",
+          theme.isDark ? "galaxy-bg opacity-90" : "app-grid opacity-70"
+        )}
+      />
       <Sidebar c={c} theme={theme} route={route} navigate={navigate} open={mobileOpen} setOpen={setMobileOpen} currentUser={currentUser} />
       <div className="lg:pl-72">
         <Header
