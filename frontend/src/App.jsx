@@ -62,7 +62,6 @@ const routes = [
   "submit",
   "approval",
   "disputes",
-  "wallet",
   "notifications",
   "profile",
   "admin"
@@ -1133,13 +1132,12 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
     [UploadCloud, "submit"],
     [CheckCircle2, "approval"],
     [Gavel, "disputes"],
-    [Wallet, "wallet"],
     [Bell, "notifications"],
     [BadgeCheck, "profile"],
     [ShieldCheck, "admin"]
   ];
 
-  const protectedIds = new Set(["dashboard", "create", "details", "submit", "approval", "disputes", "wallet", "notifications", "profile"]);
+  const protectedIds = new Set(["dashboard", "create", "details", "submit", "approval", "disputes", "notifications", "profile"]);
   const adminOnly = new Set(["admin"]);
   const nav = allNav.filter(([, id]) => {
     if (adminOnly.has(id)) return isAdmin;
@@ -1216,7 +1214,7 @@ function LayoutDashboardIcon(props) {
   return <Layers3 {...props} />;
 }
 
-function Header({ c, theme, language, setLanguage, themeName, setThemeName, setMobileOpen, wallet, navigate }) {
+function Header({ c, theme, language, setLanguage, themeName, setThemeName, setMobileOpen, wallet, connectWallet, walletConnecting, walletPickerOptions, onSelectWalletProvider, onCancelWalletPicker, walletError, onDismissWalletError }) {
   return (
     <header className={classNames("sticky top-0 z-20 border-b", theme.header)}>
       <div className="flex min-h-16 items-center justify-between gap-3 px-4 sm:px-6">
@@ -1250,10 +1248,40 @@ function Header({ c, theme, language, setLanguage, themeName, setThemeName, setM
             onClick={() => setThemeName(themeName === "dark" ? "light" : "dark")}
             aria-label="Toggle theme"
           />
-          <Button theme={theme} icon={Wallet} size="sm" variant={wallet.connected ? "secondary" : "primary"} onClick={() => navigate("wallet")}>
-            <span className="hidden sm:inline">{wallet.connected ? wallet.short : c.common.connectWallet}</span>
-            <span className="sm:hidden">{wallet.connected ? "0x" : "Wallet"}</span>
-          </Button>
+          <div className="relative">
+            <Button theme={theme} icon={Wallet} size="sm" variant={wallet.connected ? "secondary" : "primary"} onClick={connectWallet} disabled={walletConnecting}>
+              <span className="hidden sm:inline">{walletConnecting ? "Connecting..." : wallet.connected ? wallet.short : c.common.connectWallet}</span>
+              <span className="sm:hidden">{wallet.connected ? "0x" : "Wallet"}</span>
+            </Button>
+            {(walletPickerOptions.length > 0 || walletError) && (
+              <div className={classNames("absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border p-3", theme.card)}>
+                {walletPickerOptions.length > 0 ? (
+                  <>
+                    <p className={classNames("mb-2 text-xs font-semibold", theme.heading)}>Chọn ví để kết nối:</p>
+                    <div className="flex flex-col gap-2">
+                      {walletPickerOptions.map((w) => (
+                        <button
+                          key={w.id}
+                          onClick={() => onSelectWalletProvider(w.provider)}
+                          className={classNames("flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-medium transition hover:opacity-80", theme.soft, theme.text)}
+                        >
+                          <Wallet className="h-4 w-4 shrink-0 text-cyan-400" />
+                          {w.name}
+                        </button>
+                      ))}
+                      <button onClick={onCancelWalletPicker} className={classNames("mt-1 text-xs", theme.faint)}>
+                        Huỷ
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button onClick={onDismissWalletError} className="text-left text-xs font-bold text-rose-400">
+                    {walletError}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>
@@ -1340,7 +1368,7 @@ function LandingPage({ c, theme, language, navigate, currentUser, addToast }) {
   );
 }
 
-function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentUser, setWallet }) {
+function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentUser, setWallet, connectWallet }) {
   const [isLogin, setIsLogin] = useState(type === "login");
   const [status, setStatus] = useState({ loading: false, message: "" });
 
@@ -1471,7 +1499,7 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
             {status.loading ? "Connecting..." : isLogin ? c.nav.login : c.nav.register}
           </Button>
           {isLogin && (
-            <Button theme={theme} icon={Wallet} variant="secondary" onClick={() => navigate("wallet")}>
+            <Button theme={theme} icon={Wallet} variant="secondary" onClick={connectWallet}>
               {c.auth.walletMethod}
             </Button>
           )}
@@ -3158,98 +3186,6 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
   );
 }
 
-function WalletPage({ c, theme, wallet, setWallet, addToast, apiToken, setCurrentUser }) {
-  const [status, setStatus] = useState({ loading: false, message: "" });
-  const [walletOptions, setWalletOptions] = useState([]); // danh sách wallets khi có nhiều
-
-  async function connectWithProvider(provider) {
-    setWalletOptions([]);
-    setWalletProvider(provider); // lưu provider được chọn vào module-level
-    setStatus({ loading: true, message: "" });
-    try {
-      const [address] = await provider.request({ method: "eth_requestAccounts" });
-      setWallet({ connected: true, address, short: shortAddress(address), status: c.status.connected });
-      if (apiToken) {
-        const result = await apiRequest("/api/auth/wallet", {
-          method: "PATCH",
-          token: apiToken,
-          body: JSON.stringify({ walletAddress: address })
-        });
-        window.localStorage.setItem("escrowx-user", JSON.stringify(result.user));
-        setCurrentUser(result.user);
-      }
-      addToast("deposit");
-    } catch (error) {
-      setStatus({ loading: false, message: error.message });
-      return;
-    }
-    setStatus({ loading: false, message: "" });
-  }
-
-  async function connectWallet() {
-    const wallets = detectWallets();
-    if (wallets.length === 0) {
-      setStatus({ loading: false, message: "Không tìm thấy ví. Hãy cài MetaMask hoặc Coin98." });
-      return;
-    }
-    if (wallets.length === 1) {
-      await connectWithProvider(wallets[0].provider);
-      return;
-    }
-    // Nhiều ví → cho user chọn
-    setWalletOptions(wallets);
-  }
-
-  return (
-    <div className="mx-auto max-w-2xl">
-      <Card theme={theme}>
-        <PageIntro title={c.wallet.title} subtitle={c.wallet.subtitle} theme={theme} />
-        <div className={classNames("mt-6 rounded-lg border p-5", theme.soft)}>
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-400/12 text-cyan-300">
-              <Wallet className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <p className={classNames("text-sm", theme.faint)}>{c.wallet.connection}</p>
-              <p className={classNames("font-black", theme.heading)}>{wallet.connected ? c.status.connected : c.status.disconnected}</p>
-            </div>
-          </div>
-          <p className={classNames("mt-5 break-all font-mono text-sm", theme.text)}>{wallet.connected ? wallet.address : "0x0000...0000"}</p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button theme={theme} icon={Wallet} onClick={connectWallet} disabled={status.loading}>
-              {status.loading ? "Connecting..." : c.common.connectWallet}
-            </Button>
-          </div>
-          {walletOptions.length > 0 && (
-            <div className={classNames("mt-4 rounded-lg border p-4", theme.soft)}>
-              <p className={classNames("mb-3 text-sm font-semibold", theme.heading)}>Chọn ví để kết nối:</p>
-              <div className="flex flex-col gap-2">
-                {walletOptions.map((w) => (
-                  <button
-                    key={w.id}
-                    onClick={() => connectWithProvider(w.provider)}
-                    className={classNames("flex items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm font-medium transition hover:opacity-80", theme.soft, theme.text)}
-                  >
-                    <Wallet className="h-5 w-5 shrink-0 text-cyan-400" />
-                    {w.name}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setWalletOptions([])}
-                  className={classNames("mt-1 text-xs", theme.faint)}
-                >
-                  Huỷ
-                </button>
-              </div>
-            </div>
-          )}
-          <InlineMessage message={status.message} theme={theme} />
-        </div>
-      </Card>
-    </div>
-  );
-}
-
 function NotificationsPage({ c, theme, addToast, apiToken }) {
   const [notifications, setNotifications] = useState([]);
 
@@ -3615,6 +3551,9 @@ function App() {
     short: "Wallet",
     status: translations.en.status.disconnected
   });
+  const [walletConnecting, setWalletConnecting] = useState(false);
+  const [walletPickerOptions, setWalletPickerOptions] = useState([]);
+  const [walletError, setWalletError] = useState("");
   const [toasts, setToasts] = useState([]);
   const [escrows, setEscrows] = useState([]);
   const [availableEscrows, setAvailableEscrows] = useState([]);
@@ -3651,6 +3590,42 @@ function App() {
     } else {
       window.location.hash = nextHash;
     }
+  }
+
+  async function connectWithWalletProvider(provider) {
+    setWalletPickerOptions([]);
+    setWalletProvider(provider); // lưu provider được chọn vào module-level
+    setWalletConnecting(true);
+    setWalletError("");
+    try {
+      const [address] = await provider.request({ method: "eth_requestAccounts" });
+      setWallet({ connected: true, address, short: shortAddress(address), status: c.status.connected });
+      if (apiToken) {
+        const result = await apiRequest("/api/auth/wallet", {
+          method: "PATCH",
+          token: apiToken,
+          body: JSON.stringify({ walletAddress: address })
+        });
+        window.localStorage.setItem("escrowx-user", JSON.stringify(result.user));
+        setCurrentUser(result.user);
+      }
+    } catch (error) {
+      setWalletError(error.message);
+    }
+    setWalletConnecting(false);
+  }
+
+  async function connectWallet() {
+    const wallets = detectWallets();
+    if (wallets.length === 0) {
+      setWalletError("Không tìm thấy ví. Hãy cài MetaMask hoặc Coin98.");
+      return;
+    }
+    if (wallets.length === 1) {
+      await connectWithWalletProvider(wallets[0].provider);
+      return;
+    }
+    setWalletPickerOptions(wallets);
   }
 
   function addToast(kind) {
@@ -3722,6 +3697,7 @@ function App() {
     addToast,
     wallet,
     setWallet,
+    connectWallet,
     apiToken,
     setApiToken,
     currentUser,
@@ -3744,7 +3720,6 @@ function App() {
     submit: <SubmissionPage {...pageProps} />,
     approval: <ApprovalPage {...pageProps} />,
     disputes: <DisputeCenterPage {...pageProps} />,
-    wallet: <WalletPage {...pageProps} />,
     notifications: <NotificationsPage {...pageProps} />,
     profile: <ProfilePage {...pageProps} />,
     admin: <AdminPage {...pageProps} />
@@ -3765,7 +3740,13 @@ function App() {
           setThemeName={setThemeName}
           setMobileOpen={setMobileOpen}
           wallet={wallet}
-          navigate={navigate}
+          connectWallet={connectWallet}
+          walletConnecting={walletConnecting}
+          walletPickerOptions={walletPickerOptions}
+          onSelectWalletProvider={connectWithWalletProvider}
+          onCancelWalletPicker={() => setWalletPickerOptions([])}
+          walletError={walletError}
+          onDismissWalletError={() => setWalletError("")}
         />
         <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
           <AnimatePresence mode="wait">
