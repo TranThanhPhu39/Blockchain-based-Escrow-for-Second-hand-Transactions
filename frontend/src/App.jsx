@@ -2607,8 +2607,14 @@ function SubmissionPage({ c, theme, navigate, addToast, apiToken, currentUser, e
   );
 }
 
-function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, refreshEscrows, setSelectedEscrow }) {
+function ApprovalPage({ c, theme, navigate, addToast, apiToken, currentUser, escrows, selectedEscrow, refreshEscrows, setSelectedEscrow }) {
   const [status, setStatus] = useState({ loading: false, message: "" });
+
+  const uid = currentUser?._id || currentUser?.id;
+  const pendingApprovals = escrows.filter((e) => {
+    const clientId = e.client?._id || e.client;
+    return String(clientId) === String(uid) && e.status === "SUBMITTED";
+  });
 
   async function approveSelectedEscrow() {
     if (!apiToken || !selectedEscrow?._id) {
@@ -2631,6 +2637,7 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
       setSelectedEscrow(result.escrow);
       await refreshEscrows();
       addToast("approved");
+      navigate("dashboard");
     } catch (error) {
       setStatus({ loading: false, message: error.reason || error.message });
       return;
@@ -2639,24 +2646,64 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
     setStatus({ loading: false, message: "" });
   }
 
+  if (!selectedEscrow) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <PageIntro title={c.approval.title} subtitle={c.approval.subtitle} theme={theme} />
+        <Card theme={theme} className="mt-6">
+          {pendingApprovals.length ? (
+            <div className="grid gap-3">
+              {pendingApprovals.map((job) => (
+                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={classNames("font-bold text-sm", theme.text)}>{job.serviceName}</p>
+                      <Badge theme={theme} tone="cyan">{c.status[escrowStatusKey(job.status)]}</Badge>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                      <span className={theme.faint}>{formatEscrowAmount(job.amount)}</span>
+                      <span className={theme.faint}>{job.freelancer?.name || "—"}</span>
+                    </div>
+                  </div>
+                  <Button theme={theme} icon={CheckCircle2} size="sm" onClick={() => setSelectedEscrow(job)}>
+                    Xem & phê duyệt
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={classNames("py-8 text-center text-sm", theme.muted)}>Không có hợp đồng nào đang cần phê duyệt.</p>
+          )}
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_0.7fr]">
       <Card theme={theme}>
-        <PageIntro title={c.approval.title} subtitle={c.approval.subtitle} theme={theme} />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <PageIntro title={c.approval.title} subtitle={c.approval.subtitle} theme={theme} />
+          <Button theme={theme} variant="secondary" size="sm" onClick={() => setSelectedEscrow(null)}>
+            Đổi hợp đồng khác
+          </Button>
+        </div>
         <div className={classNames("mt-6 rounded-lg border p-5", theme.soft)}>
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0 flex-1">
               <p className={classNames("text-xl font-black", theme.heading)}>{c.approval.deliverableTitle}</p>
-              <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{selectedEscrow?.deliverableInfo?.deliverableUrl || "Figma prototype, React repository, Lighthouse report, deployment URL."}</p>
+              <p className={classNames("mt-2 text-sm leading-6 break-all", theme.muted)}>{selectedEscrow?.deliverableInfo?.deliverableUrl || "—"}</p>
+              {selectedEscrow?.deliverableInfo?.workProof && (
+                <a href={selectedEscrow.deliverableInfo.workProof} target="_blank" rel="noreferrer"
+                  className={classNames("mt-2 inline-block break-all text-xs underline", theme.accentText)}>
+                  {selectedEscrow.deliverableInfo.workProof}
+                </a>
+              )}
+              {selectedEscrow?.deliverableInfo?.note && (
+                <p className={classNames("mt-3 text-sm leading-6", theme.muted)}>{selectedEscrow.deliverableInfo.note}</p>
+              )}
             </div>
             <Badge theme={theme} tone="cyan">{c.status[escrowStatusKey(selectedEscrow?.status)] || c.status.submitted}</Badge>
-          </div>
-          <div className="mt-6">
-            <div className="mb-2 flex justify-between text-sm">
-              <span className={theme.text}>{c.approval.qualityScore}</span>
-              <span className={theme.accentText}>92%</span>
-            </div>
-            <ProgressBar value={92} theme={theme} />
           </div>
         </div>
       </Card>
