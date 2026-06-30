@@ -1314,12 +1314,14 @@ function TextArea({ theme, ...props }) {
 
 function InlineMessage({ message, theme, tone = "danger" }) {
   if (!message) return null;
-  const toneClass = tone === "success"
-    ? "border-emerald-300/25 bg-emerald-400/12 text-emerald-400"
-    : "border-rose-300/25 bg-rose-400/12 text-rose-300";
+  const toneClasses = {
+    danger: "border-rose-300/25 bg-rose-400/12 text-rose-300",
+    success: "border-emerald-300/25 bg-emerald-400/12 text-emerald-400",
+    info: "border-violet-300/25 bg-violet-400/12 text-violet-300"
+  };
 
   return (
-    <div className={classNames("rounded-2xl border px-3 py-2 text-sm font-bold", toneClass)}>
+    <div className={classNames("rounded-2xl border px-3 py-2 text-sm font-bold", toneClasses[tone] || toneClasses.danger)}>
       {message}
     </div>
   );
@@ -1646,7 +1648,7 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
     const confirmPassword = String(form.get("confirmPassword") || "");
 
     if (!isLogin && password !== confirmPassword) {
-      setStatus({ loading: false, message: "Password confirmation does not match." });
+      setStatus({ loading: false, message: "Password confirmation does not match.", tone: "danger" });
       return;
     }
 
@@ -1698,11 +1700,11 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
         navigate("dashboard");
       } else {
         setIsLogin(true);
-        setStatus({ loading: false, message: c.auth.registerSuccess });
+        setStatus({ loading: false, message: c.auth.registerSuccess, tone: "success" });
         return;
       }
     } catch (error) {
-      setStatus({ loading: false, message: error.message });
+      setStatus({ loading: false, message: error.message, tone: "danger" });
       return;
     }
 
@@ -1756,7 +1758,7 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
               </Field>
             </>
           )}
-          <InlineMessage message={status.message} theme={theme} />
+          <InlineMessage message={status.message} theme={theme} tone={status.tone} />
           <Button theme={theme} type="submit" icon={isLogin ? LogIn : Rocket} disabled={status.loading}>
             {status.loading ? "Connecting..." : isLogin ? c.nav.login : c.nav.register}
           </Button>
@@ -2269,7 +2271,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
           {/* SUBMIT */}
           <div className="grid gap-3">
-            <InlineMessage message={status.message} theme={theme} />
+            <InlineMessage message={status.message} theme={theme} tone={status.tone} />
             <Button theme={theme} type="submit" icon={Rocket} size="lg" disabled={status.loading}>
               {status.loading ? c.create.posting : c.common.createEscrow}
             </Button>
@@ -2355,7 +2357,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
       </>}
       {tab === "find" && <>
         <PageIntro title={c.create.jobsTitle} subtitle={c.create.jobsSubtitle} theme={theme} />
-        <InlineMessage message={status.message} theme={theme} />
+        <InlineMessage message={status.message} theme={theme} tone={status.tone} />
         {availableEscrows.length === 0 ? (
           <Card theme={theme}>
             <p className={classNames("py-8 text-center", theme.muted)}>{c.create.noJobs}</p>
@@ -2538,17 +2540,17 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       if (currentStatus === 1) {
         // Freelancer đã accept on-chain → cập nhật UI ngay, không cần gửi tx
         setOnChainNum(1);
-        setTxStatus({ loading: false, message: "Freelancer đã chấp nhận hợp đồng. Bạn có thể nạp tiền bên dưới." });
+        setTxStatus({ loading: false, message: "Freelancer đã chấp nhận hợp đồng. Bạn có thể nạp tiền bên dưới.", tone: "success" });
         return;
       }
       if (currentStatus > 1) {
         setOnChainNum(currentStatus);
-        setTxStatus({ loading: false, message: "Hợp đồng đã qua trạng thái đăng ký." });
+        setTxStatus({ loading: false, message: "Hợp đồng đã qua trạng thái đăng ký.", tone: "success" });
         return;
       }
       if (currentStatus === 0) {
         setOnChainNum(0);
-        setTxStatus({ loading: false, message: "Hợp đồng đã đăng ký on-chain. Chờ freelancer chấp nhận." });
+        setTxStatus({ loading: false, message: "Hợp đồng đã đăng ký on-chain. Chờ freelancer chấp nhận.", tone: "success" });
         return;
       }
 
@@ -2560,7 +2562,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
         [escrow.escrowIdOnChain, freelancerWallet, amountBig, contractURI], 300000);
       await tx.wait();
       setOnChainNum(0);
-      setTxStatus({ loading: false, message: "Hợp đồng đã đăng ký on-chain. Chờ freelancer chấp nhận để nạp tiền." });
+      setTxStatus({ loading: false, message: "Hợp đồng đã đăng ký on-chain. Chờ freelancer chấp nhận để nạp tiền.", tone: "success" });
       setTimeout(() => refreshEscrows(), 5000);
     } catch (err) {
       const msg = err?.reason || err?.message || "";
@@ -2569,15 +2571,15 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
         const statusNow = await getOnChainStatus(escrow.escrowIdOnChain).catch(() => -2);
         if (statusNow === 1) {
           setOnChainNum(1);
-          setTxStatus({ loading: false, message: "Freelancer đã chấp nhận hợp đồng. Bạn có thể nạp tiền bên dưới." });
+          setTxStatus({ loading: false, message: "Freelancer đã chấp nhận hợp đồng. Bạn có thể nạp tiền bên dưới.", tone: "success" });
         } else if (statusNow >= 0) {
           setOnChainNum(statusNow);
-          setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
+          setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận.", tone: "success" });
         } else {
-          setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
+          setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận.", tone: "success" });
         }
       } else {
-        setTxStatus({ loading: false, message: friendlyTxError(err) });
+        setTxStatus({ loading: false, message: friendlyTxError(err), tone: "danger" });
       }
     }
   }
@@ -2585,33 +2587,33 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   // Step 2 (freelancer): Accept contract on-chain
   async function handleAcceptContract() {
     if (!escrow?.escrowIdOnChain) {
-      setTxStatus({ loading: false, message: "Hợp đồng chưa được đăng ký on-chain." });
+      setTxStatus({ loading: false, message: "Hợp đồng chưa được đăng ký on-chain.", tone: "danger" });
       return;
     }
-    setTxStatus({ loading: true, message: "Đang gửi giao dịch chấp nhận..." });
+    setTxStatus({ loading: true, message: "Đang gửi giao dịch chấp nhận...", tone: "info" });
     try {
       // Best-effort check: giúp hiện thông báo rõ hơn. Nếu RPC lỗi thì bỏ qua.
       const onChainStatus = await getOnChainStatus(escrow.escrowIdOnChain).catch(() => null);
       console.log("[acceptContract] on-chain status:", onChainStatus);
       if (onChainStatus === -1) {
-        setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước." });
+        setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước.", tone: "danger" });
         return;
       }
       if (onChainStatus !== null && onChainStatus !== 0) {
-        setTxStatus({ loading: false, message: "Hợp đồng đã được chấp nhận hoặc đã qua trạng thái này." });
+        setTxStatus({ loading: false, message: "Hợp đồng đã được chấp nhận hoặc đã qua trạng thái này.", tone: "success" });
         return;
       }
       const { signer } = await getSignerAndDecimals();
       const tx = await sendContractTx(signer, "acceptContract", [escrow.escrowIdOnChain], 150000);
       await tx.wait();
-      setTxStatus({ loading: false, message: "Đã chấp nhận hợp đồng. Client có thể nạp tiền." });
+      setTxStatus({ loading: false, message: "Đã chấp nhận hợp đồng. Client có thể nạp tiền.", tone: "success" });
       setTimeout(() => refreshEscrows(), 10000);
     } catch (err) {
       const msg = err?.reason || err?.message || "";
       if (msg.includes("ContractNotFound")) {
-        setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước." });
+        setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước.", tone: "danger" });
       } else {
-        setTxStatus({ loading: false, message: friendlyTxError(err) });
+        setTxStatus({ loading: false, message: friendlyTxError(err), tone: "danger" });
       }
     }
   }
@@ -2620,7 +2622,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   async function handleDeposit() {
     const freelancerWallet = escrow?.freelancer?.walletAddress;
     if (!escrow?.escrowIdOnChain || !freelancerWallet) {
-      setTxStatus({ loading: false, message: "Freelancer chưa kết nối ví." });
+      setTxStatus({ loading: false, message: "Freelancer chưa kết nối ví.", tone: "danger" });
       return;
     }
     setTxStatus({ loading: true, message: "" });
@@ -2631,11 +2633,11 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       console.log("[deposit] on-chain status:", onChainStatus);
 
       if (onChainStatus === -1) {
-        setTxStatus({ loading: false, message: "Hợp đồng chưa được đăng ký on-chain. Bấm 'Đăng ký on-chain' trước." });
+        setTxStatus({ loading: false, message: "Hợp đồng chưa được đăng ký on-chain. Bấm 'Đăng ký on-chain' trước.", tone: "danger" });
         return;
       }
       if (onChainStatus === 0) {
-        setTxStatus({ loading: false, message: "Hợp đồng đã on-chain nhưng freelancer chưa chấp nhận. Hãy chờ." });
+        setTxStatus({ loading: false, message: "Hợp đồng đã on-chain nhưng freelancer chưa chấp nhận. Hãy chờ.", tone: "info" });
         return;
       }
       if (onChainStatus >= 2) {
@@ -2664,7 +2666,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       addToast("deposit");
       setTimeout(() => refreshEscrows(), 10000);
     } catch (err) {
-      setTxStatus({ loading: false, message: friendlyTxError(err) });
+      setTxStatus({ loading: false, message: friendlyTxError(err), tone: "danger" });
       return;
     }
     setTxStatus({ loading: false, message: "" });
@@ -2688,7 +2690,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
               <p className={classNames("mt-1 text-sm leading-6", theme.muted)}>Bước 1 — Ghi hợp đồng lên blockchain. Freelancer sẽ nhận được thông báo để chấp nhận.</p>
             </div>
             <div className="flex flex-col items-end gap-3">
-              {txStatus.message && <InlineMessage message={txStatus.message} theme={theme} />}
+              {txStatus.message && <InlineMessage message={txStatus.message} theme={theme} tone={txStatus.tone} />}
               <Button theme={theme} icon={ShieldCheck} onClick={handleRegisterOnChain} disabled={txStatus.loading}>
                 {txStatus.loading ? "Processing..." : "Đăng ký on-chain"}
               </Button>
@@ -2705,7 +2707,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
               <p className={classNames("mt-1 text-sm leading-6", theme.muted)}>Bước 2 — Xác nhận bạn sẵn sàng thực hiện. Client sẽ nạp tiền ký quỹ sau khi bạn chấp nhận.</p>
             </div>
             <div className="flex flex-col items-end gap-3">
-              {txStatus.message && <InlineMessage message={txStatus.message} theme={theme} />}
+              {txStatus.message && <InlineMessage message={txStatus.message} theme={theme} tone={txStatus.tone} />}
               <Button theme={theme} icon={CheckCircle2} variant="primary" onClick={handleAcceptContract} disabled={txStatus.loading}>
                 {txStatus.loading ? "Processing..." : "Chấp nhận hợp đồng"}
               </Button>
@@ -2722,7 +2724,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
               <p className={classNames("mt-1 text-sm leading-6", theme.muted)}>Bước 3 — {c.details.depositCopy}</p>
             </div>
             <div className="flex flex-col items-end gap-3">
-              {txStatus.message && <InlineMessage message={txStatus.message} theme={theme} />}
+              {txStatus.message && <InlineMessage message={txStatus.message} theme={theme} tone={txStatus.tone} />}
               <Button theme={theme} icon={CircleDollarSign} onClick={handleDeposit} disabled={txStatus.loading}>
                 {txStatus.loading ? "Processing..." : c.common.depositFunds}
               </Button>
@@ -2910,7 +2912,7 @@ function SubmissionPage({ c, theme, navigate, addToast, apiToken, currentUser, e
           <Field theme={theme} label={c.submit.notes} icon={FileText}>
             <TextArea theme={theme} name="note" defaultValue={selectedEscrow?.deliverableInfo?.note || ""} />
           </Field>
-          <InlineMessage message={status.message} theme={theme} />
+          <InlineMessage message={status.message} theme={theme} tone={status.tone} />
           <Button theme={theme} icon={UploadCloud} type="submit" disabled={status.loading}>
             {status.loading ? "Submitting..." : c.common.submitWork}
           </Button>
@@ -3028,7 +3030,7 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, currentUser, esc
         <SectionTitle theme={theme} title={c.common.action} />
         <p className={classNames("text-sm leading-6", theme.muted)}>{c.approval.approvalCopy}</p>
         <div className="mt-5 grid gap-3">
-          <InlineMessage message={status.message} theme={theme} />
+          <InlineMessage message={status.message} theme={theme} tone={status.tone} />
           <Button theme={theme} icon={CheckCircle2} variant="success" onClick={approveSelectedEscrow} disabled={status.loading}>
             {status.loading ? "Approving..." : c.common.approveWork}
           </Button>
@@ -3319,7 +3321,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                       ))}
                     </div>
                   </div>
-                  <InlineMessage message={status.message} theme={theme} />
+                  <InlineMessage message={status.message} theme={theme} tone={status.tone} />
                   <Button theme={theme} icon={Vote} variant="success" onClick={handleVote} disabled={status.loading || !decision || confirmedReasons.length === 0}>
                     {status.loading ? "Đang xử lý..." : "Bỏ phiếu"}
                   </Button>
@@ -3346,7 +3348,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                 <Field theme={theme} label="Link bằng chứng phản bác" icon={UploadCloud}>
                   <TextInput theme={theme} name="defenseURI" placeholder="https://drive.google.com/..." required />
                 </Field>
-                <InlineMessage message={status.message} theme={theme} />
+                <InlineMessage message={status.message} theme={theme} tone={status.tone} />
                 <Button theme={theme} icon={UploadCloud} type="submit" disabled={status.loading}>
                   {status.loading ? "Đang nộp..." : "Nộp bằng chứng phản bác"}
                 </Button>
@@ -3367,7 +3369,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                 <p className={classNames("text-sm", theme.muted)}>Đang chờ freelancer nộp bằng chứng phản bác. Sau đó các reviewer sẽ bỏ phiếu.</p>
                 {currentUser?.role === "admin" && (
                   <>
-                    <InlineMessage message={status.message} theme={theme} />
+                    <InlineMessage message={status.message} theme={theme} tone={status.tone} />
                     <Button theme={theme} icon={Gavel} variant="danger" onClick={handleFinalize} disabled={status.loading}>
                       {status.loading ? "Đang chốt..." : "Chốt kết quả (Admin)"}
                     </Button>
@@ -3387,7 +3389,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
               <Field theme={theme} label={c.dispute.evidence} icon={FileText}>
                 <TextArea theme={theme} name="reason" placeholder="Describe the reason for this dispute..." required />
               </Field>
-              <InlineMessage message={status.message} theme={theme} />
+              <InlineMessage message={status.message} theme={theme} tone={status.tone} />
               <Button theme={theme} icon={AlertTriangle} variant="danger" type="submit" disabled={status.loading}>
                 {status.loading ? "Opening..." : c.common.openDispute}
               </Button>
