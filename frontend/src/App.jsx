@@ -960,10 +960,18 @@ async function apiRequest(path, { token, ...options } = {}) {
 
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers
+    });
+  } catch {
+    // fetch() chỉ throw khi request không tới được server (mất mạng, CORS bị
+    // chặn, backend sập...) — message gốc "Failed to fetch" không có ý nghĩa
+    // với người dùng nên thay bằng thông báo tiếng Việt rõ ràng hơn.
+    throw new Error("Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.");
+  }
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
@@ -971,6 +979,20 @@ async function apiRequest(path, { token, ...options } = {}) {
   }
 
   return data;
+}
+
+// Chuyển lỗi giao dịch blockchain (thường là tiếng Anh kỹ thuật từ ethers.js/
+// MetaMask) thành thông báo tiếng Việt dễ hiểu cho người dùng.
+function friendlyTxError(err) {
+  if (err?.code === "ACTION_REJECTED") return "Bạn đã hủy giao dịch trong ví.";
+  if (err?.code === "INSUFFICIENT_FUNDS") return "Số dư ví không đủ để thực hiện giao dịch (cần thêm POL để trả phí gas).";
+  if (err?.code === "NETWORK_ERROR" || err?.code === "TIMEOUT") return "Không thể kết nối tới mạng blockchain. Vui lòng thử lại.";
+
+  const raw = err?.reason || err?.shortMessage || err?.message || "";
+  if (/user rejected/i.test(raw)) return "Bạn đã hủy giao dịch trong ví.";
+  if (/insufficient funds/i.test(raw)) return "Số dư ví không đủ để thực hiện giao dịch.";
+  if (/missing revert data|could not coalesce error|network ?error|failed to fetch/i.test(raw)) return "Không thể kết nối tới mạng blockchain. Vui lòng thử lại.";
+  return raw || "Đã xảy ra lỗi không xác định. Vui lòng thử lại.";
 }
 
 function normalizeRole(value) {
@@ -2411,7 +2433,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
           setTxStatus({ loading: false, message: "Hợp đồng đã được đăng ký on-chain. Freelancer có thể chấp nhận." });
         }
       } else {
-        setTxStatus({ loading: false, message: msg });
+        setTxStatus({ loading: false, message: friendlyTxError(err) });
       }
     }
   }
@@ -2445,7 +2467,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       if (msg.includes("ContractNotFound")) {
         setTxStatus({ loading: false, message: "Client chưa đăng ký hợp đồng on-chain. Yêu cầu client bấm 'Đăng ký on-chain' trước." });
       } else {
-        setTxStatus({ loading: false, message: msg });
+        setTxStatus({ loading: false, message: friendlyTxError(err) });
       }
     }
   }
@@ -2498,7 +2520,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       addToast("deposit");
       setTimeout(() => refreshEscrows(), 10000);
     } catch (err) {
-      setTxStatus({ loading: false, message: err.reason || err.message });
+      setTxStatus({ loading: false, message: friendlyTxError(err) });
       return;
     }
     setTxStatus({ loading: false, message: "" });
@@ -2682,7 +2704,7 @@ function SubmissionPage({ c, theme, navigate, addToast, apiToken, currentUser, e
       addToast("submitted");
       navigate("dashboard");
     } catch (error) {
-      setStatus({ loading: false, message: error.reason || error.message });
+      setStatus({ loading: false, message: friendlyTxError(error) });
       return;
     }
 
@@ -2790,7 +2812,7 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, currentUser, esc
       addToast("approved");
       navigate("dashboard");
     } catch (error) {
-      setStatus({ loading: false, message: error.reason || error.message });
+      setStatus({ loading: false, message: friendlyTxError(error) });
       return;
     }
 
@@ -2966,7 +2988,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
       fetchDisputes();
       setSelectedDispute(null);
     } catch (error) {
-      setStatus({ loading: false, message: error.reason || error.message });
+      setStatus({ loading: false, message: friendlyTxError(error) });
       return;
     }
     setStatus({ loading: false, message: "" });
@@ -3000,7 +3022,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
       fetchDisputes();
       setSelectedDispute(null);
     } catch (error) {
-      setStatus({ loading: false, message: error.reason || error.message });
+      setStatus({ loading: false, message: friendlyTxError(error) });
       return;
     }
     setStatus({ loading: false, message: "" });
@@ -3025,7 +3047,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
       fetchDisputes();
       event.target.reset();
     } catch (error) {
-      setStatus({ loading: false, message: error.reason || error.message });
+      setStatus({ loading: false, message: friendlyTxError(error) });
       return;
     }
     setStatus({ loading: false, message: "" });
@@ -3065,7 +3087,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
       if (refreshEscrows) await refreshEscrows();
       event.target.reset();
     } catch (error) {
-      setStatus({ loading: false, message: error.reason || error.message });
+      setStatus({ loading: false, message: friendlyTxError(error) });
       return;
     }
     setStatus({ loading: false, message: "" });
