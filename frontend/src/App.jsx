@@ -1650,15 +1650,6 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
     clientCancellationRule:   "",
     freelancerWithdrawalRule: "",
     refundRule:               "",
-    // Evidence Rules
-    acceptedEvidenceTypes: [],
-    timestampSource:       "blockchain",
-    communicationLogUsage: "allowed",
-    // Dispute Resolution
-    disputeReasons:            [],
-    evidenceUploadRequirement: "both",
-    reviewerDecisionOptions:   [],
-    appealPolicy:              "none",
     // Legal & Ownership
     intellectualPropertyTransfer: "",
     confidentialityRequirement:   "public",
@@ -1694,7 +1685,6 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
     if (fd.acceptanceChecklist.length === 0)                 e.acceptanceChecklist     = "At least one acceptance criterion is required";
     if (!fd.reviewPeriod      || Number(fd.reviewPeriod)      <= 0) e.reviewPeriod      = "Review period must be greater than 0";
     if (!fd.autoReleasePeriod || Number(fd.autoReleasePeriod) <= 0) e.autoReleasePeriod = "Auto release period must be greater than 0";
-    if (fd.acceptedEvidenceTypes.length === 0)               e.acceptedEvidenceTypes   = "At least one evidence type must be selected";
     if (!fd.intellectualPropertyTransfer)                    e.intellectualPropertyTransfer = "IP transfer must be selected";
     return e;
   }
@@ -1772,9 +1762,6 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
   // ── Option lists ─────────────────────────────────────────────────────────
   const deliverableFormatOpts     = ["Source Code","Figma File","PDF","ZIP File","Deployment URL","GitHub Repository","Google Drive Link","Video Demo","Other"];
   const acceptanceChecklistOpts   = ["Matches project description","Meets all listed deliverables","Responsive design","No critical bugs","Source code is accessible","Deployment link works","Meets deadline","Other"];
-  const evidenceTypeOpts          = ["GitHub commits","Screenshots","Video demo","Deployment URL","Source code repository","Chat messages","Transaction hash","Delivery link","Other"];
-  const disputeReasonOpts         = ["Missing deliverables","Late delivery","Poor quality","Wrong scope","Non-payment concern","Freelancer inactivity","Client inactivity","Suspected scam","Other"];
-  const reviewerDecisionOpts      = ["Release full payment to freelancer","Refund full amount to client","Split payment","Request additional evidence"];
 
   function Err({ field }) {
     return errors[field] ? <p className="mt-1 text-xs font-bold text-rose-400">{errors[field]}</p> : null;
@@ -1960,76 +1947,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
             </FormSection>
           </Card>
 
-          {/* 8 · EVIDENCE RULES */}
-          <Card theme={theme}>
-            <FormSection title="Evidence Rules for Dispute" icon={UploadCloud} theme={theme}>
-              <div>
-                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>Accepted Evidence Types</p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {evidenceTypeOpts.map(opt => (
-                    <CheckboxRow key={opt} label={opt} checked={fd.acceptedEvidenceTypes.includes(opt)} onChange={() => toggleArr("acceptedEvidenceTypes", opt)} theme={theme} />
-                  ))}
-                </div>
-                <Err field="acceptedEvidenceTypes" />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field theme={theme} label="Timestamp Source" icon={Clock3}>
-                  <SelectInput theme={theme} value={fd.timestampSource} onChange={e => set("timestampSource", e.target.value)}>
-                    <option value="blockchain">Blockchain timestamp</option>
-                    <option value="platform">Platform timestamp</option>
-                    <option value="git">Git commit timestamp</option>
-                    <option value="mixed">Mixed evidence timestamp</option>
-                  </SelectInput>
-                </Field>
-                <Field theme={theme} label="Communication Log Usage" icon={MessageCircle}>
-                  <SelectInput theme={theme} value={fd.communicationLogUsage} onChange={e => set("communicationLogUsage", e.target.value)}>
-                    <option value="allowed">Allow platform messages as evidence</option>
-                    <option value="not_allowed">Do not use platform messages</option>
-                  </SelectInput>
-                </Field>
-              </div>
-            </FormSection>
-          </Card>
-
-          {/* 9 · DISPUTE RESOLUTION */}
-          <Card theme={theme}>
-            <FormSection title="Dispute Resolution Terms" icon={Gavel} theme={theme}>
-              <div>
-                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>Dispute Reasons</p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {disputeReasonOpts.map(opt => (
-                    <CheckboxRow key={opt} label={opt} checked={fd.disputeReasons.includes(opt)} onChange={() => toggleArr("disputeReasons", opt)} theme={theme} />
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>Reviewer Decision Options</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {reviewerDecisionOpts.map(opt => (
-                    <CheckboxRow key={opt} label={opt} checked={fd.reviewerDecisionOptions.includes(opt)} onChange={() => toggleArr("reviewerDecisionOptions", opt)} theme={theme} />
-                  ))}
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field theme={theme} label="Evidence Upload Requirement" icon={UploadCloud}>
-                  <SelectInput theme={theme} value={fd.evidenceUploadRequirement} onChange={e => set("evidenceUploadRequirement", e.target.value)}>
-                    <option value="both">Required for both parties</option>
-                    <option value="initiator">Required only for dispute initiator</option>
-                    <option value="optional">Optional</option>
-                  </SelectInput>
-                </Field>
-                <Field theme={theme} label="Appeal Policy" icon={ShieldCheck}>
-                  <SelectInput theme={theme} value={fd.appealPolicy} onChange={e => set("appealPolicy", e.target.value)}>
-                    <option value="none">No appeal</option>
-                    <option value="one">One appeal allowed</option>
-                    <option value="new_evidence">Appeal with new evidence only</option>
-                  </SelectInput>
-                </Field>
-              </div>
-            </FormSection>
-          </Card>
-
-          {/* 10 · LEGAL & OWNERSHIP */}
+          {/* 8 · LEGAL & OWNERSHIP */}
           <Card theme={theme}>
             <FormSection title="Legal & Ownership Terms" icon={ShieldCheck} theme={theme}>
               <Field theme={theme} label="Intellectual Property Transfer" icon={Fingerprint}>
@@ -2088,8 +2006,6 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
                 ["Revisions",      fd.numberOfRevisions],
                 ["Sub. link",      fd.submissionLinkRequirement],
                 ["Testing",        fd.testingRequirement !== "none" ? fd.testingRequirement : ""],
-                ["Evidence req.",  fd.evidenceUploadRequirement === "both" ? "Both parties" : fd.evidenceUploadRequirement === "initiator" ? "Initiator only" : "Optional"],
-                ["Appeal",         fd.appealPolicy === "none" ? "No appeal" : fd.appealPolicy === "one" ? "One appeal" : "New evidence only"],
                 ["IP transfer",    fd.intellectualPropertyTransfer ? fd.intellectualPropertyTransfer.replace(/_/g, " ") : ""],
                 ["Confidentiality",fd.confidentialityRequirement],
                 ["Commercial use", fd.commercialUsageRights === "commercial" ? "Allowed" : fd.commercialUsageRights === "internal" ? "Internal only" : "Custom"],
@@ -2100,7 +2016,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
                 </div>
               ) : null)}
             </div>
-            {(fd.deliverableFormat.length > 0 || fd.acceptanceChecklist.length > 0 || fd.acceptedEvidenceTypes.length > 0) && (
+            {(fd.deliverableFormat.length > 0 || fd.acceptanceChecklist.length > 0) && (
               <div className={classNames("mt-4 grid gap-3 border-t pt-4", theme.border)}>
                 {fd.deliverableFormat.length > 0 && (
                   <div>
@@ -2112,12 +2028,6 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
                   <div>
                     <p className={classNames("mb-2 text-xs font-black uppercase tracking-wide", theme.faint)}>Acceptance</p>
                     <div className="flex flex-wrap gap-1">{fd.acceptanceChecklist.map(f => <Badge key={f} theme={theme} tone="emerald">{f}</Badge>)}</div>
-                  </div>
-                )}
-                {fd.acceptedEvidenceTypes.length > 0 && (
-                  <div>
-                    <p className={classNames("mb-2 text-xs font-black uppercase tracking-wide", theme.faint)}>Evidence</p>
-                    <div className="flex flex-wrap gap-1">{fd.acceptedEvidenceTypes.map(f => <Badge key={f} theme={theme} tone="violet">{f}</Badge>)}</div>
                   </div>
                 )}
               </div>
@@ -2723,10 +2633,35 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
   );
 }
 
+const VOTE_CHECKLIST_ITEMS = [
+  ["deliverablesMatch", "Sản phẩm khớp với phạm vi hợp đồng"],
+  ["acceptanceCriteriaMet", "Tiêu chí nghiệm thu đã được đáp ứng"],
+  ["deadlineMet", "Đã xem xét việc đáp ứng deadline"],
+  ["revisionHistoryReviewed", "Đã xem lịch sử yêu cầu sửa"],
+  ["submissionHistoryReviewed", "Đã xem lịch sử nộp bài"],
+  ["blockchainTimelineReviewed", "Đã xem timeline on-chain"],
+  ["evidenceReviewed", "Đã xem toàn bộ bằng chứng"],
+];
+
+function emptyVoteChecklist() {
+  return VOTE_CHECKLIST_ITEMS.reduce((acc, [key]) => ({ ...acc, [key]: false }), {});
+}
+
 function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selectedEscrow, refreshEscrows }) {
   const [disputes, setDisputes] = useState([]);
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [status, setStatus] = useState({ loading: false, message: "" });
+  const [checklist, setChecklist] = useState(emptyVoteChecklist);
+
+  useEffect(() => {
+    setChecklist(emptyVoteChecklist());
+  }, [selectedDispute?._id]);
+
+  function toggleChecklist(key) {
+    setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  const allChecklistItemsReviewed = Object.values(checklist).every(Boolean);
 
   const fetchDisputes = () => {
     if (!apiToken) return;
@@ -2765,14 +2700,16 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
   }
 
   async function handleVote(voteForFreelancer) {
-    if (!selectedDispute) return;
+    if (!selectedDispute || !allChecklistItemsReviewed) return;
     setStatus({ loading: true, message: "" });
     try {
       const { signer } = await getSignerAndDecimals();
       const reason = voteForFreelancer ? "Bỏ phiếu giải ngân cho freelancer" : "Bỏ phiếu hoàn tiền cho khách hàng";
       const tx = await sendContractTx(signer, "castDisputeVote", [
         selectedDispute.escrowIdOnChain,
-        true, true, true, true, true, true, true,
+        checklist.deliverablesMatch, checklist.acceptanceCriteriaMet, checklist.deadlineMet,
+        checklist.revisionHistoryReviewed, checklist.submissionHistoryReviewed,
+        checklist.blockchainTimelineReviewed, checklist.evidenceReviewed,
         voteForFreelancer,
         reason,
       ], 300000);
@@ -2781,9 +2718,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
         method: "POST", token: apiToken,
         body: JSON.stringify({
           txHash: receipt.hash, voteForFreelancer, reason,
-          deliverablesMatch: true, acceptanceCriteriaMet: true, deadlineMet: true,
-          revisionHistoryReviewed: true, submissionHistoryReviewed: true,
-          blockchainTimelineReviewed: true, evidenceReviewed: true,
+          ...checklist,
         })
       });
       addToast("disputeResolved");
@@ -2914,11 +2849,22 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                 )}
               </div>
 
+              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>Checklist trước khi bỏ phiếu</p>
+                <div className="grid gap-2">
+                  {VOTE_CHECKLIST_ITEMS.map(([key, label]) => (
+                    <CheckboxRow key={key} theme={theme} label={label} checked={checklist[key]} onChange={() => toggleChecklist(key)} />
+                  ))}
+                </div>
+                {!allChecklistItemsReviewed && (
+                  <p className={classNames("mt-3 text-xs", theme.faint)}>Tick đủ 7 mục trên để mở khóa nút bỏ phiếu.</p>
+                )}
+              </div>
               <InlineMessage message={status.message} theme={theme} />
-              <Button theme={theme} icon={Vote} variant="success" onClick={() => handleVote(true)} disabled={status.loading}>
+              <Button theme={theme} icon={Vote} variant="success" onClick={() => handleVote(true)} disabled={status.loading || !allChecklistItemsReviewed}>
                 {status.loading ? "Đang xử lý..." : c.common.voteRelease}
               </Button>
-              <Button theme={theme} icon={Gavel} variant="secondary" onClick={() => handleVote(false)} disabled={status.loading}>
+              <Button theme={theme} icon={Gavel} variant="secondary" onClick={() => handleVote(false)} disabled={status.loading || !allChecklistItemsReviewed}>
                 {c.common.voteRefund}
               </Button>
               {currentUser?.role === "admin" && (
