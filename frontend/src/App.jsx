@@ -2683,15 +2683,27 @@ const VOTE_DECISION_OPTIONS = [
   ["refund", "Refund full amount to client"],
 ];
 
+const DISPUTE_REASON_OPTIONS = [
+  "Missing deliverables", "Late delivery", "Poor quality",
+  "Wrong scope", "Non-payment concern", "Freelancer inactivity",
+  "Client inactivity", "Suspected scam", "Other",
+];
+
 function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selectedEscrow, refreshEscrows }) {
   const [disputes, setDisputes] = useState([]);
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [status, setStatus] = useState({ loading: false, message: "" });
   const [decision, setDecision] = useState(null);
+  const [confirmedReasons, setConfirmedReasons] = useState([]);
 
   useEffect(() => {
     setDecision(null);
+    setConfirmedReasons([]);
   }, [selectedDispute?._id]);
+
+  function toggleReason(item) {
+    setConfirmedReasons((prev) => prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]);
+  }
 
   const fetchDisputes = () => {
     if (!apiToken) return;
@@ -2730,12 +2742,13 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
   }
 
   async function handleVote() {
-    if (!selectedDispute || !decision) return;
+    if (!selectedDispute || !decision || confirmedReasons.length === 0) return;
     const voteForFreelancer = decision === "release";
     setStatus({ loading: true, message: "" });
     try {
       const { signer } = await getSignerAndDecimals();
-      const reason = voteForFreelancer ? "Bỏ phiếu giải ngân cho freelancer" : "Bỏ phiếu hoàn tiền cho khách hàng";
+      const base = voteForFreelancer ? "Bỏ phiếu giải ngân cho freelancer" : "Bỏ phiếu hoàn tiền cho khách hàng";
+      const reason = `${base} — Lý do xác nhận: ${confirmedReasons.join(", ")}`;
       const tx = await sendContractTx(signer, "castDisputeVote", [
         selectedDispute.escrowIdOnChain,
         true, true, true, true, true, true, true,
@@ -2891,6 +2904,14 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
               ) : (
                 <>
                   <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                    <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>Lý do tranh chấp được xác nhận (chọn ít nhất 1)</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {DISPUTE_REASON_OPTIONS.map((item) => (
+                        <CheckboxRow key={item} theme={theme} label={item} checked={confirmedReasons.includes(item)} onChange={() => toggleReason(item)} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className={classNames("rounded-lg border p-4", theme.soft)}>
                     <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>Quyết định bỏ phiếu</p>
                     <div className="grid gap-2">
                       {VOTE_DECISION_OPTIONS.map(([key, label]) => (
@@ -2899,7 +2920,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                     </div>
                   </div>
                   <InlineMessage message={status.message} theme={theme} />
-                  <Button theme={theme} icon={Vote} variant="success" onClick={handleVote} disabled={status.loading || !decision}>
+                  <Button theme={theme} icon={Vote} variant="success" onClick={handleVote} disabled={status.loading || !decision || confirmedReasons.length === 0}>
                     {status.loading ? "Đang xử lý..." : "Bỏ phiếu"}
                   </Button>
                 </>
