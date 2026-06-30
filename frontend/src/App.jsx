@@ -571,78 +571,6 @@ const serviceCategories = [
   { icon: GraduationCap, en: "Online Tutoring", vi: "Gia sư trực tuyến" }
 ];
 
-const jobs = {
-  active: [
-    {
-      id: "JOB-2401",
-      service: { en: "Logo Design for Startup", vi: "Thiết kế logo cho startup" },
-      freelancer: "Linh Dao",
-      amount: "450 USDT",
-      deadline: "Jun 24, 2026",
-      status: "locked"
-    },
-    {
-      id: "JOB-2402",
-      service: { en: "Landing Page Development", vi: "Phát triển landing page" },
-      freelancer: "Minh Pham",
-      amount: "1,250 USDT",
-      deadline: "Jun 28, 2026",
-      status: "inProgress"
-    },
-    {
-      id: "JOB-2403",
-      service: { en: "Smart Contract Audit", vi: "Kiểm toán smart contract" },
-      freelancer: "Quang Le",
-      amount: "2,800 USDT",
-      deadline: "Jul 02, 2026",
-      status: "submitted"
-    }
-  ],
-  completed: [
-    {
-      id: "JOB-2394",
-      service: { en: "Social Media Content Package", vi: "Gói nội dung mạng xã hội" },
-      freelancer: "Hoa Tran",
-      amount: "620 USDT",
-      result: "released",
-      tx: "0x7af3...19c2"
-    },
-    {
-      id: "JOB-2388",
-      service: { en: "English-Vietnamese Translation", vi: "Dịch Anh - Việt" },
-      freelancer: "An Nguyen",
-      amount: "320 USDT",
-      result: "released",
-      tx: "0xd41b...62aa"
-    }
-  ],
-  disputes: [
-    {
-      id: "JOB-2379",
-      service: { en: "Smart Contract Audit", vi: "Kiểm toán smart contract" },
-      freelancer: "Bao Nguyen",
-      amount: "1,900 USDT",
-      status: "reviewing"
-    },
-    {
-      id: "JOB-2365",
-      service: { en: "Landing Page Development", vi: "Phát triển landing page" },
-      freelancer: "Mai Ho",
-      amount: "980 USDT",
-      status: "open"
-    }
-  ]
-};
-
-
-const demand = [
-  ["Web Development", 34],
-  ["Design", 26],
-  ["Smart Contracts", 18],
-  ["Content", 12],
-  ["Translation", 10]
-];
-
 function classNames(...classes) {
   return classes.filter(Boolean).join(" ");
 }
@@ -1214,7 +1142,7 @@ function LayoutDashboardIcon(props) {
   return <Layers3 {...props} />;
 }
 
-function Header({ c, theme, language, setLanguage, themeName, setThemeName, setMobileOpen, wallet, connectWallet, walletConnecting, walletPickerOptions, onSelectWalletProvider, onCancelWalletPicker, walletError, onDismissWalletError }) {
+function Header({ c, theme, language, setLanguage, themeName, setThemeName, setMobileOpen, wallet, currentUser, connectWallet, walletConnecting, walletPickerOptions, onSelectWalletProvider, onCancelWalletPicker, walletError, onDismissWalletError }) {
   return (
     <header className={classNames("sticky top-0 z-20 border-b", theme.header)}>
       <div className="flex min-h-16 items-center justify-between gap-3 px-4 sm:px-6">
@@ -1249,11 +1177,19 @@ function Header({ c, theme, language, setLanguage, themeName, setThemeName, setM
             aria-label="Toggle theme"
           />
           <div className="relative">
-            <Button theme={theme} icon={Wallet} size="sm" variant={wallet.connected ? "secondary" : "primary"} onClick={connectWallet} disabled={walletConnecting}>
+            <Button
+              theme={theme}
+              icon={Wallet}
+              size="sm"
+              variant={wallet.connected ? "secondary" : "primary"}
+              onClick={connectWallet}
+              disabled={walletConnecting || !currentUser}
+              title={!currentUser ? "Đăng ký / đăng nhập trước khi kết nối ví" : undefined}
+            >
               <span className="hidden sm:inline">{walletConnecting ? "Connecting..." : wallet.connected ? wallet.short : c.common.connectWallet}</span>
               <span className="sm:hidden">{wallet.connected ? "0x" : "Wallet"}</span>
             </Button>
-            {(walletPickerOptions.length > 0 || walletError) && (
+            {currentUser && (walletPickerOptions.length > 0 || walletError) && (
               <div className={classNames("absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border p-3", theme.card)}>
                 {walletPickerOptions.length > 0 ? (
                   <>
@@ -1368,7 +1304,7 @@ function LandingPage({ c, theme, language, navigate, currentUser, addToast }) {
   );
 }
 
-function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentUser, setWallet, connectWallet }) {
+function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentUser, setWallet }) {
   const [isLogin, setIsLogin] = useState(type === "login");
   const [status, setStatus] = useState({ loading: false, message: "" });
 
@@ -1498,11 +1434,6 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
           <Button theme={theme} type="submit" icon={isLogin ? LogIn : Rocket} disabled={status.loading}>
             {status.loading ? "Connecting..." : isLogin ? c.nav.login : c.nav.register}
           </Button>
-          {isLogin && (
-            <Button theme={theme} icon={Wallet} variant="secondary" onClick={connectWallet}>
-              {c.auth.walletMethod}
-            </Button>
-          )}
         </form>
       </Card>
     </div>
@@ -1533,54 +1464,54 @@ function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, 
     status: escrowStatusKey(escrow.status),
     raw: escrow
   }));
-  const activeRows = liveRows.length ? liveRows.filter((row) => !["released", "refunded"].includes(row.status)) : null;
-  const completedRows = liveRows.length ? liveRows.filter((row) => ["released", "refunded"].includes(row.status)) : null;
-  const disputeRows = liveRows.length ? liveRows.filter((row) => row.raw.status === "DISPUTED") : null;
+  const activeRows = liveRows.filter((row) => !["released", "refunded"].includes(row.status));
+  const completedRows = liveRows.filter((row) => ["released", "refunded"].includes(row.status));
+  const disputeRows = liveRows.filter((row) => row.raw.status === "DISPUTED");
+
+  const totalValue = myEscrows.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+  const activeCount = myEscrows.filter((e) => !["RELEASED", "REFUNDED", "CANCELLED"].includes(e.status)).length;
+  const completedCount = myEscrows.filter((e) => ["RELEASED", "REFUNDED"].includes(e.status)).length;
+  const disputeCount = myEscrows.filter((e) => ["DISPUTED", "REVIEWING_DISPUTE"].includes(e.status)).length;
+  const dashboardStats = [
+    [c.dashboard.cards[0][0], `${totalValue.toLocaleString()} USDT`, `${myEscrows.length} hợp đồng`],
+    [c.dashboard.cards[1][0], String(activeCount), `${myEscrows.length} tổng cộng`],
+    [c.dashboard.cards[2][0], String(completedCount), completedCount ? "Đã giải ngân/hoàn tiền" : "Chưa có"],
+    [c.dashboard.cards[3][0], String(disputeCount), disputeCount ? "Cần xem xét" : "Không có tranh chấp"]
+  ];
 
   return (
     <div className="space-y-6">
       <PageIntro title={c.dashboard.title} subtitle={c.dashboard.subtitle} theme={theme} />
       <div className="grid gap-4 md:grid-cols-4">
-        {c.dashboard.cards.map(([label, value, detail], index) => (
+        {dashboardStats.map(([label, value, detail], index) => (
           <StatCard key={label} theme={theme} icon={[CircleDollarSign, Briefcase, FileCheck2, AlertTriangle][index]} label={label} value={value} detail={detail} tone={["cyan", "emerald", "violet", "amber"][index]} />
         ))}
       </div>
-      <div className="grid gap-6 xl:grid-cols-[1fr_0.42fr]">
-        <Card theme={theme}>
-          <SectionTitle theme={theme} title={c.nav.dashboard}>
-            {["active", "completed", "disputes"].map((key) => (
-              <Button key={key} theme={theme} size="sm" variant={tab === key ? "primary" : "secondary"} onClick={() => setTab(key)}>
-                {c.dashboard.tabs[key]}
-              </Button>
-            ))}
-          </SectionTitle>
-          {tab === "active" ? <JobsTable type="active" rows={activeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
-          {tab === "completed" ? <JobsTable type="completed" rows={completedRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
-          {tab === "disputes" ? <JobsTable type="disputes" rows={disputeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
-        </Card>
-        <div className="grid gap-4">
-          <Card theme={theme}>
-            <SectionTitle theme={theme} title={c.dashboard.adoptionTitle} />
-            <div className="grid gap-4">
-              {demand.map(([label, value]) => (
-                <div key={label}>
-                  <div className="mb-2 flex justify-between text-sm">
-                    <span className={theme.text}>{label}</span>
-                    <span className={theme.accentText}>{value}%</span>
-                  </div>
-                  <ProgressBar value={value} theme={theme} />
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      </div>
+      <Card theme={theme}>
+        <SectionTitle theme={theme} title={c.nav.dashboard}>
+          {["active", "completed", "disputes"].map((key) => (
+            <Button key={key} theme={theme} size="sm" variant={tab === key ? "primary" : "secondary"} onClick={() => setTab(key)}>
+              {c.dashboard.tabs[key]}
+            </Button>
+          ))}
+        </SectionTitle>
+        {tab === "active" ? <JobsTable type="active" rows={activeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
+        {tab === "completed" ? <JobsTable type="completed" rows={completedRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
+        {tab === "disputes" ? <JobsTable type="disputes" rows={disputeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
+      </Card>
     </div>
   );
 }
 
 function JobsTable({ type, rows, c, theme, language, navigate, setSelectedEscrow }) {
-  const tableRows = rows || jobs[type];
+  const tableRows = rows || [];
+  if (tableRows.length === 0) {
+    return (
+      <p className={classNames("py-8 text-center text-sm", theme.muted)}>
+        {type === "disputes" ? "Không có tranh chấp nào." : type === "completed" ? "Chưa có hợp đồng hoàn thành." : "Chưa có hợp đồng đang hoạt động."}
+      </p>
+    );
+  }
   return (
     <div className={classNames("overflow-hidden rounded-lg border", theme.border)}>
       <div className={classNames("hidden grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr] px-4 py-3 text-xs font-black uppercase tracking-[0.14em] md:grid", theme.soft, theme.faint)}>
@@ -3616,6 +3547,7 @@ function App() {
   }
 
   async function connectWallet() {
+    if (!currentUser) return;
     const wallets = detectWallets();
     if (wallets.length === 0) {
       setWalletError("Không tìm thấy ví. Hãy cài MetaMask hoặc Coin98.");
@@ -3740,6 +3672,7 @@ function App() {
           setThemeName={setThemeName}
           setMobileOpen={setMobileOpen}
           wallet={wallet}
+          currentUser={currentUser}
           connectWallet={connectWallet}
           walletConnecting={walletConnecting}
           walletPickerOptions={walletPickerOptions}
