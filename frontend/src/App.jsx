@@ -2736,6 +2736,39 @@ const DISPUTE_REASON_OPTIONS = [
   "Client inactivity", "Suspected scam", "Other",
 ];
 
+function DisputeResultSummary({ dispute, theme }) {
+  const votes = dispute.votes || [];
+  const total = votes.length;
+  const freelancerVotes = votes.filter((v) => v.voteForFreelancer).length;
+  const clientVotes = total - freelancerVotes;
+  const freelancerPct = total ? Math.round((freelancerVotes / total) * 100) : 0;
+  const clientPct = total ? 100 - freelancerPct : 0;
+  const releasedToFreelancer = dispute.status === "RESOLVED_RELEASE";
+
+  return (
+    <div className="grid gap-4">
+      <div className={classNames("rounded-lg border p-4", theme.soft)}>
+        <p className={classNames("text-sm font-bold", theme.text)}>
+          Kết quả: {releasedToFreelancer ? "Giải ngân cho freelancer" : "Hoàn tiền cho khách hàng"}
+        </p>
+        <p className={classNames("mt-1 text-xs", theme.faint)}>{total} reviewer đã bỏ phiếu</p>
+      </div>
+      <div className={classNames("rounded-lg border p-4", theme.soft)}>
+        <div className="mb-2 flex justify-between text-sm">
+          <span className={theme.text}>Release (freelancer)</span>
+          <span className={theme.accentText}>{freelancerPct}% ({freelancerVotes}/{total})</span>
+        </div>
+        <ProgressBar value={freelancerPct} theme={theme} />
+        <div className="mb-2 mt-4 flex justify-between text-sm">
+          <span className={theme.text}>Refund (client)</span>
+          <span className={theme.accentText}>{clientPct}% ({clientVotes}/{total})</span>
+        </div>
+        <ProgressBar value={clientPct} theme={theme} />
+      </div>
+    </div>
+  );
+}
+
 function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selectedEscrow, refreshEscrows }) {
   const [disputes, setDisputes] = useState([]);
   const [selectedDispute, setSelectedDispute] = useState(null);
@@ -2892,6 +2925,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
   const isDisputeFreelancer = selectedDispute && String(selectedDispute.escrow?.freelancer) === String(uid);
   const isReviewer          = selectedDispute && !isDisputeClient && !isDisputeFreelancer;
   const myVote = selectedDispute?.votes?.find(v => String(v.reviewer?._id || v.reviewer) === String(uid));
+  const isResolved = selectedDispute && ["RESOLVED_RELEASE", "RESOLVED_REFUND"].includes(selectedDispute.status);
 
   return (
     <div className="space-y-6">
@@ -2941,7 +2975,9 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                 )}
               </div>
 
-              {myVote ? (
+              {isResolved ? (
+                <DisputeResultSummary dispute={selectedDispute} theme={theme} />
+              ) : myVote ? (
                 <div className={classNames("rounded-lg border p-4", theme.soft)}>
                   <p className={classNames("text-sm font-bold", theme.text)}>Bạn đã bỏ phiếu cho tranh chấp này.</p>
                   <p className={classNames("mt-1 text-xs", theme.faint)}>
@@ -2972,7 +3008,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                   </Button>
                 </>
               )}
-              {currentUser?.role === "admin" && (
+              {!isResolved && currentUser?.role === "admin" && (
                 <Button theme={theme} icon={Gavel} variant="danger" onClick={handleFinalize} disabled={status.loading}>
                   {status.loading ? "Đang chốt..." : "Chốt kết quả (Admin)"}
                 </Button>
@@ -2982,38 +3018,46 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
 
           {/* ── Freelancer: nộp bằng chứng phản bác ── */}
           {isDisputeFreelancer && (
-            <form onSubmit={handleUploadDefense} className="grid gap-4">
-              <div className={classNames("rounded-lg border p-4", theme.soft)}>
-                <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
-                <p className={classNames("mt-1 text-xs", theme.faint)}>Trạng thái: {selectedDispute.status}</p>
-              </div>
-              <Field theme={theme} label="Link bằng chứng phản bác" icon={UploadCloud}>
-                <TextInput theme={theme} name="defenseURI" placeholder="https://drive.google.com/..." required />
-              </Field>
-              <InlineMessage message={status.message} theme={theme} />
-              <Button theme={theme} icon={UploadCloud} type="submit" disabled={status.loading}>
-                {status.loading ? "Đang nộp..." : "Nộp bằng chứng phản bác"}
-              </Button>
-            </form>
+            isResolved ? (
+              <DisputeResultSummary dispute={selectedDispute} theme={theme} />
+            ) : (
+              <form onSubmit={handleUploadDefense} className="grid gap-4">
+                <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                  <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
+                  <p className={classNames("mt-1 text-xs", theme.faint)}>Trạng thái: {selectedDispute.status}</p>
+                </div>
+                <Field theme={theme} label="Link bằng chứng phản bác" icon={UploadCloud}>
+                  <TextInput theme={theme} name="defenseURI" placeholder="https://drive.google.com/..." required />
+                </Field>
+                <InlineMessage message={status.message} theme={theme} />
+                <Button theme={theme} icon={UploadCloud} type="submit" disabled={status.loading}>
+                  {status.loading ? "Đang nộp..." : "Nộp bằng chứng phản bác"}
+                </Button>
+              </form>
+            )
           )}
 
           {/* ── Client: xem trạng thái dispute đã mở ── */}
           {isDisputeClient && (
-            <div className="grid gap-4">
-              <div className={classNames("rounded-lg border p-4", theme.soft)}>
-                <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
-                <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{selectedDispute.reason}</p>
+            isResolved ? (
+              <DisputeResultSummary dispute={selectedDispute} theme={theme} />
+            ) : (
+              <div className="grid gap-4">
+                <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                  <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
+                  <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{selectedDispute.reason}</p>
+                </div>
+                <p className={classNames("text-sm", theme.muted)}>Đang chờ freelancer nộp bằng chứng phản bác. Sau đó các reviewer sẽ bỏ phiếu.</p>
+                {currentUser?.role === "admin" && (
+                  <>
+                    <InlineMessage message={status.message} theme={theme} />
+                    <Button theme={theme} icon={Gavel} variant="danger" onClick={handleFinalize} disabled={status.loading}>
+                      {status.loading ? "Đang chốt..." : "Chốt kết quả (Admin)"}
+                    </Button>
+                  </>
+                )}
               </div>
-              <p className={classNames("text-sm", theme.muted)}>Đang chờ freelancer nộp bằng chứng phản bác. Sau đó các reviewer sẽ bỏ phiếu.</p>
-              {currentUser?.role === "admin" && (
-                <>
-                  <InlineMessage message={status.message} theme={theme} />
-                  <Button theme={theme} icon={Gavel} variant="danger" onClick={handleFinalize} disabled={status.loading}>
-                    {status.loading ? "Đang chốt..." : "Chốt kết quả (Admin)"}
-                  </Button>
-                </>
-              )}
-            </div>
+            )
           )}
 
           {/* ── Không chọn dispute → tạo mới hoặc demo ── */}
