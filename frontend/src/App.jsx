@@ -223,7 +223,87 @@ const translations = {
       statusOpen: "Open",
       statusAssigned: "Assigned",
       lockBtn: "Accept Job",
-      viewBtn: "View Details"
+      viewBtn: "View Details",
+      posting: "Posting...",
+      accepting: "Accepting...",
+      sections: {
+        jobInfo: "Job Information",
+        financial: "Financial Terms",
+        deliverables: "Deliverables",
+        acceptance: "Acceptance Criteria",
+        timeline: "Timeline",
+        revision: "Revision Policy",
+        cancellation: "Cancellation & Refund Policy",
+        legal: "Legal & Ownership Terms"
+      },
+      fields: {
+        serviceCategory: "Service Category",
+        skillRequirements: "Skill Requirements",
+        paymentToken: "Payment Token",
+        gasFeeResponsibility: "Gas Fee Responsibility",
+        expectedDeliverables: "Expected Deliverables",
+        deliverableFormat: "Deliverable Format",
+        submissionLinkRequirement: "Submission Link Requirement",
+        acceptanceChecklist: "Acceptance Checklist",
+        qualityStandard: "Quality Standard",
+        testingRequirement: "Testing Requirement",
+        gracePeriod: "Grace Period (days)",
+        reviewPeriod: "Review Period (days)",
+        autoReleasePeriod: "Auto Release (days)",
+        numberOfRevisions: "Number of Revisions",
+        revisionScope: "Revision Scope",
+        clientCancellationRule: "Client Cancellation Rule",
+        freelancerWithdrawalRule: "Freelancer Withdrawal Rule",
+        refundRule: "Refund Rule",
+        ipTransfer: "Intellectual Property Transfer",
+        confidentiality: "Confidentiality",
+        commercialUsage: "Commercial Usage Rights"
+      },
+      placeholders: {
+        skillRequirements: "e.g. React, Solidity, 2+ years, Figma experience…",
+        expectedDeliverables: "e.g. Fully responsive landing page with source code and deployment link…",
+        qualityStandard: "e.g. Lighthouse score ≥ 90, responsive on mobile, no console errors…",
+        revisionScope: "e.g. Bug fixes are free. New feature requests require a new contract…",
+        clientCancellationRule: "e.g. Client may cancel before deposit with no penalty…",
+        freelancerWithdrawalRule: "e.g. Freelancer may withdraw before client deposits with no penalty…",
+        refundRule: "e.g. Full refund if cancelled before work starts. Partial refund based on progress…"
+      },
+      options: {
+        serviceCategorySelect: "— Select category —",
+        serviceCategories: ["Web Development", "UI/UX Design", "Smart Contract Development", "Content Writing", "Marketing", "Data Analysis", "Other"],
+        gasFee: { client: "Client pays gas fees", freelancer: "Freelancer pays gas fees", each: "Each party pays their own" },
+        submissionLink: { required: "Required", optional: "Optional", none: "Not Required" },
+        testing: { none: "No testing required", demo: "Basic demo required", screenshots: "Screenshots required", video: "Video demo required", test_cases: "Test cases required" },
+        revisionsUnlimited: "Unlimited",
+        ipTransferSelect: "— Select IP terms —",
+        ipTransfer: { transfer_on_payment: "Transfers to client after payment release", remains_freelancer: "Remains with freelancer", shared: "Shared ownership", custom: "Custom" },
+        confidentiality: { public: "Public work allowed", confidential: "Confidential work", nda: "NDA required outside platform" },
+        commercialUsage: { commercial: "Client may use commercially", internal: "Internal purposes only", custom: "Custom usage rights" },
+        deliverableFormats: ["Source Code", "Figma File", "PDF", "ZIP File", "Deployment URL", "GitHub Repository", "Google Drive Link", "Video Demo", "Other"],
+        acceptanceChecklistOpts: ["Matches project description", "Meets all listed deliverables", "Responsive design", "No critical bugs", "Source code is accessible", "Deployment link works", "Meets deadline", "Other"]
+      },
+      summary: {
+        service: "Service", category: "Category", budget: "Budget", gasFees: "Gas fees", deadline: "Deadline",
+        gracePeriod: "Grace period", reviewPeriod: "Review period", autoRelease: "Auto release", revisions: "Revisions",
+        subLink: "Sub. link", testing: "Testing", ipTransfer: "IP transfer", confidentiality: "Confidentiality", commercialUse: "Commercial use",
+        formats: "Formats", acceptance: "Acceptance",
+        clientPays: "Client pays", freelancerPays: "Freelancer pays", eachPaysOwn: "Each pays own",
+        allowed: "Allowed", internalOnly: "Internal only", custom: "Custom", days: "day(s)"
+      },
+      errors: {
+        serviceName: "Service name is required",
+        jobDescription: "Job description is required",
+        amount: "Budget must be greater than 0",
+        deadline: "Deadline must be in the future",
+        serviceCategory: "Service category is required",
+        expectedDeliverables: "Expected deliverables is required",
+        acceptanceChecklist: "At least one acceptance criterion is required",
+        reviewPeriod: "Review period must be greater than 0",
+        autoReleasePeriod: "Auto release period must be greater than 0",
+        ipTransfer: "IP transfer must be selected",
+        loginRequired: "Please log in before creating an escrow.",
+        fixErrors: "Please fix the errors highlighted above."
+      }
     },
     details: {
       title: "Escrow Details",
@@ -467,7 +547,87 @@ const translations = {
       statusOpen: "Chờ nhận",
       statusAssigned: "Đã có người",
       lockBtn: "Nhận việc",
-      viewBtn: "Xem chi tiết"
+      viewBtn: "Xem chi tiết",
+      posting: "Đang đăng...",
+      accepting: "Đang nhận việc...",
+      sections: {
+        jobInfo: "Thông tin công việc",
+        financial: "Điều khoản tài chính",
+        deliverables: "Sản phẩm bàn giao",
+        acceptance: "Tiêu chí nghiệm thu",
+        timeline: "Thời gian",
+        revision: "Chính sách chỉnh sửa",
+        cancellation: "Chính sách hủy & hoàn tiền",
+        legal: "Điều khoản pháp lý & sở hữu"
+      },
+      fields: {
+        serviceCategory: "Danh mục dịch vụ",
+        skillRequirements: "Yêu cầu kỹ năng",
+        paymentToken: "Token thanh toán",
+        gasFeeResponsibility: "Người chịu phí gas",
+        expectedDeliverables: "Sản phẩm bàn giao dự kiến",
+        deliverableFormat: "Định dạng bàn giao",
+        submissionLinkRequirement: "Yêu cầu link nộp bài",
+        acceptanceChecklist: "Danh sách tiêu chí nghiệm thu",
+        qualityStandard: "Tiêu chuẩn chất lượng",
+        testingRequirement: "Yêu cầu kiểm thử",
+        gracePeriod: "Thời gian gia hạn (ngày)",
+        reviewPeriod: "Thời gian xem xét (ngày)",
+        autoReleasePeriod: "Tự động giải ngân (ngày)",
+        numberOfRevisions: "Số lần chỉnh sửa",
+        revisionScope: "Phạm vi chỉnh sửa",
+        clientCancellationRule: "Quy định hủy của khách hàng",
+        freelancerWithdrawalRule: "Quy định rút lui của freelancer",
+        refundRule: "Quy định hoàn tiền",
+        ipTransfer: "Chuyển giao quyền sở hữu trí tuệ",
+        confidentiality: "Bảo mật",
+        commercialUsage: "Quyền sử dụng thương mại"
+      },
+      placeholders: {
+        skillRequirements: "VD: React, Solidity, 2+ năm kinh nghiệm, Figma…",
+        expectedDeliverables: "VD: Landing page responsive đầy đủ source code và link deploy…",
+        qualityStandard: "VD: Điểm Lighthouse ≥ 90, responsive trên mobile, không lỗi console…",
+        revisionScope: "VD: Sửa lỗi miễn phí. Yêu cầu tính năng mới cần hợp đồng mới…",
+        clientCancellationRule: "VD: Khách hàng có thể hủy trước khi nạp tiền, không bị phạt…",
+        freelancerWithdrawalRule: "VD: Freelancer có thể rút trước khi khách nạp tiền, không bị phạt…",
+        refundRule: "VD: Hoàn tiền toàn bộ nếu hủy trước khi bắt đầu. Hoàn một phần theo tiến độ…"
+      },
+      options: {
+        serviceCategorySelect: "— Chọn danh mục —",
+        serviceCategories: ["Phát triển web", "Thiết kế UI/UX", "Phát triển smart contract", "Viết nội dung", "Marketing", "Phân tích dữ liệu", "Khác"],
+        gasFee: { client: "Khách hàng trả phí gas", freelancer: "Freelancer trả phí gas", each: "Mỗi bên tự trả" },
+        submissionLink: { required: "Bắt buộc", optional: "Tùy chọn", none: "Không yêu cầu" },
+        testing: { none: "Không yêu cầu kiểm thử", demo: "Yêu cầu demo cơ bản", screenshots: "Yêu cầu ảnh chụp màn hình", video: "Yêu cầu video demo", test_cases: "Yêu cầu test case" },
+        revisionsUnlimited: "Không giới hạn",
+        ipTransferSelect: "— Chọn điều khoản IP —",
+        ipTransfer: { transfer_on_payment: "Chuyển cho khách hàng sau khi giải ngân", remains_freelancer: "Thuộc về freelancer", shared: "Sở hữu chung", custom: "Tùy chỉnh" },
+        confidentiality: { public: "Cho phép công khai", confidential: "Công việc bảo mật", nda: "Yêu cầu NDA ngoài nền tảng" },
+        commercialUsage: { commercial: "Khách hàng được sử dụng thương mại", internal: "Chỉ dùng nội bộ", custom: "Quyền sử dụng tùy chỉnh" },
+        deliverableFormats: ["Source code", "File Figma", "PDF", "File ZIP", "Link deploy", "GitHub repository", "Link Google Drive", "Video demo", "Khác"],
+        acceptanceChecklistOpts: ["Khớp với mô tả dự án", "Đáp ứng đầy đủ sản phẩm bàn giao", "Thiết kế responsive", "Không có lỗi nghiêm trọng", "Source code có thể truy cập", "Link deploy hoạt động", "Đúng deadline", "Khác"]
+      },
+      summary: {
+        service: "Dịch vụ", category: "Danh mục", budget: "Ngân sách", gasFees: "Phí gas", deadline: "Hạn chót",
+        gracePeriod: "Thời gian gia hạn", reviewPeriod: "Thời gian xem xét", autoRelease: "Tự động giải ngân", revisions: "Số lần sửa",
+        subLink: "Link nộp bài", testing: "Kiểm thử", ipTransfer: "Chuyển giao IP", confidentiality: "Bảo mật", commercialUse: "Sử dụng thương mại",
+        formats: "Định dạng", acceptance: "Nghiệm thu",
+        clientPays: "Khách hàng trả", freelancerPays: "Freelancer trả", eachPaysOwn: "Mỗi bên tự trả",
+        allowed: "Cho phép", internalOnly: "Chỉ nội bộ", custom: "Tùy chỉnh", days: "ngày"
+      },
+      errors: {
+        serviceName: "Vui lòng nhập tên dịch vụ",
+        jobDescription: "Vui lòng nhập mô tả công việc",
+        amount: "Ngân sách phải lớn hơn 0",
+        deadline: "Hạn chót phải ở tương lai",
+        serviceCategory: "Vui lòng chọn danh mục dịch vụ",
+        expectedDeliverables: "Vui lòng nhập sản phẩm bàn giao dự kiến",
+        acceptanceChecklist: "Chọn ít nhất một tiêu chí nghiệm thu",
+        reviewPeriod: "Thời gian xem xét phải lớn hơn 0",
+        autoReleasePeriod: "Thời gian tự động giải ngân phải lớn hơn 0",
+        ipTransfer: "Vui lòng chọn điều khoản IP",
+        loginRequired: "Vui lòng đăng nhập trước khi tạo hợp đồng ký quỹ.",
+        fixErrors: "Vui lòng sửa các lỗi được đánh dấu ở trên."
+      }
     },
     details: {
       title: "Chi tiết ký quỹ",
@@ -1644,16 +1804,16 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
   function validate() {
     const e = {};
-    if (!fd.serviceName.trim())                              e.serviceName             = "Service name is required";
-    if (!fd.jobDescription.trim())                           e.jobDescription          = "Job description is required";
-    if (!fd.amount || parseFloat(fd.amount) <= 0)           e.amount                  = "Budget must be greater than 0";
-    if (!fd.deadline || new Date(fd.deadline) <= new Date()) e.deadline               = "Deadline must be in the future";
-    if (!fd.serviceCategory)                                 e.serviceCategory         = "Service category is required";
-    if (!fd.expectedDeliverables.trim())                     e.expectedDeliverables    = "Expected deliverables is required";
-    if (fd.acceptanceChecklist.length === 0)                 e.acceptanceChecklist     = "At least one acceptance criterion is required";
-    if (!fd.reviewPeriod      || Number(fd.reviewPeriod)      <= 0) e.reviewPeriod      = "Review period must be greater than 0";
-    if (!fd.autoReleasePeriod || Number(fd.autoReleasePeriod) <= 0) e.autoReleasePeriod = "Auto release period must be greater than 0";
-    if (!fd.intellectualPropertyTransfer)                    e.intellectualPropertyTransfer = "IP transfer must be selected";
+    if (!fd.serviceName.trim())                              e.serviceName             = c.create.errors.serviceName;
+    if (!fd.jobDescription.trim())                           e.jobDescription          = c.create.errors.jobDescription;
+    if (!fd.amount || parseFloat(fd.amount) <= 0)           e.amount                  = c.create.errors.amount;
+    if (!fd.deadline || new Date(fd.deadline) <= new Date()) e.deadline               = c.create.errors.deadline;
+    if (!fd.serviceCategory)                                 e.serviceCategory         = c.create.errors.serviceCategory;
+    if (!fd.expectedDeliverables.trim())                     e.expectedDeliverables    = c.create.errors.expectedDeliverables;
+    if (fd.acceptanceChecklist.length === 0)                 e.acceptanceChecklist     = c.create.errors.acceptanceChecklist;
+    if (!fd.reviewPeriod      || Number(fd.reviewPeriod)      <= 0) e.reviewPeriod      = c.create.errors.reviewPeriod;
+    if (!fd.autoReleasePeriod || Number(fd.autoReleasePeriod) <= 0) e.autoReleasePeriod = c.create.errors.autoReleasePeriod;
+    if (!fd.intellectualPropertyTransfer)                    e.intellectualPropertyTransfer = c.create.errors.ipTransfer;
     return e;
   }
 
@@ -1661,13 +1821,13 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
   async function handleSubmit(event) {
     event.preventDefault();
     if (!apiToken) {
-      setStatus({ loading: false, lockingId: null, message: "Please log in before creating an escrow." });
+      setStatus({ loading: false, lockingId: null, message: c.create.errors.loginRequired });
       return;
     }
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
-      setStatus({ loading: false, lockingId: null, message: "Please fix the errors highlighted above." });
+      setStatus({ loading: false, lockingId: null, message: c.create.errors.fixErrors });
       return;
     }
     setStatus({ loading: true, lockingId: null, message: "" });
@@ -1728,8 +1888,8 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
     .filter(e => postedJobStatus(e) !== null);
 
   // ── Option lists ─────────────────────────────────────────────────────────
-  const deliverableFormatOpts     = ["Source Code","Figma File","PDF","ZIP File","Deployment URL","GitHub Repository","Google Drive Link","Video Demo","Other"];
-  const acceptanceChecklistOpts   = ["Matches project description","Meets all listed deliverables","Responsive design","No critical bugs","Source code is accessible","Deployment link works","Meets deadline","Other"];
+  const deliverableFormatOpts     = c.create.options.deliverableFormats;
+  const acceptanceChecklistOpts   = c.create.options.acceptanceChecklistOpts;
 
   function Err({ field }) {
     return errors[field] ? <p className="mt-1 text-xs font-bold text-rose-400">{errors[field]}</p> : null;
@@ -1751,26 +1911,20 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
           {/* 1 · JOB INFORMATION */}
           <Card theme={theme}>
-            <FormSection title="Job Information" icon={Briefcase} theme={theme}>
+            <FormSection title={c.create.sections.jobInfo} icon={Briefcase} theme={theme}>
               <Field theme={theme} label={c.create.serviceName} icon={Briefcase}>
                 <TextInput theme={theme} value={fd.serviceName} onChange={e => set("serviceName", e.target.value)} />
                 <Err field="serviceName" />
               </Field>
-              <Field theme={theme} label="Service Category" icon={Layers3}>
+              <Field theme={theme} label={c.create.fields.serviceCategory} icon={Layers3}>
                 <SelectInput theme={theme} value={fd.serviceCategory} onChange={e => set("serviceCategory", e.target.value)}>
-                  <option value="">— Select category —</option>
-                  <option>Web Development</option>
-                  <option>UI/UX Design</option>
-                  <option>Smart Contract Development</option>
-                  <option>Content Writing</option>
-                  <option>Marketing</option>
-                  <option>Data Analysis</option>
-                  <option>Other</option>
+                  <option value="">{c.create.options.serviceCategorySelect}</option>
+                  {c.create.options.serviceCategories.map(opt => <option key={opt}>{opt}</option>)}
                 </SelectInput>
                 <Err field="serviceCategory" />
               </Field>
-              <Field theme={theme} label="Skill Requirements" icon={GraduationCap}>
-                <TextArea theme={theme} placeholder="e.g. React, Solidity, 2+ years, Figma experience…" value={fd.skillRequirements} onChange={e => set("skillRequirements", e.target.value)} />
+              <Field theme={theme} label={c.create.fields.skillRequirements} icon={GraduationCap}>
+                <TextArea theme={theme} placeholder={c.create.placeholders.skillRequirements} value={fd.skillRequirements} onChange={e => set("skillRequirements", e.target.value)} />
               </Field>
               <Field theme={theme} label={c.create.description} icon={FileText}>
                 <TextArea theme={theme} value={fd.jobDescription} onChange={e => set("jobDescription", e.target.value)} />
@@ -1781,24 +1935,24 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
           {/* 2 · FINANCIAL TERMS */}
           <Card theme={theme}>
-            <FormSection title="Financial Terms" icon={CircleDollarSign} theme={theme}>
+            <FormSection title={c.create.sections.financial} icon={CircleDollarSign} theme={theme}>
               <div className="grid gap-4 md:grid-cols-3">
                 <Field theme={theme} label={c.create.budget} icon={Coins}>
                   <TextInput theme={theme} type="number" min="0" value={fd.amount} onChange={e => set("amount", e.target.value)} />
                   <Err field="amount" />
                 </Field>
-                <Field theme={theme} label="Payment Token" icon={CreditCard}>
+                <Field theme={theme} label={c.create.fields.paymentToken} icon={CreditCard}>
                   <SelectInput theme={theme} value={fd.paymentToken} onChange={e => set("paymentToken", e.target.value)}>
                     <option>USDT</option>
                     <option>VNDC</option>
                     <option>POL</option>
                   </SelectInput>
                 </Field>
-                <Field theme={theme} label="Gas Fee Responsibility" icon={Zap}>
+                <Field theme={theme} label={c.create.fields.gasFeeResponsibility} icon={Zap}>
                   <SelectInput theme={theme} value={fd.gasFeeResponsibility} onChange={e => set("gasFeeResponsibility", e.target.value)}>
-                    <option value="client">Client pays gas fees</option>
-                    <option value="freelancer">Freelancer pays gas fees</option>
-                    <option value="each">Each party pays their own</option>
+                    <option value="client">{c.create.options.gasFee.client}</option>
+                    <option value="freelancer">{c.create.options.gasFee.freelancer}</option>
+                    <option value="each">{c.create.options.gasFee.each}</option>
                   </SelectInput>
                 </Field>
               </div>
@@ -1807,24 +1961,24 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
           {/* 3 · DELIVERABLES */}
           <Card theme={theme}>
-            <FormSection title="Deliverables" icon={FileCheck2} theme={theme}>
-              <Field theme={theme} label="Expected Deliverables" icon={ClipboardCheck}>
-                <TextArea theme={theme} placeholder="e.g. Fully responsive landing page with source code and deployment link…" value={fd.expectedDeliverables} onChange={e => set("expectedDeliverables", e.target.value)} />
+            <FormSection title={c.create.sections.deliverables} icon={FileCheck2} theme={theme}>
+              <Field theme={theme} label={c.create.fields.expectedDeliverables} icon={ClipboardCheck}>
+                <TextArea theme={theme} placeholder={c.create.placeholders.expectedDeliverables} value={fd.expectedDeliverables} onChange={e => set("expectedDeliverables", e.target.value)} />
                 <Err field="expectedDeliverables" />
               </Field>
               <div>
-                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>Deliverable Format</p>
+                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>{c.create.fields.deliverableFormat}</p>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {deliverableFormatOpts.map(opt => (
                     <CheckboxRow key={opt} label={opt} checked={fd.deliverableFormat.includes(opt)} onChange={() => toggleArr("deliverableFormat", opt)} theme={theme} />
                   ))}
                 </div>
               </div>
-              <Field theme={theme} label="Submission Link Requirement" icon={Globe2}>
+              <Field theme={theme} label={c.create.fields.submissionLinkRequirement} icon={Globe2}>
                 <SelectInput theme={theme} value={fd.submissionLinkRequirement} onChange={e => set("submissionLinkRequirement", e.target.value)}>
-                  <option value="required">Required</option>
-                  <option value="optional">Optional</option>
-                  <option value="none">Not Required</option>
+                  <option value="required">{c.create.options.submissionLink.required}</option>
+                  <option value="optional">{c.create.options.submissionLink.optional}</option>
+                  <option value="none">{c.create.options.submissionLink.none}</option>
                 </SelectInput>
               </Field>
             </FormSection>
@@ -1832,9 +1986,9 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
           {/* 4 · ACCEPTANCE CRITERIA */}
           <Card theme={theme}>
-            <FormSection title="Acceptance Criteria" icon={BadgeCheck} theme={theme}>
+            <FormSection title={c.create.sections.acceptance} icon={BadgeCheck} theme={theme}>
               <div>
-                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>Acceptance Checklist</p>
+                <p className={classNames("mb-3 text-sm font-bold", theme.text)}>{c.create.fields.acceptanceChecklist}</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {acceptanceChecklistOpts.map(opt => (
                     <CheckboxRow key={opt} label={opt} checked={fd.acceptanceChecklist.includes(opt)} onChange={() => toggleArr("acceptanceChecklist", opt)} theme={theme} />
@@ -1842,16 +1996,16 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
                 </div>
                 <Err field="acceptanceChecklist" />
               </div>
-              <Field theme={theme} label="Quality Standard" icon={Sparkles}>
-                <TextArea theme={theme} placeholder="e.g. Lighthouse score ≥ 90, responsive on mobile, no console errors…" value={fd.qualityStandard} onChange={e => set("qualityStandard", e.target.value)} />
+              <Field theme={theme} label={c.create.fields.qualityStandard} icon={Sparkles}>
+                <TextArea theme={theme} placeholder={c.create.placeholders.qualityStandard} value={fd.qualityStandard} onChange={e => set("qualityStandard", e.target.value)} />
               </Field>
-              <Field theme={theme} label="Testing Requirement" icon={Activity}>
+              <Field theme={theme} label={c.create.fields.testingRequirement} icon={Activity}>
                 <SelectInput theme={theme} value={fd.testingRequirement} onChange={e => set("testingRequirement", e.target.value)}>
-                  <option value="none">No testing required</option>
-                  <option value="demo">Basic demo required</option>
-                  <option value="screenshots">Screenshots required</option>
-                  <option value="video">Video demo required</option>
-                  <option value="test_cases">Test cases required</option>
+                  <option value="none">{c.create.options.testing.none}</option>
+                  <option value="demo">{c.create.options.testing.demo}</option>
+                  <option value="screenshots">{c.create.options.testing.screenshots}</option>
+                  <option value="video">{c.create.options.testing.video}</option>
+                  <option value="test_cases">{c.create.options.testing.test_cases}</option>
                 </SelectInput>
               </Field>
             </FormSection>
@@ -1859,20 +2013,20 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
           {/* 5 · TIMELINE */}
           <Card theme={theme}>
-            <FormSection title="Timeline" icon={Clock3} theme={theme}>
+            <FormSection title={c.create.sections.timeline} icon={Clock3} theme={theme}>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Field theme={theme} label={c.create.deadline} icon={Clock3}>
                   <TextInput theme={theme} type="date" value={fd.deadline} onChange={e => set("deadline", e.target.value)} />
                   <Err field="deadline" />
                 </Field>
-                <Field theme={theme} label="Grace Period (days)" icon={TimerReset}>
+                <Field theme={theme} label={c.create.fields.gracePeriod} icon={TimerReset}>
                   <TextInput theme={theme} type="number" min="0" value={fd.gracePeriod} onChange={e => set("gracePeriod", e.target.value)} />
                 </Field>
-                <Field theme={theme} label="Review Period (days)" icon={FileCheck2}>
+                <Field theme={theme} label={c.create.fields.reviewPeriod} icon={FileCheck2}>
                   <TextInput theme={theme} type="number" min="1" value={fd.reviewPeriod} onChange={e => set("reviewPeriod", e.target.value)} />
                   <Err field="reviewPeriod" />
                 </Field>
-                <Field theme={theme} label="Auto Release (days)" icon={Zap}>
+                <Field theme={theme} label={c.create.fields.autoReleasePeriod} icon={Zap}>
                   <TextInput theme={theme} type="number" min="1" value={fd.autoReleasePeriod} onChange={e => set("autoReleasePeriod", e.target.value)} />
                   <Err field="autoReleasePeriod" />
                 </Field>
@@ -1882,19 +2036,19 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
           {/* 6 · REVISION POLICY */}
           <Card theme={theme}>
-            <FormSection title="Revision Policy" icon={Radio} theme={theme}>
+            <FormSection title={c.create.sections.revision} icon={Radio} theme={theme}>
               <div className="grid gap-4 md:grid-cols-2">
-                <Field theme={theme} label="Number of Revisions" icon={Radio}>
+                <Field theme={theme} label={c.create.fields.numberOfRevisions} icon={Radio}>
                   <SelectInput theme={theme} value={fd.numberOfRevisions} onChange={e => set("numberOfRevisions", e.target.value)}>
                     <option value="0">0</option>
                     <option value="1">1</option>
                     <option value="2">2</option>
                     <option value="3">3</option>
-                    <option value="unlimited">Unlimited</option>
+                    <option value="unlimited">{c.create.options.revisionsUnlimited}</option>
                   </SelectInput>
                 </Field>
-                <Field theme={theme} label="Revision Scope" icon={FileText}>
-                  <TextArea theme={theme} placeholder="e.g. Bug fixes are free. New feature requests require a new contract…" value={fd.revisionScope} onChange={e => set("revisionScope", e.target.value)} />
+                <Field theme={theme} label={c.create.fields.revisionScope} icon={FileText}>
+                  <TextArea theme={theme} placeholder={c.create.placeholders.revisionScope} value={fd.revisionScope} onChange={e => set("revisionScope", e.target.value)} />
                 </Field>
               </div>
             </FormSection>
@@ -1902,45 +2056,45 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 
           {/* 7 · CANCELLATION & REFUND */}
           <Card theme={theme}>
-            <FormSection title="Cancellation & Refund Policy" icon={X} theme={theme}>
-              <Field theme={theme} label="Client Cancellation Rule" icon={Users}>
-                <TextArea theme={theme} placeholder="e.g. Client may cancel before deposit with no penalty…" value={fd.clientCancellationRule} onChange={e => set("clientCancellationRule", e.target.value)} />
+            <FormSection title={c.create.sections.cancellation} icon={X} theme={theme}>
+              <Field theme={theme} label={c.create.fields.clientCancellationRule} icon={Users}>
+                <TextArea theme={theme} placeholder={c.create.placeholders.clientCancellationRule} value={fd.clientCancellationRule} onChange={e => set("clientCancellationRule", e.target.value)} />
               </Field>
-              <Field theme={theme} label="Freelancer Withdrawal Rule" icon={Users}>
-                <TextArea theme={theme} placeholder="e.g. Freelancer may withdraw before client deposits with no penalty…" value={fd.freelancerWithdrawalRule} onChange={e => set("freelancerWithdrawalRule", e.target.value)} />
+              <Field theme={theme} label={c.create.fields.freelancerWithdrawalRule} icon={Users}>
+                <TextArea theme={theme} placeholder={c.create.placeholders.freelancerWithdrawalRule} value={fd.freelancerWithdrawalRule} onChange={e => set("freelancerWithdrawalRule", e.target.value)} />
               </Field>
-              <Field theme={theme} label="Refund Rule" icon={CircleDollarSign}>
-                <TextArea theme={theme} placeholder="e.g. Full refund if cancelled before work starts. Partial refund based on progress…" value={fd.refundRule} onChange={e => set("refundRule", e.target.value)} />
+              <Field theme={theme} label={c.create.fields.refundRule} icon={CircleDollarSign}>
+                <TextArea theme={theme} placeholder={c.create.placeholders.refundRule} value={fd.refundRule} onChange={e => set("refundRule", e.target.value)} />
               </Field>
             </FormSection>
           </Card>
 
           {/* 8 · LEGAL & OWNERSHIP */}
           <Card theme={theme}>
-            <FormSection title="Legal & Ownership Terms" icon={ShieldCheck} theme={theme}>
-              <Field theme={theme} label="Intellectual Property Transfer" icon={Fingerprint}>
+            <FormSection title={c.create.sections.legal} icon={ShieldCheck} theme={theme}>
+              <Field theme={theme} label={c.create.fields.ipTransfer} icon={Fingerprint}>
                 <SelectInput theme={theme} value={fd.intellectualPropertyTransfer} onChange={e => set("intellectualPropertyTransfer", e.target.value)}>
-                  <option value="">— Select IP terms —</option>
-                  <option value="transfer_on_payment">Transfers to client after payment release</option>
-                  <option value="remains_freelancer">Remains with freelancer</option>
-                  <option value="shared">Shared ownership</option>
-                  <option value="custom">Custom</option>
+                  <option value="">{c.create.options.ipTransferSelect}</option>
+                  <option value="transfer_on_payment">{c.create.options.ipTransfer.transfer_on_payment}</option>
+                  <option value="remains_freelancer">{c.create.options.ipTransfer.remains_freelancer}</option>
+                  <option value="shared">{c.create.options.ipTransfer.shared}</option>
+                  <option value="custom">{c.create.options.ipTransfer.custom}</option>
                 </SelectInput>
                 <Err field="intellectualPropertyTransfer" />
               </Field>
               <div className="grid gap-4 md:grid-cols-2">
-                <Field theme={theme} label="Confidentiality" icon={LockKeyhole}>
+                <Field theme={theme} label={c.create.fields.confidentiality} icon={LockKeyhole}>
                   <SelectInput theme={theme} value={fd.confidentialityRequirement} onChange={e => set("confidentialityRequirement", e.target.value)}>
-                    <option value="public">Public work allowed</option>
-                    <option value="confidential">Confidential work</option>
-                    <option value="nda">NDA required outside platform</option>
+                    <option value="public">{c.create.options.confidentiality.public}</option>
+                    <option value="confidential">{c.create.options.confidentiality.confidential}</option>
+                    <option value="nda">{c.create.options.confidentiality.nda}</option>
                   </SelectInput>
                 </Field>
-                <Field theme={theme} label="Commercial Usage Rights" icon={TrendingUp}>
+                <Field theme={theme} label={c.create.fields.commercialUsage} icon={TrendingUp}>
                   <SelectInput theme={theme} value={fd.commercialUsageRights} onChange={e => set("commercialUsageRights", e.target.value)}>
-                    <option value="commercial">Client may use commercially</option>
-                    <option value="internal">Internal purposes only</option>
-                    <option value="custom">Custom usage rights</option>
+                    <option value="commercial">{c.create.options.commercialUsage.commercial}</option>
+                    <option value="internal">{c.create.options.commercialUsage.internal}</option>
+                    <option value="custom">{c.create.options.commercialUsage.custom}</option>
                   </SelectInput>
                 </Field>
               </div>
@@ -1951,7 +2105,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
           <div className="grid gap-3">
             <InlineMessage message={status.message} theme={theme} />
             <Button theme={theme} type="submit" icon={Rocket} size="lg" disabled={status.loading}>
-              {status.loading ? "Posting..." : c.common.createEscrow}
+              {status.loading ? c.create.posting : c.common.createEscrow}
             </Button>
           </div>
         </form>
@@ -1963,20 +2117,20 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
             <p className={classNames("mb-4 text-xs leading-5", theme.muted)}>{c.create.previewCopy}</p>
             <div className="grid gap-2.5 text-sm">
               {[
-                ["Service",        fd.serviceName],
-                ["Category",       fd.serviceCategory],
-                ["Budget",         fd.amount ? `${fd.amount} ${fd.paymentToken}` : ""],
-                ["Gas fees",       fd.gasFeeResponsibility === "client" ? "Client pays" : fd.gasFeeResponsibility === "freelancer" ? "Freelancer pays" : "Each pays own"],
-                ["Deadline",       fd.deadline],
-                ["Grace period",   fd.gracePeriod   ? `${fd.gracePeriod} day(s)`   : ""],
-                ["Review period",  fd.reviewPeriod  ? `${fd.reviewPeriod} day(s)`  : ""],
-                ["Auto release",   fd.autoReleasePeriod ? `${fd.autoReleasePeriod} day(s)` : ""],
-                ["Revisions",      fd.numberOfRevisions],
-                ["Sub. link",      fd.submissionLinkRequirement],
-                ["Testing",        fd.testingRequirement !== "none" ? fd.testingRequirement : ""],
-                ["IP transfer",    fd.intellectualPropertyTransfer ? fd.intellectualPropertyTransfer.replace(/_/g, " ") : ""],
-                ["Confidentiality",fd.confidentialityRequirement],
-                ["Commercial use", fd.commercialUsageRights === "commercial" ? "Allowed" : fd.commercialUsageRights === "internal" ? "Internal only" : "Custom"],
+                [c.create.summary.service,        fd.serviceName],
+                [c.create.summary.category,       fd.serviceCategory],
+                [c.create.summary.budget,         fd.amount ? `${fd.amount} ${fd.paymentToken}` : ""],
+                [c.create.summary.gasFees,        fd.gasFeeResponsibility === "client" ? c.create.summary.clientPays : fd.gasFeeResponsibility === "freelancer" ? c.create.summary.freelancerPays : c.create.summary.eachPaysOwn],
+                [c.create.summary.deadline,       fd.deadline],
+                [c.create.summary.gracePeriod,    fd.gracePeriod   ? `${fd.gracePeriod} ${c.create.summary.days}`   : ""],
+                [c.create.summary.reviewPeriod,   fd.reviewPeriod  ? `${fd.reviewPeriod} ${c.create.summary.days}`  : ""],
+                [c.create.summary.autoRelease,    fd.autoReleasePeriod ? `${fd.autoReleasePeriod} ${c.create.summary.days}` : ""],
+                [c.create.summary.revisions,      fd.numberOfRevisions],
+                [c.create.summary.subLink,        fd.submissionLinkRequirement],
+                [c.create.summary.testing,        fd.testingRequirement !== "none" ? fd.testingRequirement : ""],
+                [c.create.summary.ipTransfer,     fd.intellectualPropertyTransfer ? fd.intellectualPropertyTransfer.replace(/_/g, " ") : ""],
+                [c.create.summary.confidentiality,fd.confidentialityRequirement],
+                [c.create.summary.commercialUse,  fd.commercialUsageRights === "commercial" ? c.create.summary.allowed : fd.commercialUsageRights === "internal" ? c.create.summary.internalOnly : c.create.summary.custom],
               ].map(([label, value]) => value ? (
                 <div key={label} className="flex justify-between gap-3">
                   <span className={classNames("shrink-0", theme.faint)}>{label}</span>
@@ -1988,13 +2142,13 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
               <div className={classNames("mt-4 grid gap-3 border-t pt-4", theme.border)}>
                 {fd.deliverableFormat.length > 0 && (
                   <div>
-                    <p className={classNames("mb-2 text-xs font-black uppercase tracking-wide", theme.faint)}>Formats</p>
+                    <p className={classNames("mb-2 text-xs font-black uppercase tracking-wide", theme.faint)}>{c.create.summary.formats}</p>
                     <div className="flex flex-wrap gap-1">{fd.deliverableFormat.map(f => <Badge key={f} theme={theme} tone="cyan">{f}</Badge>)}</div>
                   </div>
                 )}
                 {fd.acceptanceChecklist.length > 0 && (
                   <div>
-                    <p className={classNames("mb-2 text-xs font-black uppercase tracking-wide", theme.faint)}>Acceptance</p>
+                    <p className={classNames("mb-2 text-xs font-black uppercase tracking-wide", theme.faint)}>{c.create.summary.acceptance}</p>
                     <div className="flex flex-wrap gap-1">{fd.acceptanceChecklist.map(f => <Badge key={f} theme={theme} tone="emerald">{f}</Badge>)}</div>
                   </div>
                 )}
@@ -2061,7 +2215,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
                     </div>
                   </div>
                   <Button theme={theme} icon={LockKeyhole} variant="primary" disabled={status.loading && status.lockingId === job._id} onClick={() => handleLock(job._id)}>
-                    {status.loading && status.lockingId === job._id ? "Accepting..." : c.create.lockBtn}
+                    {status.loading && status.lockingId === job._id ? c.create.accepting : c.create.lockBtn}
                   </Button>
                 </div>
               </Card>
