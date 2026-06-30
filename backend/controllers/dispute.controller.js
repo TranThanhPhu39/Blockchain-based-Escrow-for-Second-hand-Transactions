@@ -79,6 +79,16 @@ const createDispute = asyncHandler(async (req, res) => {
     throw new Error(`Cannot raise a dispute when escrow status is '${escrow.status}'.`);
   }
 
+  // Smart contract raiseDispute() yêu cầu Status.SUBMITTED (_requireStatus).
+  // Chặn sớm ở đây để tránh tạo dispute record "mồ côi" trong DB rồi mới
+  // phát hiện tx on-chain revert (ví dụ: hợp đồng chưa có freelancer nhận việc).
+  if (escrow.status !== ESCROW_STATUS.SUBMITTED) {
+    res.status(400);
+    throw new Error(
+      `A dispute can only be opened after the freelancer has submitted work. Current escrow status is '${escrow.status}'.`
+    );
+  }
+
   const existing = await Dispute.findOne({ escrow: escrow._id, status: 'OPEN' });
   if (existing) {
     res.status(400);

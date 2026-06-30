@@ -362,7 +362,9 @@ const translations = {
       releaseLabel: "Release (freelancer)",
       refundLabel: "Refund (client)",
       finalizing: "Finalizing...",
-      finalizeResult: "Finalize Result (Admin)"
+      finalizeResult: "Finalize Result (Admin)",
+      requireSubmitted: "A dispute can only be opened after the freelancer has submitted work (status must be SUBMITTED).",
+      currentStatus: "Current status"
     },
     wallet: {
       title: "Wallet Integration",
@@ -705,7 +707,9 @@ const translations = {
       releaseLabel: "Giải ngân (freelancer)",
       refundLabel: "Hoàn tiền (client)",
       finalizing: "Đang chốt...",
-      finalizeResult: "Chốt kết quả (Admin)"
+      finalizeResult: "Chốt kết quả (Admin)",
+      requireSubmitted: "Chỉ có thể mở tranh chấp sau khi freelancer đã nộp sản phẩm (trạng thái phải là SUBMITTED).",
+      currentStatus: "Trạng thái hiện tại"
     },
     wallet: {
       title: "Tích hợp ví",
@@ -3257,11 +3261,15 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
   async function handleCreate(event) {
     event.preventDefault();
     if (!apiToken || !selectedEscrow?._id) {
-      setStatus({ loading: false, message: "Please log in and select an escrow first." });
+      setStatus({ loading: false, message: "Please log in and select an escrow first.", tone: "danger" });
       return;
     }
     if (!selectedEscrow?.escrowIdOnChain) {
-      setStatus({ loading: false, message: "Escrow chưa có on-chain ID." });
+      setStatus({ loading: false, message: "Escrow chưa có on-chain ID.", tone: "danger" });
+      return;
+    }
+    if (selectedEscrow.status !== "SUBMITTED") {
+      setStatus({ loading: false, message: c.dispute.requireSubmitted, tone: "danger" });
       return;
     }
     const form = new FormData(event.currentTarget);
@@ -3288,7 +3296,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
       if (refreshEscrows) await refreshEscrows();
       event.target.reset();
     } catch (error) {
-      setStatus({ loading: false, message: friendlyTxError(error) });
+      setStatus({ loading: false, message: friendlyTxError(error), tone: "danger" });
       return;
     }
     setStatus({ loading: false, message: "" });
@@ -3443,19 +3451,31 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
 
           {/* ── Không chọn dispute → tạo mới hoặc demo ── */}
           {!selectedDispute && selectedEscrow && (
-            <form onSubmit={handleCreate} className="grid gap-4">
-              <div className={classNames("rounded-2xl border p-4", theme.soft)}>
-                <p className={classNames("text-sm font-bold", theme.text)}>{selectedEscrow.serviceName}</p>
-                <p className={classNames("mt-1 text-xs", theme.faint)}>ID: {selectedEscrow._id}</p>
+            selectedEscrow.status !== "SUBMITTED" ? (
+              <div className="grid gap-4">
+                <div className={classNames("rounded-2xl border p-4", theme.soft)}>
+                  <p className={classNames("text-sm font-bold", theme.text)}>{selectedEscrow.serviceName}</p>
+                  <p className={classNames("mt-1 text-xs", theme.faint)}>
+                    ID: {selectedEscrow._id} · {c.dispute.currentStatus}: {selectedEscrow.status}
+                  </p>
+                </div>
+                <InlineMessage message={c.dispute.requireSubmitted} theme={theme} tone="info" />
               </div>
-              <Field theme={theme} label={c.dispute.evidence} icon={FileText}>
-                <TextArea theme={theme} name="reason" placeholder="Describe the reason for this dispute..." required />
-              </Field>
-              <InlineMessage message={status.message} theme={theme} tone={status.tone} />
-              <Button theme={theme} icon={AlertTriangle} variant="danger" type="submit" disabled={status.loading}>
-                {status.loading ? "Opening..." : c.common.openDispute}
-              </Button>
-            </form>
+            ) : (
+              <form onSubmit={handleCreate} className="grid gap-4">
+                <div className={classNames("rounded-2xl border p-4", theme.soft)}>
+                  <p className={classNames("text-sm font-bold", theme.text)}>{selectedEscrow.serviceName}</p>
+                  <p className={classNames("mt-1 text-xs", theme.faint)}>ID: {selectedEscrow._id}</p>
+                </div>
+                <Field theme={theme} label={c.dispute.evidence} icon={FileText}>
+                  <TextArea theme={theme} name="reason" placeholder="Describe the reason for this dispute..." required />
+                </Field>
+                <InlineMessage message={status.message} theme={theme} tone={status.tone} />
+                <Button theme={theme} icon={AlertTriangle} variant="danger" type="submit" disabled={status.loading}>
+                  {status.loading ? "Opening..." : c.common.openDispute}
+                </Button>
+              </form>
+            )
           )}
 
           {!selectedDispute && !selectedEscrow && (
