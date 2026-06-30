@@ -1050,8 +1050,8 @@ function getTheme(mode) {
       ? "bg-slate-950 text-slate-100"
       : "bg-slate-50 text-slate-950",
     background: isDark
-      ? "bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(59,130,246,0.2),transparent_26%),linear-gradient(135deg,#020617_0%,#071426_48%,#020617_100%)]"
-      : "bg-[radial-gradient(circle_at_20%_0%,rgba(14,165,233,0.18),transparent_30%),linear-gradient(135deg,#f8fafc_0%,#eef6ff_52%,#f8fafc_100%)]",
+      ? "bg-[radial-gradient(circle_at_20%_0%,rgba(139,92,246,0.18),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(147,51,234,0.2),transparent_26%),linear-gradient(135deg,#020617_0%,#150b2e_48%,#020617_100%)]"
+      : "bg-[radial-gradient(circle_at_20%_0%,rgba(139,92,246,0.16),transparent_30%),linear-gradient(135deg,#f8fafc_0%,#f3effd_52%,#f8fafc_100%)]",
     sidebar: isDark
       ? "border-white/10 bg-slate-950/78 backdrop-blur-xl"
       : "border-slate-200 bg-white/88 backdrop-blur-xl",
@@ -1062,30 +1062,30 @@ function getTheme(mode) {
       ? "border-white/10 bg-slate-900/58 text-slate-100 shadow-[0_24px_80px_rgba(2,6,23,0.45)] backdrop-blur-xl"
       : "border-slate-200 bg-white/92 text-slate-950 shadow-[0_18px_44px_rgba(15,23,42,0.08)] backdrop-blur-xl",
     soft: isDark ? "border-white/10 bg-white/7" : "border-slate-200 bg-slate-50",
-    softHover: isDark ? "hover:border-cyan-300/30 hover:bg-cyan-300/8" : "hover:border-blue-200 hover:bg-blue-50",
+    softHover: isDark ? "hover:border-violet-300/30 hover:bg-violet-300/8" : "hover:border-violet-200 hover:bg-violet-50",
     heading: isDark ? "text-white" : "text-slate-950",
     text: isDark ? "text-slate-100" : "text-slate-900",
     muted: isDark ? "text-slate-400" : "text-slate-600",
     faint: isDark ? "text-slate-500" : "text-slate-500",
     border: isDark ? "border-white/10" : "border-slate-200",
-    accentText: isDark ? "text-cyan-300" : "text-blue-700",
+    accentText: isDark ? "text-violet-300" : "text-violet-700",
     accentBg: isDark
-      ? "border-cyan-300/35 bg-cyan-300 text-slate-950 shadow-[0_0_30px_rgba(34,211,238,0.28)]"
-      : "border-blue-600 bg-blue-600 text-white shadow-[0_14px_26px_rgba(37,99,235,0.22)]",
+      ? "border-violet-300/35 bg-violet-300 text-slate-950 shadow-[0_0_30px_rgba(139,92,246,0.28)]"
+      : "border-violet-600 bg-violet-600 text-white shadow-[0_14px_26px_rgba(124,58,237,0.22)]",
     input: isDark
-      ? "border-white/10 bg-slate-950/60 text-slate-100 placeholder:text-slate-500 caret-cyan-400 selection:bg-cyan-300 selection:text-slate-950 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/35"
-      : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 caret-blue-600 selection:bg-blue-200 selection:text-slate-950 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400/35"
+      ? "border-white/10 bg-slate-950/60 text-slate-100 placeholder:text-slate-500 caret-violet-400 selection:bg-violet-300 selection:text-slate-950 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/35"
+      : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 caret-violet-600 selection:bg-violet-200 selection:text-slate-950 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-400/35"
   };
 }
 
 function Button({ children, icon: Icon, theme, variant = "primary", size = "md", className = "", type = "button", ...props }) {
   const variants = {
     primary: theme.isDark
-      ? "border border-cyan-300/40 bg-cyan-400 text-slate-950 shadow-[0_0_30px_rgba(34,211,238,0.28)] hover:bg-cyan-300"
-      : "border border-blue-600 bg-blue-600 text-white shadow-[0_12px_24px_rgba(37,99,235,0.2)] hover:bg-blue-700",
+      ? "border border-violet-300/40 bg-violet-400 text-slate-950 shadow-[0_0_30px_rgba(139,92,246,0.28)] hover:bg-violet-300"
+      : "border border-violet-600 bg-violet-600 text-white shadow-[0_12px_24px_rgba(124,58,237,0.2)] hover:bg-violet-700",
     secondary: theme.isDark
-      ? "border border-white/15 bg-white/8 text-slate-100 hover:border-cyan-300/45 hover:bg-cyan-300/10"
-      : "border border-slate-200 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50",
+      ? "border border-white/15 bg-white/8 text-slate-100 hover:border-violet-300/45 hover:bg-violet-300/10"
+      : "border border-slate-200 bg-white text-slate-800 hover:border-purple-300 hover:bg-violet-50",
     ghost: theme.isDark ? "text-slate-300 hover:bg-white/8 hover:text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
     danger: "border border-rose-400/45 bg-rose-500/90 text-white hover:bg-rose-500",
     success: "border border-emerald-300/40 bg-emerald-400 text-slate-950 hover:bg-emerald-300"
@@ -1100,7 +1100,7 @@ function Button({ children, icon: Icon, theme, variant = "primary", size = "md",
     <button
       type={type}
       className={classNames(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-bold transition disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-2xl font-bold transition disabled:cursor-not-allowed disabled:opacity-50",
         sizes[size],
         variants[variant],
         className
@@ -1116,7 +1116,7 @@ function Button({ children, icon: Icon, theme, variant = "primary", size = "md",
 function Card({ children, theme, className = "" }) {
   return (
     <motion.div
-      className={classNames("rounded-lg border p-5", theme.card, className)}
+      className={classNames("rounded-2xl border p-5", theme.card, className)}
       initial={{ opacity: 0, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
@@ -1130,7 +1130,7 @@ function Card({ children, theme, className = "" }) {
 function Badge({ children, theme, tone = "neutral", className = "" }) {
   const tones = {
     neutral: theme.isDark ? "border-slate-400/20 bg-slate-400/10 text-slate-300" : "border-slate-300 bg-slate-100 text-slate-700",
-    cyan: theme.isDark ? "border-cyan-300/25 bg-cyan-400/12 text-cyan-200" : "border-blue-200 bg-blue-50 text-blue-700",
+    cyan: theme.isDark ? "border-violet-300/25 bg-violet-400/12 text-violet-200" : "border-violet-200 bg-violet-50 text-violet-700",
     emerald: "border-emerald-300/25 bg-emerald-400/12 text-emerald-500",
     violet: "border-violet-300/25 bg-violet-400/12 text-violet-500",
     amber: "border-amber-300/25 bg-amber-400/12 text-amber-600",
@@ -1157,15 +1157,15 @@ function Field({ label, icon: Icon, theme, children }) {
 }
 
 function TextInput({ theme, ...props }) {
-  return <input className={classNames("min-h-11 rounded-lg border px-3 text-sm transition", theme.input)} {...props} />;
+  return <input className={classNames("min-h-11 rounded-2xl border px-3 text-sm transition", theme.input)} {...props} />;
 }
 
 function SelectInput({ theme, ...props }) {
-  return <select className={classNames("min-h-11 rounded-lg border px-3 text-sm transition", theme.input)} {...props} />;
+  return <select className={classNames("min-h-11 rounded-2xl border px-3 text-sm transition", theme.input)} {...props} />;
 }
 
 function TextArea({ theme, ...props }) {
-  return <textarea className={classNames("min-h-28 rounded-lg border px-3 py-3 text-sm transition", theme.input)} {...props} />;
+  return <textarea className={classNames("min-h-28 rounded-2xl border px-3 py-3 text-sm transition", theme.input)} {...props} />;
 }
 
 function InlineMessage({ message, theme, tone = "danger" }) {
@@ -1175,7 +1175,7 @@ function InlineMessage({ message, theme, tone = "danger" }) {
     : "border-rose-300/25 bg-rose-400/12 text-rose-300";
 
   return (
-    <div className={classNames("rounded-lg border px-3 py-2 text-sm font-bold", toneClass)}>
+    <div className={classNames("rounded-2xl border px-3 py-2 text-sm font-bold", toneClass)}>
       {message}
     </div>
   );
@@ -1195,10 +1195,10 @@ function SectionTitle({ eyebrow, title, children, theme }) {
 
 function StatCard({ icon: Icon, label, value, detail, theme, tone = "cyan" }) {
   const toneClasses = {
-    cyan: "from-cyan-400/22 to-blue-500/10 text-cyan-400",
-    emerald: "from-emerald-400/22 to-cyan-500/10 text-emerald-400",
-    violet: "from-violet-400/22 to-cyan-500/10 text-violet-400",
-    amber: "from-amber-400/22 to-blue-500/10 text-amber-400"
+    cyan: "from-violet-400/22 to-purple-500/10 text-violet-400",
+    emerald: "from-emerald-400/22 to-violet-500/10 text-emerald-400",
+    violet: "from-violet-400/22 to-violet-500/10 text-violet-400",
+    amber: "from-amber-400/22 to-purple-500/10 text-amber-400"
   };
   return (
     <Card theme={theme} className="p-4">
@@ -1208,7 +1208,7 @@ function StatCard({ icon: Icon, label, value, detail, theme, tone = "cyan" }) {
           <p className={classNames("mt-2 text-2xl font-black", theme.heading)}>{value}</p>
           <p className={classNames("mt-1 text-xs", theme.faint)}>{detail}</p>
         </div>
-        <div className={classNames("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br", toneClasses[tone])}>
+        <div className={classNames("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br", toneClasses[tone])}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -1220,7 +1220,7 @@ function ProgressBar({ value, theme }) {
   return (
     <div className={classNames("h-2 overflow-hidden rounded-full", theme.isDark ? "bg-white/8" : "bg-slate-200")}>
       <motion.div
-        className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500"
+        className="h-full rounded-full bg-gradient-to-r from-violet-400 via-purple-500 to-violet-500"
         initial={{ width: 0 }}
         animate={{ width: `${value}%` }}
         transition={{ duration: 0.8, ease: "easeOut" }}
@@ -1265,7 +1265,7 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
   const panel = (
     <aside className={classNames("flex h-full w-72 flex-col border-r", theme.sidebar)}>
       <div className="flex h-20 items-center gap-3 px-5">
-        <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-cyan-300/35 bg-cyan-300/12 text-cyan-300 shadow-[0_0_30px_rgba(34,211,238,0.18)]">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-violet-300/35 bg-violet-300/12 text-violet-300 shadow-[0_0_30px_rgba(139,92,246,0.18)]">
           <LockKeyhole className="h-5 w-5" />
         </div>
         <div>
@@ -1280,7 +1280,7 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
             <button
               key={id}
               className={classNames(
-                "mb-1 flex w-full items-center gap-3 rounded-lg border px-3 py-3 text-left text-sm font-bold transition",
+                "mb-1 flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-bold transition",
                 active ? theme.accentBg : `${theme.soft} ${theme.softHover} ${theme.muted}`
               )}
               onClick={() => {
@@ -1295,7 +1295,7 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
         })}
       </nav>
       <div className="p-4">
-        <div className={classNames("rounded-lg border p-4", theme.soft)}>
+        <div className={classNames("rounded-2xl border p-4", theme.soft)}>
           <p className={classNames("text-sm font-black", theme.heading)}>{c.tagline}</p>
           <p className={classNames("mt-2 text-xs leading-5", theme.faint)}>USDT / VNDC · Polygon · MetaMask</p>
         </div>
@@ -1336,12 +1336,12 @@ function Header({ c, theme, language, setLanguage, themeName, setThemeName, setM
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <div className={classNames("flex rounded-lg border p-1", theme.soft)}>
+          <div className={classNames("flex rounded-2xl border p-1", theme.soft)}>
             {["en", "vi"].map((code) => (
               <button
                 key={code}
                 className={classNames(
-                  "min-h-8 rounded-md px-3 text-xs font-black transition",
+                  "min-h-8 rounded-lg px-3 text-xs font-black transition",
                   language === code ? theme.accentBg : theme.muted
                 )}
                 onClick={() => setLanguage(code)}
@@ -1372,7 +1372,7 @@ function Header({ c, theme, language, setLanguage, themeName, setThemeName, setM
               <span className="sm:hidden">{wallet.connected ? "0x" : "Wallet"}</span>
             </Button>
             {currentUser && (walletPickerOptions.length > 0 || walletError) && (
-              <div className={classNames("absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border p-3", theme.card)}>
+              <div className={classNames("absolute right-0 top-full z-30 mt-2 w-64 rounded-2xl border p-3", theme.card)}>
                 {walletPickerOptions.length > 0 ? (
                   <>
                     <p className={classNames("mb-2 text-xs font-semibold", theme.heading)}>Chọn ví để kết nối:</p>
@@ -1381,9 +1381,9 @@ function Header({ c, theme, language, setLanguage, themeName, setThemeName, setM
                         <button
                           key={w.id}
                           onClick={() => onSelectWalletProvider(w.provider)}
-                          className={classNames("flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-medium transition hover:opacity-80", theme.soft, theme.text)}
+                          className={classNames("flex items-center gap-2 rounded-2xl border px-3 py-2 text-left text-sm font-medium transition hover:opacity-80", theme.soft, theme.text)}
                         >
-                          <Wallet className="h-4 w-4 shrink-0 text-cyan-400" />
+                          <Wallet className="h-4 w-4 shrink-0 text-violet-400" />
                           {w.name}
                         </button>
                       ))}
@@ -1418,9 +1418,9 @@ function LandingPage({ c, theme, language, navigate, currentUser, addToast }) {
 
   return (
     <div className="space-y-10">
-      <section className={classNames("relative overflow-hidden rounded-lg border p-6 sm:p-8 lg:p-10", theme.card)}>
+      <section className={classNames("relative overflow-hidden rounded-2xl border p-6 sm:p-8 lg:p-10", theme.card)}>
         <div className="hero-grid absolute inset-0 opacity-80" />
-        <div className="absolute right-[-80px] top-[-120px] h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
+        <div className="absolute right-[-80px] top-[-120px] h-72 w-72 rounded-full bg-violet-400/20 blur-3xl" />
         <div className="relative">
           <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
             <Badge theme={theme} tone="cyan">{c.landing.heroEyebrow}</Badge>
@@ -1446,8 +1446,8 @@ function LandingPage({ c, theme, language, navigate, currentUser, addToast }) {
         <SectionTitle theme={theme} eyebrow={c.landing.howSubtitle} title={c.landing.howTitle} />
         <div className="grid gap-3 lg:grid-cols-5">
           {c.landing.steps.map(([label, detail], index) => (
-            <motion.div key={label} className={classNames("relative rounded-lg border p-4", theme.soft)} whileHover={{ y: -4 }}>
-              <div className={classNames("mb-4 flex h-10 w-10 items-center justify-center rounded-lg", index < 2 ? "bg-cyan-400/12 text-cyan-300" : "bg-blue-400/12 text-blue-300")}>
+            <motion.div key={label} className={classNames("relative rounded-2xl border p-4", theme.soft)} whileHover={{ y: -4 }}>
+              <div className={classNames("mb-4 flex h-10 w-10 items-center justify-center rounded-2xl", index < 2 ? "bg-violet-400/12 text-violet-300" : "bg-purple-400/12 text-purple-300")}>
                 <span className="text-sm font-black">0{index + 1}</span>
               </div>
               <p className={classNames("font-black leading-tight", theme.heading)}>{label}</p>
@@ -1462,7 +1462,7 @@ function LandingPage({ c, theme, language, navigate, currentUser, addToast }) {
         <SectionTitle theme={theme} eyebrow={c.landing.categoriesSubtitle} title={c.landing.categoriesTitle} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {serviceCategories.map(({ icon: Icon, en, vi }) => (
-            <motion.div key={en} className={classNames("rounded-lg border p-4 transition", theme.soft, theme.softHover)} whileHover={{ y: -4 }}>
+            <motion.div key={en} className={classNames("rounded-2xl border p-4 transition", theme.soft, theme.softHover)} whileHover={{ y: -4 }}>
               <Icon className={classNames("h-6 w-6", theme.accentText)} />
               <p className={classNames("mt-3 font-black", theme.heading)}>{language === "vi" ? vi : en}</p>
             </motion.div>
@@ -1474,8 +1474,8 @@ function LandingPage({ c, theme, language, navigate, currentUser, addToast }) {
         <SectionTitle theme={theme} title={c.landing.benefitsTitle} />
         <div className="grid gap-4 md:grid-cols-5">
           {c.landing.benefits.map(([label, detail], index) => (
-            <div key={label} className={classNames("rounded-lg border p-4", theme.soft)}>
-              <ShieldCheck className={classNames("h-5 w-5", index % 2 ? "text-blue-400" : "text-cyan-400")} />
+            <div key={label} className={classNames("rounded-2xl border p-4", theme.soft)}>
+              <ShieldCheck className={classNames("h-5 w-5", index % 2 ? "text-purple-400" : "text-violet-400")} />
               <p className={classNames("mt-3 font-black leading-tight", theme.heading)}>{label}</p>
               <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{detail}</p>
             </div>
@@ -1568,12 +1568,12 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
   return (
     <div className="flex min-h-[60vh] items-center justify-center py-6">
       <Card theme={theme} className="w-full max-w-md p-6">
-        <div className={classNames("mb-6 grid grid-cols-2 rounded-lg border p-1", theme.soft)}>
+        <div className={classNames("mb-6 grid grid-cols-2 rounded-2xl border p-1", theme.soft)}>
           <button
             type="button"
             onClick={() => switchTab(false)}
             className={classNames(
-              "rounded-md py-2.5 text-sm font-black transition-all",
+              "rounded-lg py-2.5 text-sm font-black transition-all",
               !isLogin ? theme.accentBg : theme.muted
             )}
           >
@@ -1583,7 +1583,7 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
             type="button"
             onClick={() => switchTab(true)}
             className={classNames(
-              "rounded-md py-2.5 text-sm font-black transition-all",
+              "rounded-lg py-2.5 text-sm font-black transition-all",
               isLogin ? theme.accentBg : theme.muted
             )}
           >
@@ -1695,7 +1695,7 @@ function JobsTable({ type, rows, c, theme, language, navigate, setSelectedEscrow
     );
   }
   return (
-    <div className={classNames("overflow-hidden rounded-lg border", theme.border)}>
+    <div className={classNames("overflow-hidden rounded-2xl border", theme.border)}>
       <div className={classNames("hidden grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr] px-4 py-3 text-xs font-black uppercase tracking-[0.14em] md:grid", theme.soft, theme.faint)}>
         <span>{c.common.service}</span>
         <span>{c.common.freelancer}</span>
@@ -1748,15 +1748,15 @@ function FormSection({ title, icon: Icon, theme, children }) {
 function CheckboxRow({ label, checked, onChange, theme }) {
   return (
     <label className={classNames(
-      "flex cursor-pointer select-none items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition",
+      "flex cursor-pointer select-none items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm transition",
       checked
-        ? theme.isDark ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-200" : "border-blue-400 bg-blue-50 text-blue-800"
+        ? theme.isDark ? "border-violet-400/50 bg-violet-400/10 text-violet-200" : "border-purple-400 bg-violet-50 text-violet-800"
         : `${theme.soft} ${theme.muted}`
     )}>
       <span className={classNames(
         "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition",
         checked
-          ? theme.isDark ? "border-cyan-400 bg-cyan-400 text-slate-950" : "border-blue-600 bg-blue-600 text-white"
+          ? theme.isDark ? "border-violet-400 bg-violet-400 text-slate-950" : "border-violet-600 bg-violet-600 text-white"
           : theme.isDark ? "border-white/25" : "border-slate-300"
       )}>
         {checked && <CheckCircle2 className="h-3 w-3" />}
@@ -1920,9 +1920,9 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
   // ── TABBED VIEW: "post" = đăng hợp đồng | "find" = tìm việc ──────────────
   return (
     <div className="space-y-6">
-      <div className={classNames("grid grid-cols-2 gap-1 rounded-lg border p-1 shadow-sm", theme.soft)}>
-        <button type="button" onClick={() => setTab("post")} className={classNames("rounded-md border py-2.5 text-sm font-black transition-all", tab === "post" ? theme.accentBg : classNames("border-transparent", theme.muted, theme.softHover))}>{c.create.title}</button>
-        <button type="button" onClick={() => setTab("find")} className={classNames("rounded-md border py-2.5 text-sm font-black transition-all", tab === "find" ? theme.accentBg : classNames("border-transparent", theme.muted, theme.softHover))}>{c.create.jobsTitle}</button>
+      <div className={classNames("grid grid-cols-2 gap-1 rounded-2xl border p-1 shadow-sm", theme.soft)}>
+        <button type="button" onClick={() => setTab("post")} className={classNames("rounded-lg border py-2.5 text-sm font-black transition-all", tab === "post" ? theme.accentBg : classNames("border-transparent", theme.muted, theme.softHover))}>{c.create.title}</button>
+        <button type="button" onClick={() => setTab("find")} className={classNames("rounded-lg border py-2.5 text-sm font-black transition-all", tab === "find" ? theme.accentBg : classNames("border-transparent", theme.muted, theme.softHover))}>{c.create.jobsTitle}</button>
       </div>
       {tab === "post" && <>
       <PageIntro title={c.create.title} subtitle={c.create.subtitle} theme={theme} />
@@ -2186,7 +2186,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
                 {myPostedEscrows.map(job => {
                   const st = postedJobStatus(job);
                   return (
-                    <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                    <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4", theme.soft)}>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className={classNames("text-sm font-bold", theme.text)}>{job.serviceName}</p>
@@ -2627,7 +2627,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
             <div
               key={state}
               className={classNames(
-                "flex min-h-[76px] items-center justify-center rounded-lg border px-3 py-4 text-center text-[11px] font-black leading-tight break-words whitespace-normal",
+                "flex min-h-[76px] items-center justify-center rounded-2xl border px-3 py-4 text-center text-[11px] font-black leading-tight break-words whitespace-normal",
                 state === statusKey ? theme.accentBg : `${theme.soft} ${theme.faint}`
               )}
             >
@@ -2642,7 +2642,7 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
             [c.details.contractAddress, escrow?.contractAddress || "Not deployed yet"],
             [c.common.deadline, escrow?.deadline ? new Date(escrow.deadline).toLocaleString() : "—"]
           ].map(([label, value]) => (
-            <div key={label} className={classNames("rounded-lg border p-4", theme.soft)}>
+            <div key={label} className={classNames("rounded-2xl border p-4", theme.soft)}>
               <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{label}</p>
               <p className={classNames("mt-2 break-all font-mono text-sm font-bold", theme.text)}>{value}</p>
             </div>
@@ -2719,7 +2719,7 @@ function SubmissionPage({ c, theme, navigate, addToast, apiToken, currentUser, e
           {pendingEscrows.length ? (
             <div className="grid gap-3">
               {pendingEscrows.map((job) => (
-                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4", theme.soft)}>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className={classNames("font-bold text-sm", theme.text)}>{job.serviceName}</p>
@@ -2827,7 +2827,7 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, currentUser, esc
           {pendingApprovals.length ? (
             <div className="grid gap-3">
               {pendingApprovals.map((job) => (
-                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4", theme.soft)}>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className={classNames("font-bold text-sm", theme.text)}>{job.serviceName}</p>
@@ -2861,7 +2861,7 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, currentUser, esc
             Đổi hợp đồng khác
           </Button>
         </div>
-        <div className={classNames("mt-6 rounded-lg border p-5", theme.soft)}>
+        <div className={classNames("mt-6 rounded-2xl border p-5", theme.soft)}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className={classNames("text-xl font-black", theme.heading)}>{c.approval.deliverableTitle}</p>
@@ -2920,13 +2920,13 @@ function DisputeResultSummary({ dispute, theme }) {
 
   return (
     <div className="grid gap-4">
-      <div className={classNames("rounded-lg border p-4", theme.soft)}>
+      <div className={classNames("rounded-2xl border p-4", theme.soft)}>
         <p className={classNames("text-sm font-bold", theme.text)}>
           Kết quả: {releasedToFreelancer ? "Giải ngân cho freelancer" : "Hoàn tiền cho khách hàng"}
         </p>
         <p className={classNames("mt-1 text-xs", theme.faint)}>{total} reviewer đã bỏ phiếu</p>
       </div>
-      <div className={classNames("rounded-lg border p-4", theme.soft)}>
+      <div className={classNames("rounded-2xl border p-4", theme.soft)}>
         <div className="mb-2 flex justify-between text-sm">
           <span className={theme.text}>Release (freelancer)</span>
           <span className={theme.accentText}>{freelancerPct}% ({freelancerVotes}/{total})</span>
@@ -3110,13 +3110,13 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
           {/* ── Reviewer: bỏ phiếu cho dispute đã chọn ── */}
           {isReviewer && (
             <div className="grid gap-4">
-              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+              <div className={classNames("rounded-2xl border p-4", theme.soft)}>
                 <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
                 <p className={classNames("mt-1 text-xs break-all", theme.faint)}>ID: {selectedDispute._id}</p>
               </div>
 
               {/* Bằng chứng từ client */}
-              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+              <div className={classNames("rounded-2xl border p-4", theme.soft)}>
                 <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>Lý do tranh chấp (client)</p>
                 <p className={classNames("text-sm leading-5", theme.text)}>{selectedDispute.reason || "—"}</p>
                 {selectedDispute.evidenceFiles?.length > 0 && (
@@ -3132,7 +3132,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
               </div>
 
               {/* Bằng chứng phản bác từ freelancer */}
-              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+              <div className={classNames("rounded-2xl border p-4", theme.soft)}>
                 <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>Bằng chứng phản bác (freelancer)</p>
                 {selectedDispute.freelancerDefenseFiles?.length > 0 ? (
                   <div className="grid gap-1">
@@ -3151,7 +3151,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
               {isResolved ? (
                 <DisputeResultSummary dispute={selectedDispute} theme={theme} />
               ) : myVote ? (
-                <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <div className={classNames("rounded-2xl border p-4", theme.soft)}>
                   <p className={classNames("text-sm font-bold", theme.text)}>Bạn đã bỏ phiếu cho tranh chấp này.</p>
                   <p className={classNames("mt-1 text-xs", theme.faint)}>
                     Quyết định: {myVote.voteForFreelancer ? "Release full payment to freelancer" : "Refund full amount to client"}
@@ -3159,7 +3159,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                 </div>
               ) : (
                 <>
-                  <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                  <div className={classNames("rounded-2xl border p-4", theme.soft)}>
                     <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>Lý do tranh chấp được xác nhận (chọn ít nhất 1)</p>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {DISPUTE_REASON_OPTIONS.map((item) => (
@@ -3167,7 +3167,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                       ))}
                     </div>
                   </div>
-                  <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                  <div className={classNames("rounded-2xl border p-4", theme.soft)}>
                     <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>Quyết định bỏ phiếu</p>
                     <div className="grid gap-2">
                       {VOTE_DECISION_OPTIONS.map(([key, label]) => (
@@ -3195,7 +3195,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
               <DisputeResultSummary dispute={selectedDispute} theme={theme} />
             ) : (
               <form onSubmit={handleUploadDefense} className="grid gap-4">
-                <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <div className={classNames("rounded-2xl border p-4", theme.soft)}>
                   <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
                   <p className={classNames("mt-1 text-xs", theme.faint)}>Trạng thái: {selectedDispute.status}</p>
                 </div>
@@ -3216,7 +3216,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
               <DisputeResultSummary dispute={selectedDispute} theme={theme} />
             ) : (
               <div className="grid gap-4">
-                <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                <div className={classNames("rounded-2xl border p-4", theme.soft)}>
                   <p className={classNames("text-sm font-bold", theme.text)}>{selectedDispute.escrow?.serviceName || "—"}</p>
                   <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{selectedDispute.reason}</p>
                 </div>
@@ -3236,7 +3236,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
           {/* ── Không chọn dispute → tạo mới hoặc demo ── */}
           {!selectedDispute && selectedEscrow && (
             <form onSubmit={handleCreate} className="grid gap-4">
-              <div className={classNames("rounded-lg border p-4", theme.soft)}>
+              <div className={classNames("rounded-2xl border p-4", theme.soft)}>
                 <p className={classNames("text-sm font-bold", theme.text)}>{selectedEscrow.serviceName}</p>
                 <p className={classNames("mt-1 text-xs", theme.faint)}>ID: {selectedEscrow._id}</p>
               </div>
@@ -3256,7 +3256,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                 {disputes.map((d) => {
                   const voted = d.votes?.some(v => String(v.reviewer?._id || v.reviewer) === String(uid));
                   return (
-                    <div key={d._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                    <div key={d._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4", theme.soft)}>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className={classNames("font-bold text-sm", theme.text)}>{d.escrow?.serviceName || "—"}</p>
@@ -3293,9 +3293,9 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                     type="button"
                     onClick={() => setSelectedDispute(selectedDispute?._id === d._id ? null : d)}
                     className={classNames(
-                      "w-full rounded-lg border p-4 text-left transition hover:opacity-80",
+                      "w-full rounded-2xl border p-4 text-left transition hover:opacity-80",
                       theme.soft,
-                      selectedDispute?._id === d._id ? "ring-2 ring-cyan-400" : ""
+                      selectedDispute?._id === d._id ? "ring-2 ring-violet-400" : ""
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -3346,7 +3346,7 @@ function NotificationsPage({ c, theme, addToast, apiToken }) {
       <PageIntro title={c.notifications.title} subtitle={c.notifications.subtitle} theme={theme} />
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {notifications.length ? notifications.map((n) => (
-          <Card key={n._id} theme={theme} className={classNames("p-4", !n.isRead && "ring-1 ring-cyan-400/30")}>
+          <Card key={n._id} theme={theme} className={classNames("p-4", !n.isRead && "ring-1 ring-violet-400/30")}>
             <Bell className={classNames("h-5 w-5", theme.accentText)} />
             <p className={classNames("mt-3 font-black", theme.heading)}>{n.title}</p>
             <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{n.message}</p>
@@ -3395,7 +3395,7 @@ function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscr
     <div className="space-y-6">
       <div className="grid gap-6 xl:grid-cols-[0.7fr_1fr]">
         <Card theme={theme} className="text-center">
-          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-cyan-300/30 bg-cyan-400/12 text-3xl font-black text-cyan-300">
+          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-violet-300/30 bg-violet-400/12 text-3xl font-black text-violet-300">
             {initials}
           </div>
           <h1 className={classNames("mt-4 text-2xl font-black", theme.heading)}>{currentUser?.name || c.profile.name}</h1>
@@ -3413,7 +3413,7 @@ function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscr
             <SectionTitle theme={theme} title={c.profile.security} />
             <div className="grid gap-3 md:grid-cols-3">
               {c.profile.verifications.map((item) => (
-                <div key={item} className={classNames("flex items-center gap-3 rounded-lg border p-3", theme.soft)}>
+                <div key={item} className={classNames("flex items-center gap-3 rounded-2xl border p-3", theme.soft)}>
                   <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                   <span className={classNames("text-sm font-bold", theme.text)}>{item}</span>
                 </div>
@@ -3432,7 +3432,7 @@ function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscr
             {completedEscrows.map(job => {
               const isClient = String(job.client?._id || job.client) === String(currentUser?._id || currentUser?.id);
               return (
-                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4", theme.soft)}>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className={classNames("font-bold text-sm", theme.text)}>{job.serviceName}</p>
@@ -3469,7 +3469,7 @@ function Footer({ c, theme }) {
   ];
 
   return (
-    <footer className={classNames("mt-10 rounded-lg border p-6", theme.card)}>
+    <footer className={classNames("mt-10 rounded-2xl border p-6", theme.card)}>
       <div className="grid gap-6 lg:grid-cols-[1fr_1.3fr]">
         <div>
           <p className={classNames("text-xl font-black", theme.heading)}>{c.brand}</p>
@@ -3478,7 +3478,7 @@ function Footer({ c, theme }) {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {links.map(([Icon, label]) => (
-            <a key={label} className={classNames("flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-bold transition", theme.soft, theme.softHover, theme.text)} href={label.includes("@") ? `mailto:${label}` : "#/"}>
+            <a key={label} className={classNames("flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-bold transition", theme.soft, theme.softHover, theme.text)} href={label.includes("@") ? `mailto:${label}` : "#/"}>
               <Icon className={classNames("h-4 w-4", theme.accentText)} />
               <span>{label}</span>
             </a>
@@ -3496,13 +3496,13 @@ function ToastStack({ toasts, removeToast, theme }) {
         {toasts.map((toast) => (
           <motion.div
             key={toast.id}
-            className={classNames("rounded-lg border p-4 shadow-2xl", theme.card)}
+            className={classNames("rounded-2xl border p-4 shadow-2xl", theme.card)}
             initial={{ opacity: 0, x: 40, scale: 0.96 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 40, scale: 0.96 }}
           >
             <div className="flex gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-400/12 text-cyan-300">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-400/12 text-violet-300">
                 <toast.icon className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
@@ -3606,7 +3606,7 @@ function AdminPage({ c, theme, apiToken }) {
                       <div className="flex flex-col gap-1">
                         <span className={theme.faint}>Bằng chứng</span>
                         {d.evidenceFiles.map((url, i) => (
-                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="truncate text-cyan-400 underline text-xs">{url}</a>
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="truncate text-violet-400 underline text-xs">{url}</a>
                         ))}
                       </div>
                     )}
@@ -3617,7 +3617,7 @@ function AdminPage({ c, theme, apiToken }) {
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     rows={2}
-                    className={classNames("w-full rounded-lg border px-3 py-2 text-sm", theme.soft, theme.text)}
+                    className={classNames("w-full rounded-2xl border px-3 py-2 text-sm", theme.soft, theme.text)}
                   />
 
                   <div className="flex flex-wrap gap-3">
@@ -3657,7 +3657,7 @@ function AdminPage({ c, theme, apiToken }) {
                   </div>
                   <span className={classNames(
                     "rounded-full px-2 py-0.5 text-xs font-bold",
-                    d.status === "RESOLVED_RELEASE" ? "bg-emerald-400/20 text-emerald-400" : "bg-blue-400/20 text-blue-400"
+                    d.status === "RESOLVED_RELEASE" ? "bg-emerald-400/20 text-emerald-400" : "bg-purple-400/20 text-purple-400"
                   )}>
                     {d.status === "RESOLVED_RELEASE" ? "→ Freelancer" : "→ Client"}
                   </span>

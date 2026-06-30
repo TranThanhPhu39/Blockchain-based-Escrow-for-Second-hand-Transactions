@@ -45,21 +45,21 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid rgba(34, 211, 238, 0.35);
+  outline: 3px solid rgba(139, 92, 246, 0.35);
   outline-offset: 2px;
 }
 
 .app-grid {
   background-image:
-    linear-gradient(rgba(34, 211, 238, 0.065) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.055) 1px, transparent 1px);
+    linear-gradient(rgba(139, 92, 246, 0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(147, 51, 234, 0.055) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
 .hero-grid {
   background-image:
-    linear-gradient(rgba(34, 211, 238, 0.09) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(139, 92, 246, 0.08) 1px, transparent 1px);
+    linear-gradient(rgba(139, 92, 246, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168, 85, 247, 0.08) 1px, transparent 1px);
   background-size: 34px 34px;
   mask-image: radial-gradient(circle at 50% 40%, black, transparent 78%);
 }
