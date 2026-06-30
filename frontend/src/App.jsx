@@ -118,7 +118,8 @@ const translations = {
       contract: "Smart Contract",
       copied: "Copied",
       markAsRead: "Mark as read",
-      depositFunds: "Deposit Funds"
+      depositFunds: "Deposit Funds",
+      close: "Close"
     },
     status: {
       created: "CREATED",
@@ -463,7 +464,8 @@ const translations = {
       contract: "Hợp đồng thông minh",
       copied: "Đã sao chép",
       markAsRead: "Đánh dấu đã đọc",
-      depositFunds: "Nạp tiền ký quỹ"
+      depositFunds: "Nạp tiền ký quỹ",
+      close: "Đóng"
     },
     status: {
       created: "ĐÃ TẠO",
@@ -1810,8 +1812,9 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
   );
 }
 
-function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, setSelectedEscrow, apiToken, currentUser }) {
+function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, setSelectedEscrow, apiToken, currentUser, addToast }) {
   const [tab, setTab] = useState("active");
+  const [viewEscrowId, setViewEscrowId] = useState(null);
 
   useEffect(() => {
     if (apiToken) refreshEscrows();
@@ -1837,6 +1840,7 @@ function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, 
   const activeRows = liveRows.filter((row) => !["released", "refunded"].includes(row.status));
   const completedRows = liveRows.filter((row) => ["released", "refunded"].includes(row.status));
   const disputeRows = liveRows.filter((row) => row.raw.status === "DISPUTED");
+  const viewEscrow = viewEscrowId ? myEscrows.find((e) => e._id === viewEscrowId) || null : null;
 
   const totalValue = myEscrows.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
   const activeCount = myEscrows.filter((e) => !["RELEASED", "REFUNDED", "CANCELLED"].includes(e.status)).length;
@@ -1865,15 +1869,27 @@ function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, 
             </Button>
           ))}
         </SectionTitle>
-        {tab === "active" ? <JobsTable type="active" rows={activeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
-        {tab === "completed" ? <JobsTable type="completed" rows={completedRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
-        {tab === "disputes" ? <JobsTable type="disputes" rows={disputeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} /> : null}
+        {tab === "active" ? <JobsTable type="active" rows={activeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} onViewDetails={setViewEscrowId} activeId={viewEscrowId} /> : null}
+        {tab === "completed" ? <JobsTable type="completed" rows={completedRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} onViewDetails={setViewEscrowId} activeId={viewEscrowId} /> : null}
+        {tab === "disputes" ? <JobsTable type="disputes" rows={disputeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} onViewDetails={setViewEscrowId} activeId={viewEscrowId} /> : null}
       </Card>
+      {viewEscrow && (
+        <EscrowDetailsPage
+          c={c}
+          theme={theme}
+          navigate={navigate}
+          selectedEscrow={viewEscrow}
+          addToast={addToast}
+          refreshEscrows={refreshEscrows}
+          currentUser={currentUser}
+          onClose={() => setViewEscrowId(null)}
+        />
+      )}
     </div>
   );
 }
 
-function JobsTable({ type, rows, c, theme, language, navigate, setSelectedEscrow }) {
+function JobsTable({ type, rows, c, theme, language, navigate, setSelectedEscrow, onViewDetails, activeId }) {
   const tableRows = rows || [];
   if (tableRows.length === 0) {
     return (
@@ -1892,7 +1908,7 @@ function JobsTable({ type, rows, c, theme, language, navigate, setSelectedEscrow
         <span>{c.common.action}</span>
       </div>
       {tableRows.map((job) => (
-        <div key={job.id} className={classNames("grid gap-3 border-t px-4 py-4 md:grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr] md:items-center", theme.border)}>
+        <div key={job.id} className={classNames("grid gap-3 border-t px-4 py-4 md:grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr] md:items-center", theme.border, job.id === activeId && theme.soft)}>
           <div>
             <p className={classNames("font-black", theme.heading)}>{text(job.service, language)}</p>
             <p className={classNames("text-xs", theme.faint)}>{job.id}</p>
@@ -1902,7 +1918,11 @@ function JobsTable({ type, rows, c, theme, language, navigate, setSelectedEscrow
           <Badge theme={theme} tone={type === "disputes" ? "amber" : job.status === "released" ? "emerald" : "cyan"}>{c.status[job.status || job.result]}</Badge>
           <Button theme={theme} size="sm" variant="secondary" icon={type === "disputes" ? Gavel : ReceiptText} onClick={() => {
             if (job.raw) setSelectedEscrow(job.raw);
-            navigate(type === "disputes" ? "disputes" : "details");
+            if (type === "disputes") {
+              navigate("disputes");
+            } else {
+              onViewDetails(job.id);
+            }
           }}>
             {type === "disputes" ? c.nav.disputes : c.nav.details}
           </Button>
@@ -2440,7 +2460,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 // Map on-chain uint8 → status string (khớp với enum Status trong contract)
 const ON_CHAIN_STATUS_MAP = ["CREATED","ACCEPTED","DEPOSITED","SUBMITTED","REVISION_REQUESTED","DISPUTED","REVIEWING_DISPUTE","RELEASED","REFUNDED","CANCELLED"];
 
-function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refreshEscrows, currentUser }) {
+function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refreshEscrows, currentUser, onClose }) {
   const [txStatus, setTxStatus] = useState({ loading: false, message: "" });
   const [countdown, setCountdown] = useState("");
   // onChainNum: trạng thái đọc trực tiếp từ blockchain (không qua DB / event listener)
@@ -2716,7 +2736,14 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
 
   return (
     <div className="space-y-6">
-      <PageIntro title={c.details.title} subtitle={c.details.subtitle} theme={theme} />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageIntro title={escrow?.serviceName ? text(escrow.serviceName) : c.details.title} subtitle={c.details.subtitle} theme={theme} />
+        {onClose && (
+          <Button theme={theme} size="sm" variant="secondary" icon={X} onClick={onClose}>
+            {c.common.close}
+          </Button>
+        )}
+      </div>
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard theme={theme} icon={Briefcase} label={c.details.jobId} value={escrow?._id ? escrow._id.slice(-8) : "—"} detail={escrow?.serviceName || "—"} tone="cyan" />
         <StatCard theme={theme} icon={CircleDollarSign} label={c.details.escrowAmount} value={formatEscrowAmount(escrow?.amount || "0")} detail="Polygon" tone="emerald" />
