@@ -1153,6 +1153,28 @@ function Brand({ name, theme, className = "" }) {
   );
 }
 
+function makeStarField(count, seed, size, opacityRange, color) {
+  let s = seed;
+  const rand = () => {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+  const stops = [];
+  for (let i = 0; i < count; i++) {
+    const x = (rand() * 100).toFixed(1);
+    const y = (rand() * 100).toFixed(1);
+    const op = (opacityRange[0] + rand() * (opacityRange[1] - opacityRange[0])).toFixed(2);
+    stops.push(`radial-gradient(${size}px ${size}px at ${x}% ${y}%, rgba(${color},${op}) 0%, transparent 100%)`);
+  }
+  return stops.join(", ");
+}
+
+const EXTRA_STAR_LAYERS = [
+  makeStarField(55, 17, 0.8, [0.35, 0.65], "255,255,255"),
+  makeStarField(35, 53, 1, [0.4, 0.75], "196,181,253"),
+  makeStarField(18, 91, 1.3, [0.5, 0.85], "255,255,255"),
+];
+
 function GalaxyBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
@@ -1246,6 +1268,11 @@ function GalaxyBackground() {
           "radial-gradient(3px   3px   at 55% 88%, rgba(255,255,255,1.0) 0%, rgba(109,94,248,0.3) 60%, transparent 100%)"
         ].join(", ")
       }} />
+
+      {/* Extra star layers — denser field */}
+      {EXTRA_STAR_LAYERS.map((bgImage, i) => (
+        <div key={i} className="absolute inset-0" style={{ backgroundImage: bgImage }} />
+      ))}
 
       {/* Soft cosmic dust band */}
       <div className="absolute" style={{ top: "10%", left: "0", right: "0", height: "40%", background: "radial-gradient(ellipse 80% 100% at 60% 30%, rgba(139,92,246,0.04) 0%, transparent 70%)", filter: "blur(20px)" }} />
