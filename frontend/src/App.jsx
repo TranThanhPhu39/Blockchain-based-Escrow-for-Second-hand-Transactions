@@ -3115,6 +3115,34 @@ function DisputeResultSummary({ dispute, theme, c }) {
   );
 }
 
+function JuryProgress({ dispute, theme, c }) {
+  const votes = dispute.votes || [];
+  const total = votes.length;
+  const freelancerVotes = votes.filter((v) => v.voteForFreelancer).length;
+  const clientVotes = total - freelancerVotes;
+  const freelancerPct = total ? Math.round((freelancerVotes / total) * 100) : 0;
+  const clientPct = total ? 100 - freelancerPct : 0;
+
+  return (
+    <div className={classNames("rounded-2xl border p-4", theme.soft)}>
+      <div className="mb-3 flex items-center justify-between">
+        <p className={classNames("text-xs font-semibold", theme.muted)}>{c.dispute.juryProgress}</p>
+        <span className={classNames("text-xs font-bold", theme.accentText)}>{total} {c.dispute.reviewersVoted}</span>
+      </div>
+      <div className="mb-2 flex justify-between text-sm">
+        <span className={theme.text}>{c.dispute.releaseLabel}</span>
+        <span className={theme.accentText}>{freelancerPct}% ({freelancerVotes}/{total})</span>
+      </div>
+      <ProgressBar value={freelancerPct} theme={theme} />
+      <div className="mb-2 mt-4 flex justify-between text-sm">
+        <span className={theme.text}>{c.dispute.refundLabel}</span>
+        <span className={theme.accentText}>{clientPct}% ({clientVotes}/{total})</span>
+      </div>
+      <ProgressBar value={clientPct} theme={theme} />
+    </div>
+  );
+}
+
 function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selectedEscrow, refreshEscrows }) {
   const [disputes, setDisputes] = useState([]);
   const [selectedDispute, setSelectedDispute] = useState(null);
@@ -3279,6 +3307,13 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
         <Card theme={theme}>
           <SectionTitle theme={theme} title={c.dispute.evidence} />
+
+          {/* ── Admin: xem tiến trình bỏ phiếu mà không cần chờ kết quả ── */}
+          {currentUser?.role === "admin" && selectedDispute && !isResolved && (
+            <div className="mb-4">
+              <JuryProgress dispute={selectedDispute} theme={theme} c={c} />
+            </div>
+          )}
 
           {/* ── Reviewer: bỏ phiếu cho dispute đã chọn ── */}
           {isReviewer && (
