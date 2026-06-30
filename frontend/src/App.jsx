@@ -1481,14 +1481,23 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
   );
 }
 
-function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, setSelectedEscrow, apiToken }) {
+function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, setSelectedEscrow, apiToken, currentUser }) {
   const [tab, setTab] = useState("active");
 
   useEffect(() => {
     if (apiToken) refreshEscrows();
   }, [apiToken, refreshEscrows]);
 
-  const liveRows = escrows.map((escrow) => ({
+  const uid = currentUser?._id || currentUser?.id;
+  const isAdmin = currentUser?.role === "admin";
+  const myEscrows = escrows.filter((escrow) => {
+    if (isAdmin) return true;
+    const clientId = escrow.client?._id || escrow.client;
+    const freelancerId = escrow.freelancer?._id || escrow.freelancer;
+    return String(clientId) === String(uid) || String(freelancerId) === String(uid);
+  });
+
+  const liveRows = myEscrows.map((escrow) => ({
     id: escrow._id,
     service: escrow.serviceName,
     freelancer: escrow.freelancer?.name || escrow.freelancer?.walletAddress || "Freelancer",
