@@ -2488,8 +2488,14 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   );
 }
 
-function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshEscrows, setSelectedEscrow }) {
+function SubmissionPage({ c, theme, navigate, addToast, apiToken, currentUser, escrows, selectedEscrow, refreshEscrows, setSelectedEscrow }) {
   const [status, setStatus] = useState({ loading: false, message: "" });
+
+  const uid = currentUser?._id || currentUser?.id;
+  const pendingEscrows = escrows.filter((e) => {
+    const freelancerId = e.freelancer?._id || e.freelancer;
+    return String(freelancerId) === String(uid) && ["DEPOSITED", "REVISION_REQUESTED"].includes(e.status);
+  });
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -2527,6 +2533,7 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
       setSelectedEscrow(result.escrow);
       await refreshEscrows();
       addToast("submitted");
+      navigate("dashboard");
     } catch (error) {
       setStatus({ loading: false, message: error.reason || error.message });
       return;
@@ -2535,22 +2542,60 @@ function SubmissionPage({ c, theme, addToast, apiToken, selectedEscrow, refreshE
     setStatus({ loading: false, message: "" });
   }
 
+  if (!selectedEscrow) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <PageIntro title={c.submit.title} subtitle={c.submit.subtitle} theme={theme} />
+        <Card theme={theme} className="mt-6">
+          {pendingEscrows.length ? (
+            <div className="grid gap-3">
+              {pendingEscrows.map((job) => (
+                <div key={job._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={classNames("font-bold text-sm", theme.text)}>{job.serviceName}</p>
+                      <Badge theme={theme} tone={job.status === "REVISION_REQUESTED" ? "amber" : "cyan"}>{c.status[escrowStatusKey(job.status)]}</Badge>
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                      <span className={theme.faint}>{formatEscrowAmount(job.amount)}</span>
+                      <span className={theme.faint}>{job.client?.name || "—"}</span>
+                    </div>
+                  </div>
+                  <Button theme={theme} icon={UploadCloud} size="sm" onClick={() => setSelectedEscrow(job)}>
+                    Nộp sản phẩm
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={classNames("py-8 text-center text-sm", theme.muted)}>Không có hợp đồng nào đang cần nộp sản phẩm.</p>
+          )}
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-4xl">
       <Card theme={theme}>
-        <PageIntro title={c.submit.title} subtitle={c.submit.subtitle} theme={theme} />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <PageIntro title={c.submit.title} subtitle={c.submit.subtitle} theme={theme} />
+          <Button theme={theme} variant="secondary" size="sm" onClick={() => setSelectedEscrow(null)}>
+            Đổi hợp đồng khác
+          </Button>
+        </div>
         <form
           className="mt-6 grid gap-4"
           onSubmit={handleSubmit}
         >
           <Field theme={theme} label={c.submit.deliverableUrl} icon={Globe2}>
-            <TextInput theme={theme} name="deliverableUrl" defaultValue={selectedEscrow?.deliverableInfo?.deliverableUrl || "https://figma.com/file/escrowx-landing"} required />
+            <TextInput theme={theme} name="deliverableUrl" defaultValue={selectedEscrow?.deliverableInfo?.deliverableUrl || ""} required />
           </Field>
           <Field theme={theme} label={c.submit.workProof} icon={UploadCloud}>
             <TextInput theme={theme} name="workProof" placeholder={c.submit.proofPlaceholder} defaultValue={selectedEscrow?.deliverableInfo?.workProof || ""} />
           </Field>
           <Field theme={theme} label={c.submit.notes} icon={FileText}>
-            <TextArea theme={theme} name="note" defaultValue={selectedEscrow?.deliverableInfo?.note || "Delivered responsive landing page, component library, and handoff notes for the client."} />
+            <TextArea theme={theme} name="note" defaultValue={selectedEscrow?.deliverableInfo?.note || ""} />
           </Field>
           <InlineMessage message={status.message} theme={theme} />
           <Button theme={theme} icon={UploadCloud} type="submit" disabled={status.loading}>
