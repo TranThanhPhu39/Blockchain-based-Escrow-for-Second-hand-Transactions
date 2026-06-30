@@ -3158,7 +3158,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
   );
 }
 
-function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiToken, setCurrentUser }) {
+function WalletPage({ c, theme, wallet, setWallet, addToast, apiToken, setCurrentUser }) {
   const [status, setStatus] = useState({ loading: false, message: "" });
   const [walletOptions, setWalletOptions] = useState([]); // danh sách wallets khi có nhiều
 
@@ -3168,7 +3168,7 @@ function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiT
     setStatus({ loading: true, message: "" });
     try {
       const [address] = await provider.request({ method: "eth_requestAccounts" });
-      setWallet({ connected: true, address, short: shortAddress(address), eth: "0.00", usdt: "0", status: c.status.connected });
+      setWallet({ connected: true, address, short: shortAddress(address), status: c.status.connected });
       if (apiToken) {
         const result = await apiRequest("/api/auth/wallet", {
           method: "PATCH",
@@ -3201,7 +3201,7 @@ function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiT
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+    <div className="mx-auto max-w-2xl">
       <Card theme={theme}>
         <PageIntro title={c.wallet.title} subtitle={c.wallet.subtitle} theme={theme} />
         <div className={classNames("mt-6 rounded-lg border p-5", theme.soft)}>
@@ -3219,7 +3219,6 @@ function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiT
             <Button theme={theme} icon={Wallet} onClick={connectWallet} disabled={status.loading}>
               {status.loading ? "Connecting..." : c.common.connectWallet}
             </Button>
-            <Button theme={theme} icon={Fingerprint} variant="secondary" onClick={openSignModal}>{c.common.signTransaction}</Button>
           </div>
           {walletOptions.length > 0 && (
             <div className={classNames("mt-4 rounded-lg border p-4", theme.soft)}>
@@ -3247,30 +3246,6 @@ function WalletPage({ c, theme, wallet, setWallet, openSignModal, addToast, apiT
           <InlineMessage message={status.message} theme={theme} />
         </div>
       </Card>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
-        <StatCard theme={theme} icon={Coins} label={c.wallet.eth} value={`${wallet.eth} ETH`} detail="Polygon gas reserve" tone="cyan" />
-        <StatCard theme={theme} icon={CircleDollarSign} label={c.wallet.usdt} value={`${wallet.usdt} USDT`} detail="Available stablecoin" tone="emerald" />
-        <Card theme={theme}>
-          <SectionTitle theme={theme} title={c.common.signTransaction} />
-          <div className="grid gap-3 text-sm">
-            {[
-              [c.wallet.method, "releaseFunds(jobId)"],
-              [c.common.amount, "1,250 USDT"],
-              [c.wallet.network, "Polygon"],
-              [c.wallet.gas, "EscrowX sponsored"]
-            ].map(([label, value]) => (
-              <div key={label} className="flex justify-between gap-3">
-                <span className={theme.faint}>{label}</span>
-                <span className={classNames("text-right font-bold", theme.text)}>{value}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <Button theme={theme} icon={Wallet} onClick={openSignModal}>{c.common.signTransaction}</Button>
-            <Button theme={theme} icon={Fingerprint} variant="secondary" onClick={openSignModal}>{c.wallet.approveBiometric}</Button>
-          </div>
-        </Card>
-      </div>
     </div>
   );
 }
@@ -3473,58 +3448,6 @@ function ToastStack({ toasts, removeToast, theme }) {
   );
 }
 
-function SignTransactionModal({ open, onClose, c, theme, addToast }) {
-  return (
-    <AnimatePresence>
-      {open ? (
-        <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <button className="absolute inset-0 bg-slate-950/75" onClick={onClose} aria-label="Close transaction modal" />
-          <motion.div
-            className={classNames("relative w-full max-w-lg rounded-lg border p-6", theme.card)}
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 24, scale: 0.96 }}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className={classNames("text-xl font-black", theme.heading)}>{c.wallet.modalTitle}</p>
-                <p className={classNames("mt-2 text-sm", theme.muted)}>JOB-2402 · releaseFunds</p>
-              </div>
-              <button className={theme.faint} onClick={onClose} aria-label="Close">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="mt-5 grid gap-3 text-sm">
-              {[
-                [c.wallet.method, "releaseFunds(jobId)"],
-                [c.common.amount, "1,250 USDT"],
-                [c.common.contract, "0xE5c8...42F9"],
-                [c.wallet.network, "Polygon"],
-                [c.wallet.gas, "EscrowX sponsored"]
-              ].map(([label, value]) => (
-                <div key={label} className={classNames("flex justify-between gap-3 rounded-lg border p-3", theme.soft)}>
-                  <span className={theme.faint}>{label}</span>
-                  <span className={classNames("text-right font-bold", theme.text)}>{value}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <Button theme={theme} icon={Wallet} onClick={() => {
-                addToast("released");
-                onClose();
-              }}>{c.common.signTransaction}</Button>
-              <Button theme={theme} icon={Fingerprint} variant="secondary" onClick={() => {
-                addToast("released");
-                onClose();
-              }}>{c.wallet.approveBiometric}</Button>
-            </div>
-          </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
-  );
-}
-
 function AdminPage({ c, theme, apiToken }) {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3681,7 +3604,6 @@ function App() {
   const [themeName, setThemeName] = useStoredState("escrowx-theme", "dark");
   const [route, setRoute] = useState(getInitialRoute);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [signOpen, setSignOpen] = useState(false);
   const [apiToken, setApiToken] = useState(() => window.localStorage.getItem("escrowx-token") || null);
   const [currentUser, setCurrentUser] = useState(() => {
     const raw = window.localStorage.getItem("escrowx-user");
@@ -3691,8 +3613,6 @@ function App() {
     connected: false,
     address: "",
     short: "Wallet",
-    eth: "0.00",
-    usdt: "0",
     status: translations.en.status.disconnected
   });
   const [toasts, setToasts] = useState([]);
@@ -3802,7 +3722,6 @@ function App() {
     addToast,
     wallet,
     setWallet,
-    openSignModal: () => setSignOpen(true),
     apiToken,
     setApiToken,
     currentUser,
@@ -3864,7 +3783,6 @@ function App() {
         </main>
       </div>
       <ToastStack toasts={toasts} removeToast={removeToast} theme={theme} />
-      <SignTransactionModal open={signOpen} onClose={() => setSignOpen(false)} c={c} theme={theme} addToast={addToast} />
     </div>
   );
 }
