@@ -343,7 +343,26 @@ const translations = {
       juryProgress: "Jury voting progress",
       outcome: "Resolution status",
       outcomeCopy: "Cast a vote to release funds to the freelancer or refund the client. Requires administrator authorization.",
-      adminNote: "Dispute resolution is restricted to platform administrators."
+      adminNote: "Dispute resolution is restricted to platform administrators.",
+      reasons: ["Missing deliverables", "Late delivery", "Poor quality", "Wrong scope", "Non-payment concern", "Freelancer inactivity", "Client inactivity", "Suspected scam", "Other"],
+      decisions: { release: "Release full payment to freelancer", refund: "Refund full amount to client" },
+      reviewerReasonsTitle: "Confirmed dispute reasons (select at least 1)",
+      reviewerDecisionTitle: "Voting decision",
+      clientEvidence: "Dispute reason (client)",
+      freelancerDefense: "Freelancer rebuttal evidence",
+      noDefenseYet: "Freelancer has not submitted rebuttal evidence yet.",
+      alreadyVoted: "You have already voted on this dispute.",
+      decisionLabel: "Decision",
+      processing: "Processing...",
+      submitVote: "Submit Vote",
+      reviewersVoted: "reviewers voted",
+      result: "Result",
+      releasedToFreelancer: "Released to freelancer",
+      refundedToClient: "Refunded to client",
+      releaseLabel: "Release (freelancer)",
+      refundLabel: "Refund (client)",
+      finalizing: "Finalizing...",
+      finalizeResult: "Finalize Result (Admin)"
     },
     wallet: {
       title: "Wallet Integration",
@@ -667,7 +686,26 @@ const translations = {
       juryProgress: "Tiến độ bỏ phiếu của hội đồng",
       outcome: "Trạng thái xử lý",
       outcomeCopy: "Bỏ phiếu giải ngân cho freelancer hoặc hoàn tiền cho khách hàng. Yêu cầu quyền quản trị viên.",
-      adminNote: "Xử lý tranh chấp chỉ dành cho quản trị viên nền tảng."
+      adminNote: "Xử lý tranh chấp chỉ dành cho quản trị viên nền tảng.",
+      reasons: ["Thiếu sản phẩm bàn giao", "Trễ deadline", "Chất lượng kém", "Sai phạm vi công việc", "Lo ngại không thanh toán", "Freelancer không phản hồi", "Khách hàng không phản hồi", "Nghi ngờ lừa đảo", "Khác"],
+      decisions: { release: "Giải ngân toàn bộ cho freelancer", refund: "Hoàn tiền toàn bộ cho khách hàng" },
+      reviewerReasonsTitle: "Lý do tranh chấp được xác nhận (chọn ít nhất 1)",
+      reviewerDecisionTitle: "Quyết định bỏ phiếu",
+      clientEvidence: "Lý do tranh chấp (client)",
+      freelancerDefense: "Bằng chứng phản bác (freelancer)",
+      noDefenseYet: "Freelancer chưa nộp bằng chứng phản bác.",
+      alreadyVoted: "Bạn đã bỏ phiếu cho tranh chấp này.",
+      decisionLabel: "Quyết định",
+      processing: "Đang xử lý...",
+      submitVote: "Bỏ phiếu",
+      reviewersVoted: "reviewer đã bỏ phiếu",
+      result: "Kết quả",
+      releasedToFreelancer: "Giải ngân cho freelancer",
+      refundedToClient: "Hoàn tiền cho khách hàng",
+      releaseLabel: "Giải ngân (freelancer)",
+      refundLabel: "Hoàn tiền (client)",
+      finalizing: "Đang chốt...",
+      finalizeResult: "Chốt kết quả (Admin)"
     },
     wallet: {
       title: "Tích hợp ví",
@@ -3044,18 +3082,7 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, currentUser, esc
   );
 }
 
-const VOTE_DECISION_OPTIONS = [
-  ["release", "Release full payment to freelancer"],
-  ["refund", "Refund full amount to client"],
-];
-
-const DISPUTE_REASON_OPTIONS = [
-  "Missing deliverables", "Late delivery", "Poor quality",
-  "Wrong scope", "Non-payment concern", "Freelancer inactivity",
-  "Client inactivity", "Suspected scam", "Other",
-];
-
-function DisputeResultSummary({ dispute, theme }) {
+function DisputeResultSummary({ dispute, theme, c }) {
   const votes = dispute.votes || [];
   const total = votes.length;
   const freelancerVotes = votes.filter((v) => v.voteForFreelancer).length;
@@ -3068,18 +3095,18 @@ function DisputeResultSummary({ dispute, theme }) {
     <div className="grid gap-4">
       <div className={classNames("rounded-2xl border p-4", theme.soft)}>
         <p className={classNames("text-sm font-bold", theme.text)}>
-          Kết quả: {releasedToFreelancer ? "Giải ngân cho freelancer" : "Hoàn tiền cho khách hàng"}
+          {c.dispute.result}: {releasedToFreelancer ? c.dispute.releasedToFreelancer : c.dispute.refundedToClient}
         </p>
-        <p className={classNames("mt-1 text-xs", theme.faint)}>{total} reviewer đã bỏ phiếu</p>
+        <p className={classNames("mt-1 text-xs", theme.faint)}>{total} {c.dispute.reviewersVoted}</p>
       </div>
       <div className={classNames("rounded-2xl border p-4", theme.soft)}>
         <div className="mb-2 flex justify-between text-sm">
-          <span className={theme.text}>Release (freelancer)</span>
+          <span className={theme.text}>{c.dispute.releaseLabel}</span>
           <span className={theme.accentText}>{freelancerPct}% ({freelancerVotes}/{total})</span>
         </div>
         <ProgressBar value={freelancerPct} theme={theme} />
         <div className="mb-2 mt-4 flex justify-between text-sm">
-          <span className={theme.text}>Refund (client)</span>
+          <span className={theme.text}>{c.dispute.refundLabel}</span>
           <span className={theme.accentText}>{clientPct}% ({clientVotes}/{total})</span>
         </div>
         <ProgressBar value={clientPct} theme={theme} />
@@ -3263,7 +3290,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
 
               {/* Bằng chứng từ client */}
               <div className={classNames("rounded-2xl border p-4", theme.soft)}>
-                <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>Lý do tranh chấp (client)</p>
+                <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>{c.dispute.clientEvidence}</p>
                 <p className={classNames("text-sm leading-5", theme.text)}>{selectedDispute.reason || "—"}</p>
                 {selectedDispute.evidenceFiles?.length > 0 && (
                   <div className="mt-2 grid gap-1">
@@ -3279,7 +3306,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
 
               {/* Bằng chứng phản bác từ freelancer */}
               <div className={classNames("rounded-2xl border p-4", theme.soft)}>
-                <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>Bằng chứng phản bác (freelancer)</p>
+                <p className={classNames("text-xs font-semibold mb-1", theme.muted)}>{c.dispute.freelancerDefense}</p>
                 {selectedDispute.freelancerDefenseFiles?.length > 0 ? (
                   <div className="grid gap-1">
                     {selectedDispute.freelancerDefenseFiles.map((url, i) => (
@@ -3290,46 +3317,46 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                     ))}
                   </div>
                 ) : (
-                  <p className={classNames("text-xs", theme.faint)}>Freelancer chưa nộp bằng chứng phản bác.</p>
+                  <p className={classNames("text-xs", theme.faint)}>{c.dispute.noDefenseYet}</p>
                 )}
               </div>
 
               {isResolved ? (
-                <DisputeResultSummary dispute={selectedDispute} theme={theme} />
+                <DisputeResultSummary dispute={selectedDispute} theme={theme} c={c} />
               ) : myVote ? (
                 <div className={classNames("rounded-2xl border p-4", theme.soft)}>
-                  <p className={classNames("text-sm font-bold", theme.text)}>Bạn đã bỏ phiếu cho tranh chấp này.</p>
+                  <p className={classNames("text-sm font-bold", theme.text)}>{c.dispute.alreadyVoted}</p>
                   <p className={classNames("mt-1 text-xs", theme.faint)}>
-                    Quyết định: {myVote.voteForFreelancer ? "Release full payment to freelancer" : "Refund full amount to client"}
+                    {c.dispute.decisionLabel}: {myVote.voteForFreelancer ? c.dispute.decisions.release : c.dispute.decisions.refund}
                   </p>
                 </div>
               ) : (
                 <>
                   <div className={classNames("rounded-2xl border p-4", theme.soft)}>
-                    <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>Lý do tranh chấp được xác nhận (chọn ít nhất 1)</p>
+                    <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>{c.dispute.reviewerReasonsTitle}</p>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {DISPUTE_REASON_OPTIONS.map((item) => (
+                      {c.dispute.reasons.map((item) => (
                         <CheckboxRow key={item} theme={theme} label={item} checked={confirmedReasons.includes(item)} onChange={() => toggleReason(item)} />
                       ))}
                     </div>
                   </div>
                   <div className={classNames("rounded-2xl border p-4", theme.soft)}>
-                    <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>Quyết định bỏ phiếu</p>
+                    <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>{c.dispute.reviewerDecisionTitle}</p>
                     <div className="grid gap-2">
-                      {VOTE_DECISION_OPTIONS.map(([key, label]) => (
+                      {Object.entries(c.dispute.decisions).map(([key, label]) => (
                         <CheckboxRow key={key} theme={theme} label={label} checked={decision === key} onChange={() => setDecision(key)} />
                       ))}
                     </div>
                   </div>
                   <InlineMessage message={status.message} theme={theme} tone={status.tone} />
                   <Button theme={theme} icon={Vote} variant="success" onClick={handleVote} disabled={status.loading || !decision || confirmedReasons.length === 0}>
-                    {status.loading ? "Đang xử lý..." : "Bỏ phiếu"}
+                    {status.loading ? c.dispute.processing : c.dispute.submitVote}
                   </Button>
                 </>
               )}
               {!isResolved && currentUser?.role === "admin" && (
                 <Button theme={theme} icon={Gavel} variant="danger" onClick={handleFinalize} disabled={status.loading}>
-                  {status.loading ? "Đang chốt..." : "Chốt kết quả (Admin)"}
+                  {status.loading ? c.dispute.finalizing : c.dispute.finalizeResult}
                 </Button>
               )}
             </div>
@@ -3338,7 +3365,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
           {/* ── Freelancer: nộp bằng chứng phản bác ── */}
           {isDisputeFreelancer && (
             isResolved ? (
-              <DisputeResultSummary dispute={selectedDispute} theme={theme} />
+              <DisputeResultSummary dispute={selectedDispute} theme={theme} c={c} />
             ) : (
               <form onSubmit={handleUploadDefense} className="grid gap-4">
                 <div className={classNames("rounded-2xl border p-4", theme.soft)}>
@@ -3359,7 +3386,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
           {/* ── Client: xem trạng thái dispute đã mở ── */}
           {isDisputeClient && (
             isResolved ? (
-              <DisputeResultSummary dispute={selectedDispute} theme={theme} />
+              <DisputeResultSummary dispute={selectedDispute} theme={theme} c={c} />
             ) : (
               <div className="grid gap-4">
                 <div className={classNames("rounded-2xl border p-4", theme.soft)}>
