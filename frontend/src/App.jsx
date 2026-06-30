@@ -2929,19 +2929,29 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
           )}
 
           {!selectedDispute && !selectedEscrow && (
-            <div className="grid gap-3 md:grid-cols-3">
-              {[
-                [FileText, c.dispute.deliverables, "https://github.com/client/job-2379"],
-                [UploadCloud, c.dispute.screenshots, "ipfs://QmAuditEvidence42"],
-                [ReceiptText, "Milestone Log", "Oracle checkpoint #18"]
-              ].map(([Icon, label, value]) => (
-                <div key={label} className={classNames("rounded-lg border p-4", theme.soft)}>
-                  <Icon className={classNames("h-5 w-5", theme.accentText)} />
-                  <p className={classNames("mt-3 font-black", theme.heading)}>{label}</p>
-                  <p className={classNames("mt-2 break-all text-xs", theme.muted)}>{value}</p>
-                </div>
-              ))}
-            </div>
+            disputes.length ? (
+              <div className="grid gap-3">
+                {disputes.map((d) => (
+                  <div key={d._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className={classNames("font-bold text-sm", theme.text)}>{d.escrow?.serviceName || "—"}</p>
+                        <Badge theme={theme} tone={d.status === "OPEN" ? "amber" : "emerald"}>{d.status}</Badge>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                        <span className={theme.faint}>{formatEscrowAmount(d.escrow?.amount)}</span>
+                        <span className={classNames("truncate", theme.faint)}>{d.reason}</span>
+                      </div>
+                    </div>
+                    <Button theme={theme} icon={Gavel} variant="secondary" size="sm" onClick={() => setSelectedDispute(d)}>
+                      Xem xét
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className={classNames("py-8 text-center text-sm", theme.muted)}>Không có tranh chấp nào đang mở.</p>
+            )
           )}
         </Card>
 
