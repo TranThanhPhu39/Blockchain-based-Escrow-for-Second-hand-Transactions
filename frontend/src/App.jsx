@@ -2678,35 +2678,20 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, selectedEscrow, 
   );
 }
 
-const VOTE_CHECKLIST_ITEMS = [
-  ["deliverablesMatch", "Sản phẩm khớp với phạm vi hợp đồng"],
-  ["acceptanceCriteriaMet", "Tiêu chí nghiệm thu đã được đáp ứng"],
-  ["deadlineMet", "Đã xem xét việc đáp ứng deadline"],
-  ["revisionHistoryReviewed", "Đã xem lịch sử yêu cầu sửa"],
-  ["submissionHistoryReviewed", "Đã xem lịch sử nộp bài"],
-  ["blockchainTimelineReviewed", "Đã xem timeline on-chain"],
-  ["evidenceReviewed", "Đã xem toàn bộ bằng chứng"],
+const VOTE_DECISION_OPTIONS = [
+  ["release", "Release full payment to freelancer"],
+  ["refund", "Refund full amount to client"],
 ];
-
-function emptyVoteChecklist() {
-  return VOTE_CHECKLIST_ITEMS.reduce((acc, [key]) => ({ ...acc, [key]: false }), {});
-}
 
 function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selectedEscrow, refreshEscrows }) {
   const [disputes, setDisputes] = useState([]);
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [status, setStatus] = useState({ loading: false, message: "" });
-  const [checklist, setChecklist] = useState(emptyVoteChecklist);
+  const [decision, setDecision] = useState(null);
 
   useEffect(() => {
-    setChecklist(emptyVoteChecklist());
+    setDecision(null);
   }, [selectedDispute?._id]);
-
-  function toggleChecklist(key) {
-    setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
-  }
-
-  const allChecklistItemsReviewed = Object.values(checklist).every(Boolean);
 
   const fetchDisputes = () => {
     if (!apiToken) return;
@@ -2744,17 +2729,16 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
     setStatus({ loading: false, message: "" });
   }
 
-  async function handleVote(voteForFreelancer) {
-    if (!selectedDispute || !allChecklistItemsReviewed) return;
+  async function handleVote() {
+    if (!selectedDispute || !decision) return;
+    const voteForFreelancer = decision === "release";
     setStatus({ loading: true, message: "" });
     try {
       const { signer } = await getSignerAndDecimals();
       const reason = voteForFreelancer ? "Bỏ phiếu giải ngân cho freelancer" : "Bỏ phiếu hoàn tiền cho khách hàng";
       const tx = await sendContractTx(signer, "castDisputeVote", [
         selectedDispute.escrowIdOnChain,
-        checklist.deliverablesMatch, checklist.acceptanceCriteriaMet, checklist.deadlineMet,
-        checklist.revisionHistoryReviewed, checklist.submissionHistoryReviewed,
-        checklist.blockchainTimelineReviewed, checklist.evidenceReviewed,
+        true, true, true, true, true, true, true,
         voteForFreelancer,
         reason,
       ], 300000);
@@ -2763,7 +2747,9 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
         method: "POST", token: apiToken,
         body: JSON.stringify({
           txHash: receipt.hash, voteForFreelancer, reason,
-          ...checklist,
+          deliverablesMatch: true, acceptanceCriteriaMet: true, deadlineMet: true,
+          revisionHistoryReviewed: true, submissionHistoryReviewed: true,
+          blockchainTimelineReviewed: true, evidenceReviewed: true,
         })
       });
       addToast("disputeResolved");
@@ -2845,6 +2831,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
   const isDisputeClient     = selectedDispute && String(selectedDispute.escrow?.client)     === String(uid);
   const isDisputeFreelancer = selectedDispute && String(selectedDispute.escrow?.freelancer) === String(uid);
   const isReviewer          = selectedDispute && !isDisputeClient && !isDisputeFreelancer;
+  const myVote = selectedDispute?.votes?.find(v => String(v.reviewer?._id || v.reviewer) === String(uid));
 
   return (
     <div className="space-y-6">
@@ -2894,24 +2881,29 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
                 )}
               </div>
 
-              <div className={classNames("rounded-lg border p-4", theme.soft)}>
-                <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>Checklist trước khi bỏ phiếu</p>
-                <div className="grid gap-2">
-                  {VOTE_CHECKLIST_ITEMS.map(([key, label]) => (
-                    <CheckboxRow key={key} theme={theme} label={label} checked={checklist[key]} onChange={() => toggleChecklist(key)} />
-                  ))}
+              {myVote ? (
+                <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                  <p className={classNames("text-sm font-bold", theme.text)}>Bạn đã bỏ phiếu cho tranh chấp này.</p>
+                  <p className={classNames("mt-1 text-xs", theme.faint)}>
+                    Quyết định: {myVote.voteForFreelancer ? "Release full payment to freelancer" : "Refund full amount to client"}
+                  </p>
                 </div>
-                {!allChecklistItemsReviewed && (
-                  <p className={classNames("mt-3 text-xs", theme.faint)}>Tick đủ 7 mục trên để mở khóa nút bỏ phiếu.</p>
-                )}
-              </div>
-              <InlineMessage message={status.message} theme={theme} />
-              <Button theme={theme} icon={Vote} variant="success" onClick={() => handleVote(true)} disabled={status.loading || !allChecklistItemsReviewed}>
-                {status.loading ? "Đang xử lý..." : c.common.voteRelease}
-              </Button>
-              <Button theme={theme} icon={Gavel} variant="secondary" onClick={() => handleVote(false)} disabled={status.loading || !allChecklistItemsReviewed}>
-                {c.common.voteRefund}
-              </Button>
+              ) : (
+                <>
+                  <div className={classNames("rounded-lg border p-4", theme.soft)}>
+                    <p className={classNames("mb-3 text-xs font-semibold", theme.muted)}>Quyết định bỏ phiếu</p>
+                    <div className="grid gap-2">
+                      {VOTE_DECISION_OPTIONS.map(([key, label]) => (
+                        <CheckboxRow key={key} theme={theme} label={label} checked={decision === key} onChange={() => setDecision(key)} />
+                      ))}
+                    </div>
+                  </div>
+                  <InlineMessage message={status.message} theme={theme} />
+                  <Button theme={theme} icon={Vote} variant="success" onClick={handleVote} disabled={status.loading || !decision}>
+                    {status.loading ? "Đang xử lý..." : "Bỏ phiếu"}
+                  </Button>
+                </>
+              )}
               {currentUser?.role === "admin" && (
                 <Button theme={theme} icon={Gavel} variant="danger" onClick={handleFinalize} disabled={status.loading}>
                   {status.loading ? "Đang chốt..." : "Chốt kết quả (Admin)"}
@@ -2976,23 +2968,27 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
           {!selectedDispute && !selectedEscrow && (
             disputes.length ? (
               <div className="grid gap-3">
-                {disputes.map((d) => (
-                  <div key={d._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className={classNames("font-bold text-sm", theme.text)}>{d.escrow?.serviceName || "—"}</p>
-                        <Badge theme={theme} tone={d.status === "OPEN" ? "amber" : "emerald"}>{d.status}</Badge>
+                {disputes.map((d) => {
+                  const voted = d.votes?.some(v => String(v.reviewer?._id || v.reviewer) === String(uid));
+                  return (
+                    <div key={d._id} className={classNames("flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4", theme.soft)}>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className={classNames("font-bold text-sm", theme.text)}>{d.escrow?.serviceName || "—"}</p>
+                          <Badge theme={theme} tone={d.status === "OPEN" ? "amber" : "emerald"}>{d.status}</Badge>
+                          {voted && <Badge theme={theme} tone="emerald">Đã bỏ phiếu</Badge>}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                          <span className={theme.faint}>{formatEscrowAmount(d.escrow?.amount)}</span>
+                          <span className={classNames("truncate", theme.faint)}>{d.reason}</span>
+                        </div>
                       </div>
-                      <div className="mt-1 flex flex-wrap gap-3 text-xs">
-                        <span className={theme.faint}>{formatEscrowAmount(d.escrow?.amount)}</span>
-                        <span className={classNames("truncate", theme.faint)}>{d.reason}</span>
-                      </div>
+                      <Button theme={theme} icon={Gavel} variant="secondary" size="sm" onClick={() => setSelectedDispute(d)}>
+                        Xem xét
+                      </Button>
                     </div>
-                    <Button theme={theme} icon={Gavel} variant="secondary" size="sm" onClick={() => setSelectedDispute(d)}>
-                      Xem xét
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className={classNames("py-8 text-center text-sm", theme.muted)}>Không có tranh chấp nào đang mở.</p>
@@ -3004,24 +3000,30 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
           <SectionTitle theme={theme} title={c.dispute.outcome} />
           {disputes.length ? (
             <div className="grid gap-3">
-              {disputes.map((d) => (
-                <button
-                  key={d._id}
-                  type="button"
-                  onClick={() => setSelectedDispute(selectedDispute?._id === d._id ? null : d)}
-                  className={classNames(
-                    "w-full rounded-lg border p-4 text-left transition hover:opacity-80",
-                    theme.soft,
-                    selectedDispute?._id === d._id ? "ring-2 ring-cyan-400" : ""
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className={classNames("text-sm font-bold", theme.text)}>{d.escrow?.serviceName || "—"}</p>
-                    <Badge theme={theme} tone={d.status === "OPEN" ? "amber" : "emerald"}>{d.status}</Badge>
-                  </div>
-                  <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{d.reason}</p>
-                </button>
-              ))}
+              {disputes.map((d) => {
+                const voted = d.votes?.some(v => String(v.reviewer?._id || v.reviewer) === String(uid));
+                return (
+                  <button
+                    key={d._id}
+                    type="button"
+                    onClick={() => setSelectedDispute(selectedDispute?._id === d._id ? null : d)}
+                    className={classNames(
+                      "w-full rounded-lg border p-4 text-left transition hover:opacity-80",
+                      theme.soft,
+                      selectedDispute?._id === d._id ? "ring-2 ring-cyan-400" : ""
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className={classNames("text-sm font-bold", theme.text)}>{d.escrow?.serviceName || "—"}</p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge theme={theme} tone={d.status === "OPEN" ? "amber" : "emerald"}>{d.status}</Badge>
+                        {voted && <Badge theme={theme} tone="emerald">Đã bỏ phiếu</Badge>}
+                      </div>
+                    </div>
+                    <p className={classNames("mt-2 text-xs leading-5", theme.muted)}>{d.reason}</p>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <>
