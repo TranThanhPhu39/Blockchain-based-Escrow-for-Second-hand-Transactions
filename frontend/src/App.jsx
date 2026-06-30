@@ -2279,6 +2279,8 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
   const canRegister  = isClient     && resolvedStatus === "CREATED" && escrow?.freelancer;
   const canAccept    = isFreelancer && resolvedStatus === "CREATED";
   const canDeposit   = isClient     && resolvedStatus === "ACCEPTED" && escrow?.freelancer;
+  const canSubmitWork  = isFreelancer && ["DEPOSITED", "REVISION_REQUESTED"].includes(resolvedStatus);
+  const canApproveWork = isClient     && resolvedStatus === "SUBMITTED";
 
   useEffect(() => {
     if (escrow?.status !== "SUBMITTED" || !escrow?.autoReleaseAt) { setCountdown(""); return; }
@@ -2362,10 +2364,9 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     }
     setTxStatus({ loading: true, message: "" });
     try {
-      // Gọi getSignerAndDecimals() TRƯỚC để switch wallet sang Amoy.
-      // Sau đó getOnChainStatus() dùng wallet provider (đã trên Amoy) → không bị lỗi RPC.
-      const { signer, decimals } = await getSignerAndDecimals();
-
+      // Kiểm tra trạng thái on-chain TRƯỚC (qua RPC công khai, không cần ví) để
+      // báo lỗi/redirect ngay nếu hợp đồng đã qua bước này — tránh mở MetaMask
+      // rồi mới phát hiện không cần gửi giao dịch.
       const currentStatus = await getOnChainStatus(escrow.escrowIdOnChain).catch(() => -2);
 
       if (currentStatus === 1) {
@@ -2385,7 +2386,8 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
         return;
       }
 
-      // currentStatus === -1 (chưa có on-chain) hoặc -2 (RPC lỗi) → gửi tx tạo mới
+      // currentStatus === -1 (chưa có on-chain) hoặc -2 (RPC lỗi) → mở MetaMask gửi tx tạo mới
+      const { signer, decimals } = await getSignerAndDecimals();
       const amountBig = parseUnits(String(escrow.amount), decimals);
       const contractURI = `${API_BASE_URL}/api/escrows/${escrow._id}`;
       const tx = await sendContractTx(signer, "createContract",
@@ -2457,11 +2459,8 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
     }
     setTxStatus({ loading: true, message: "" });
     try {
-      const { signer, token, decimals } = await getSignerAndDecimals();
-      const signerAddress = await signer.getAddress();
-      await apiRequest("/api/faucet", { method: "POST", body: JSON.stringify({ address: signerAddress }) })
-        .catch(e => console.warn("[faucet]", e.message));
-
+      // Kiểm tra trạng thái on-chain TRƯỚC (qua RPC công khai, không cần ví) —
+      // tránh mở MetaMask rồi mới báo "freelancer chưa chấp nhận" hay tương tự.
       const onChainStatus = await getOnChainStatus(escrow.escrowIdOnChain);
       console.log("[deposit] on-chain status:", onChainStatus);
 
@@ -2480,7 +2479,12 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
         return;
       }
 
-      // onChainStatus === 1 (ACCEPTED) → approve ERC20, then deposit
+      // onChainStatus === 1 (ACCEPTED) → mở MetaMask, approve ERC20 rồi deposit
+      const { signer, token, decimals } = await getSignerAndDecimals();
+      const signerAddress = await signer.getAddress();
+      await apiRequest("/api/faucet", { method: "POST", body: JSON.stringify({ address: signerAddress }) })
+        .catch(e => console.warn("[faucet]", e.message));
+
       const amountBig = parseUnits(String(escrow.amount), decimals);
       const feeParams = getGasParams();
       console.log("[deposit] calling approve...");
@@ -2576,8 +2580,25 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       )}
       <Card theme={theme}>
         <SectionTitle theme={theme} eyebrow={c.details.timelineNote} title={c.details.workflow}>
-          <Button theme={theme} icon={UploadCloud} variant="secondary" onClick={() => navigate("submit")}>{c.nav.submit}</Button>
-          <Button theme={theme} icon={CheckCircle2} onClick={() => navigate("approval")}>{c.nav.approval}</Button>
+          <Button
+            theme={theme}
+            icon={UploadCloud}
+            variant="secondary"
+            onClick={() => navigate("submit")}
+            disabled={!canSubmitWork}
+            title={!canSubmitWork ? "Chỉ freelancer mới nộp được sản phẩm, sau khi hợp đồng đã được nạp tiền (DEPOSITED)" : undefined}
+          >
+            {c.nav.submit}
+          </Button>
+          <Button
+            theme={theme}
+            icon={CheckCircle2}
+            onClick={() => navigate("approval")}
+            disabled={!canApproveWork}
+            title={!canApproveWork ? "Chỉ client mới phê duyệt được, sau khi freelancer đã nộp sản phẩm (SUBMITTED)" : undefined}
+          >
+            {c.nav.approval}
+          </Button>
         </SectionTitle>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {workflow.map((state) => (
@@ -2623,6 +2644,10 @@ function SubmissionPage({ c, theme, navigate, addToast, apiToken, currentUser, e
     event.preventDefault();
     if (!apiToken || !selectedEscrow?._id) {
       setStatus({ loading: false, message: "Please log in and select an escrow first." });
+      return;
+    }
+    if (!["DEPOSITED", "REVISION_REQUESTED"].includes(selectedEscrow.status)) {
+      setStatus({ loading: false, message: "Hợp đồng chưa được nạp tiền (DEPOSITED), chưa thể nộp sản phẩm." });
       return;
     }
 
@@ -2741,6 +2766,10 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, currentUser, esc
   async function approveSelectedEscrow() {
     if (!apiToken || !selectedEscrow?._id) {
       setStatus({ loading: false, message: "Please log in and select an escrow first." });
+      return;
+    }
+    if (selectedEscrow.status !== "SUBMITTED") {
+      setStatus({ loading: false, message: "Freelancer chưa nộp sản phẩm (SUBMITTED), chưa thể phê duyệt." });
       return;
     }
 
