@@ -801,8 +801,8 @@ const AMOY_RPC_LIST = [
 // to avoid RPC fee estimation returning values below the network minimum.
 function getGasParams() {
   return {
-    maxPriorityFeePerGas: 500_000_000_000n, // 500 Gwei tip — đảm bảo Polygon Amoy không revert
-    maxFeePerGas:         600_000_000_000n, // 600 Gwei cap
+    maxPriorityFeePerGas: 30_000_000_000n, // 30 Gwei
+    maxFeePerGas:         50_000_000_000n, // 50 Gwei
   };
 }
 
