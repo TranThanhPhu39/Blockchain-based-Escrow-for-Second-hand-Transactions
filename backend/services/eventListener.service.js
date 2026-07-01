@@ -16,6 +16,7 @@
 const { getContract }       = require('../config/blockchain');
 const { getBlockTimestamp } = require('./blockchain.service');
 const Escrow               = require('../models/Escrow');
+const Dispute              = require('../models/Dispute');
 const TransactionLog       = require('../models/TransactionLog');
 const EventListenerState   = require('../models/EventListenerState');
 const { ESCROW_STATUS }     = require('../utils/constants');
@@ -494,6 +495,12 @@ const handleFundsReleased = async (contractId, freelancer, amount, event) => {
     await escrow.save();
     console.log(`✅ Escrow ${escrow._id} → RELEASED`);
 
+    const disputeUpdated = await Dispute.findOneAndUpdate(
+      { escrowIdOnChain: normalizedId, status: { $in: ['OPEN', 'REVIEWING'] } },
+      { status: 'RESOLVED_RELEASE', finalizedAt: new Date() }
+    );
+    if (disputeUpdated) console.log(`✅ Dispute → RESOLVED_RELEASE`);
+
     await saveTransactionLog({
       escrowDbId:      escrow._id,
       escrowIdOnChain: normalizedId,
@@ -530,6 +537,12 @@ const handleClientRefunded = async (contractId, client, amount, event) => {
     escrow.status = ESCROW_STATUS.REFUNDED;
     await escrow.save();
     console.log(`✅ Escrow ${escrow._id} → REFUNDED`);
+
+    const disputeUpdated = await Dispute.findOneAndUpdate(
+      { escrowIdOnChain: normalizedId, status: { $in: ['OPEN', 'REVIEWING'] } },
+      { status: 'RESOLVED_REFUND', finalizedAt: new Date() }
+    );
+    if (disputeUpdated) console.log(`✅ Dispute → RESOLVED_REFUND`);
 
     await saveTransactionLog({
       escrowDbId:      escrow._id,
