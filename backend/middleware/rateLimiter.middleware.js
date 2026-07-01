@@ -33,16 +33,18 @@ const authLimiter = rateLimit({
 });
 
 /**
- * Faucet: mint test tokens — rất strict vì mỗi call tốn gas của admin wallet.
+ * Faucet: mint test tokens — rate limit theo wallet address, không theo IP.
+ * Mỗi địa chỉ ví được gọi tối đa 20 lần/giờ.
  */
 const faucetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 giờ
-  max: 5,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => (req.body?.address || req.ip).toLowerCase(),
   message: {
     success: false,
-    error: 'Faucet limit reached. You can request test tokens at most 5 times per hour.',
+    error: 'Faucet limit reached. You can request test tokens at most 20 times per hour.',
   },
 });
 
