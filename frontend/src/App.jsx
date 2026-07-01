@@ -1238,72 +1238,78 @@ function makeStarField(count, seed, size, opacityRange, color) {
 }
 
 const EXTRA_STAR_LAYERS = [
-  makeStarField(55, 17, 0.8, [0.35, 0.65], "255,255,255"),
-  makeStarField(35, 53, 1, [0.4, 0.75], "196,181,253"),
-  makeStarField(18, 91, 1.3, [0.5, 0.85], "255,255,255"),
+  makeStarField(55, 17, 1.8, [0.40, 0.70], "255,255,255"),
+  makeStarField(35, 53, 2.2, [0.45, 0.80], "196,181,253"),
+  makeStarField(18, 91, 2.8, [0.55, 0.90], "255,255,255"),
 ];
 
 function HoloBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-      {/* Base */}
-      <div className="absolute inset-0 bg-[#fefefe]" />
+      {/* Base — very light warm white */}
+      <div className="absolute inset-0" style={{ background: "#faf9ff" }} />
 
-      {/* Wave 1 — pink, bottom-left, angled */}
+      {/* Cloud 1 — large pink blob, bottom-left, main wave */}
       <div className="absolute" style={{
-        width: "110%", height: "55%",
-        bottom: "-8%", left: "-20%",
-        background: "radial-gradient(ellipse at 40% 60%, rgba(255,182,210,0.32) 0%, transparent 68%)",
-        filter: "blur(38px)",
-        transform: "rotate(-12deg)",
+        width: "75%", height: "65%",
+        bottom: "-15%", left: "-15%",
+        borderRadius: "60% 40% 55% 45% / 50% 60% 40% 50%",
+        background: "rgba(255,160,195,0.55)",
+        filter: "blur(22px)",
+        transform: "rotate(-14deg)",
       }} />
 
-      {/* Wave 2 — rose stripe, sweeping across center-left */}
+      {/* Cloud 2 — rose sweep across lower-center */}
       <div className="absolute" style={{
-        width: "85%", height: "38%",
-        bottom: "18%", left: "-8%",
-        background: "radial-gradient(ellipse at 35% 55%, rgba(249,160,205,0.22) 0%, transparent 65%)",
-        filter: "blur(52px)",
-        transform: "rotate(-6deg)",
+        width: "65%", height: "40%",
+        bottom: "12%", left: "5%",
+        borderRadius: "45% 55% 60% 40% / 55% 45% 55% 45%",
+        background: "rgba(249,140,190,0.38)",
+        filter: "blur(28px)",
+        transform: "rotate(-7deg)",
       }} />
 
-      {/* Wave 3 — lavender, center undulation */}
+      {/* Cloud 3 — lavender/violet center drift */}
       <div className="absolute" style={{
-        width: "75%", height: "50%",
-        top: "20%", left: "18%",
-        background: "radial-gradient(ellipse at 50% 45%, rgba(216,180,254,0.22) 0%, transparent 65%)",
-        filter: "blur(48px)",
-        transform: "rotate(4deg)",
+        width: "60%", height: "50%",
+        top: "18%", left: "22%",
+        borderRadius: "55% 45% 40% 60% / 40% 60% 45% 55%",
+        background: "rgba(200,168,255,0.38)",
+        filter: "blur(26px)",
+        transform: "rotate(5deg)",
       }} />
 
-      {/* Wave 4 — blue/indigo top-right */}
+      {/* Cloud 4 — blue/periwinkle, top-right */}
       <div className="absolute" style={{
-        width: "55%", height: "50%",
-        top: "-12%", right: "-12%",
-        background: "radial-gradient(ellipse at 55% 35%, rgba(165,180,252,0.40) 0%, transparent 60%)",
-        filter: "blur(40px)",
-        transform: "rotate(10deg)",
+        width: "50%", height: "55%",
+        top: "-18%", right: "-12%",
+        borderRadius: "50% 50% 55% 45% / 45% 55% 50% 50%",
+        background: "rgba(150,170,255,0.52)",
+        filter: "blur(20px)",
+        transform: "rotate(12deg)",
       }} />
 
-      {/* Wave 5 — soft pink highlight top-center */}
+      {/* Cloud 5 — soft pink wisp, top-center */}
       <div className="absolute" style={{
-        width: "65%", height: "28%",
-        top: "-4%", left: "18%",
-        background: "radial-gradient(ellipse at 50% 40%, rgba(251,207,232,0.24) 0%, transparent 65%)",
-        filter: "blur(44px)",
-        transform: "rotate(-3deg)",
+        width: "55%", height: "28%",
+        top: "-5%", left: "22%",
+        borderRadius: "50% 50% 45% 55% / 60% 40% 60% 40%",
+        background: "rgba(255,192,220,0.36)",
+        filter: "blur(24px)",
+        transform: "rotate(-4deg)",
       }} />
 
-      {/* Wave 6 — tiny violet accent, lower-center to add depth */}
+      {/* Cloud 6 — violet accent, lower-center depth */}
       <div className="absolute" style={{
-        width: "50%", height: "30%",
-        bottom: "5%", left: "30%",
-        background: "radial-gradient(ellipse at 50% 50%, rgba(192,132,252,0.14) 0%, transparent 65%)",
-        filter: "blur(55px)",
+        width: "45%", height: "35%",
+        bottom: "8%", left: "32%",
+        borderRadius: "55% 45% 50% 50% / 45% 55% 45% 55%",
+        background: "rgba(180,120,255,0.22)",
+        filter: "blur(32px)",
       }} />
 
-      {/* White veil — lifts overall brightness */}
-      <div className="absolute inset-0" style={{ background: "rgba(255,255,255,0.22)" }} />
+      {/* Frosted overlay — gentle brighten without washing out */}
+      <div className="absolute inset-0" style={{ background: "rgba(255,255,255,0.10)" }} />
     </div>
   );
 }
@@ -1338,67 +1344,67 @@ function GalaxyBackground() {
       {/* Bright galactic core glow */}
       <div className="absolute" style={{ top: "8%", left: "45%", width: "20vw", height: "20vw", background: "radial-gradient(circle, rgba(196,181,253,0.15) 0%, rgba(139,92,246,0.08) 40%, transparent 70%)", filter: "blur(30px)" }} />
 
-      {/* Dense star field layer 1 — tiny white stars */}
+      {/* Dense star field layer 1 — small white stars */}
       <div className="absolute inset-0" style={{
         backgroundImage: [
-          "radial-gradient(1px 1px at  5%  8%, rgba(255,255,255,0.80) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 12% 22%, rgba(255,255,255,0.65) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 18%  5%, rgba(255,255,255,0.70) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 23% 38%, rgba(255,255,255,0.55) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 30% 14%, rgba(255,255,255,0.75) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 36% 52%, rgba(255,255,255,0.60) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 42%  3%, rgba(255,255,255,0.70) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 48% 28%, rgba(255,255,255,0.55) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 55% 67%, rgba(255,255,255,0.65) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 60% 11%, rgba(255,255,255,0.80) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 66% 44%, rgba(255,255,255,0.60) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 72%  7%, rgba(255,255,255,0.70) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 78% 59%, rgba(255,255,255,0.55) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 83% 25%, rgba(255,255,255,0.75) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 88%  3%, rgba(255,255,255,0.65) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 93% 73%, rgba(255,255,255,0.60) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 97% 42%, rgba(255,255,255,0.70) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at  8% 55%, rgba(255,255,255,0.65) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 15% 78%, rgba(255,255,255,0.55) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 27% 91%, rgba(255,255,255,0.60) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 40% 83%, rgba(255,255,255,0.70) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 52% 95%, rgba(255,255,255,0.55) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 63% 80%, rgba(255,255,255,0.65) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 74% 88%, rgba(255,255,255,0.60) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 85% 76%, rgba(255,255,255,0.70) 0%, transparent 100%)",
-          "radial-gradient(1px 1px at 95% 91%, rgba(255,255,255,0.55) 0%, transparent 100%)"
+          "radial-gradient(2px 2px at  5%  8%, rgba(255,255,255,0.85) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 12% 22%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 18%  5%, rgba(255,255,255,0.75) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 23% 38%, rgba(255,255,255,0.60) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 30% 14%, rgba(255,255,255,0.80) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 36% 52%, rgba(255,255,255,0.65) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 42%  3%, rgba(255,255,255,0.75) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 48% 28%, rgba(255,255,255,0.60) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 55% 67%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 60% 11%, rgba(255,255,255,0.85) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 66% 44%, rgba(255,255,255,0.65) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 72%  7%, rgba(255,255,255,0.75) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 78% 59%, rgba(255,255,255,0.60) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 83% 25%, rgba(255,255,255,0.80) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 88%  3%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 93% 73%, rgba(255,255,255,0.65) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 97% 42%, rgba(255,255,255,0.75) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at  8% 55%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 15% 78%, rgba(255,255,255,0.60) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 27% 91%, rgba(255,255,255,0.65) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 40% 83%, rgba(255,255,255,0.75) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 52% 95%, rgba(255,255,255,0.60) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 63% 80%, rgba(255,255,255,0.70) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 74% 88%, rgba(255,255,255,0.65) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 85% 76%, rgba(255,255,255,0.75) 0%, transparent 100%)",
+          "radial-gradient(2px 2px at 95% 91%, rgba(255,255,255,0.60) 0%, transparent 100%)"
         ].join(", ")
       }} />
 
-      {/* Star field layer 2 — slightly larger lavender-tinted stars */}
+      {/* Star field layer 2 — medium lavender-tinted stars */}
       <div className="absolute inset-0" style={{
         backgroundImage: [
-          "radial-gradient(1.5px 1.5px at  9% 31%, rgba(196,181,253,0.90) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 19% 65%, rgba(196,181,253,0.75) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 32%  9%, rgba(255,255,255,0.85) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 44% 48%, rgba(196,181,253,0.70) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 58% 19%, rgba(255,255,255,0.90) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 67% 72%, rgba(196,181,253,0.80) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 76% 35%, rgba(255,255,255,0.75) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 87% 55%, rgba(196,181,253,0.85) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at  3% 85%, rgba(255,255,255,0.70) 0%, transparent 100%)",
-          "radial-gradient(1.5px 1.5px at 50% 75%, rgba(196,181,253,0.80) 0%, transparent 100%)",
-          "radial-gradient(2px 2px   at 25% 50%, rgba(255,255,255,0.90) 0%, transparent 100%)",
-          "radial-gradient(2px 2px   at 70% 15%, rgba(196,181,253,0.85) 0%, transparent 100%)",
-          "radial-gradient(2px 2px   at 90% 70%, rgba(255,255,255,0.80) 0%, transparent 100%)"
+          "radial-gradient(3px 3px at  9% 31%, rgba(196,181,253,0.92) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 19% 65%, rgba(196,181,253,0.80) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 32%  9%, rgba(255,255,255,0.90) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 44% 48%, rgba(196,181,253,0.75) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 58% 19%, rgba(255,255,255,0.92) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 67% 72%, rgba(196,181,253,0.85) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 76% 35%, rgba(255,255,255,0.80) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 87% 55%, rgba(196,181,253,0.88) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at  3% 85%, rgba(255,255,255,0.75) 0%, transparent 100%)",
+          "radial-gradient(3px 3px at 50% 75%, rgba(196,181,253,0.85) 0%, transparent 100%)",
+          "radial-gradient(3.5px 3.5px at 25% 50%, rgba(255,255,255,0.92) 0%, transparent 100%)",
+          "radial-gradient(3.5px 3.5px at 70% 15%, rgba(196,181,253,0.88) 0%, transparent 100%)",
+          "radial-gradient(3.5px 3.5px at 90% 70%, rgba(255,255,255,0.85) 0%, transparent 100%)"
         ].join(", ")
       }} />
 
-      {/* Bright hero stars (larger glowing dots) */}
+      {/* Bright hero stars (large glowing dots) */}
       <div className="absolute inset-0" style={{
         backgroundImage: [
-          "radial-gradient(2.5px 2.5px at 14% 17%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.3) 60%, transparent 100%)",
-          "radial-gradient(2.5px 2.5px at 37% 62%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.3) 60%, transparent 100%)",
-          "radial-gradient(2.5px 2.5px at 62%  8%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.3) 60%, transparent 100%)",
-          "radial-gradient(3px   3px   at 80% 44%, rgba(255,255,255,1.0) 0%, rgba(217,70,239,0.25) 60%, transparent 100%)",
-          "radial-gradient(2.5px 2.5px at 91% 20%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.3) 60%, transparent 100%)",
-          "radial-gradient(2.5px 2.5px at  4% 72%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.3) 60%, transparent 100%)",
-          "radial-gradient(3px   3px   at 55% 88%, rgba(255,255,255,1.0) 0%, rgba(109,94,248,0.3) 60%, transparent 100%)"
+          "radial-gradient(5px 5px at 14% 17%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.35) 60%, transparent 100%)",
+          "radial-gradient(5px 5px at 37% 62%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.35) 60%, transparent 100%)",
+          "radial-gradient(5px 5px at 62%  8%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.35) 60%, transparent 100%)",
+          "radial-gradient(6px 6px at 80% 44%, rgba(255,255,255,1.0) 0%, rgba(217,70,239,0.30) 60%, transparent 100%)",
+          "radial-gradient(5px 5px at 91% 20%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.35) 60%, transparent 100%)",
+          "radial-gradient(5px 5px at  4% 72%, rgba(255,255,255,1.0) 0%, rgba(196,181,253,0.35) 60%, transparent 100%)",
+          "radial-gradient(6px 6px at 55% 88%, rgba(255,255,255,1.0) 0%, rgba(109,94,248,0.35) 60%, transparent 100%)"
         ].join(", ")
       }} />
 
