@@ -467,7 +467,6 @@ const getAvailableEscrows = asyncHandler(async (req, res) => {
   const escrows = await Escrow.find({
     status: ESCROW_STATUS.CREATED,
     freelancer: null,
-    client: { $ne: req.user._id },
   })
     .populate('client', 'name email walletAddress')
     .sort({ createdAt: -1 });

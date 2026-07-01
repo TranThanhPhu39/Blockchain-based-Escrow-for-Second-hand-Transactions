@@ -2748,7 +2748,9 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
           </Card>
         ) : (
           <div className="grid gap-4">
-            {availableEscrows.map(job => (
+            {availableEscrows.map(job => {
+              const isOwn = String(job.client?._id || job.client) === String(currentUser?._id);
+              return (
               <Card key={job._id} theme={theme}>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
@@ -2756,6 +2758,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
                       <p className={classNames("text-base font-black", theme.heading)}>{job.serviceName}</p>
                       {job.serviceCategory && <Badge theme={theme} tone="violet">{job.serviceCategory}</Badge>}
                       <Badge theme={theme} tone="emerald">{c.create.statusOpen}</Badge>
+                      {isOwn && <Badge theme={theme} tone="amber">Hợp đồng của bạn</Badge>}
                     </div>
                     {job.jobDescription && (
                       <p className={classNames("mt-2 line-clamp-2 text-sm leading-6", theme.muted)}>{job.jobDescription}</p>
@@ -2765,18 +2768,26 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
                       {job.deadline && <span className={theme.faint}>{c.common.deadline}: <span className={classNames("font-bold", theme.text)}>{new Date(job.deadline).toLocaleDateString()}</span></span>}
                       <span className={theme.faint}>{c.details.client}: <span className={classNames("font-bold", theme.text)}>{job.client?.name || "—"}</span></span>
                     </div>
+                    {isOwn && (
+                      <p className={classNames("mt-2 text-xs", theme.faint)}>
+                        Đây là hợp đồng bạn đã đăng — chỉ freelancer khác mới có thể nhận việc này.
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 flex-col gap-2">
-                    <Button theme={theme} icon={LockKeyhole} variant="primary" disabled={status.loading && status.lockingId === job._id} onClick={() => handleLock(job._id)}>
-                      {status.loading && status.lockingId === job._id ? c.create.accepting : c.create.lockBtn}
-                    </Button>
+                    {!isOwn && (
+                      <Button theme={theme} icon={LockKeyhole} variant="primary" disabled={status.loading && status.lockingId === job._id} onClick={() => handleLock(job._id)}>
+                        {status.loading && status.lockingId === job._id ? c.create.accepting : c.create.lockBtn}
+                      </Button>
+                    )}
                     <Button theme={theme} icon={ScrollText} variant="secondary" onClick={() => setPreviewJob(job)}>
                       Xem trước hợp đồng
                     </Button>
                   </div>
                 </div>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </>}
