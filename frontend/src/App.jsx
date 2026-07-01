@@ -3510,7 +3510,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
   const uid = currentUser?._id || currentUser?.id;
   const isDisputeClient     = selectedDispute && String(selectedDispute.escrow?.client)     === String(uid);
   const isDisputeFreelancer = selectedDispute && String(selectedDispute.escrow?.freelancer) === String(uid);
-  const isReviewer          = selectedDispute && !isDisputeClient && !isDisputeFreelancer && currentUser?.role === "reviewer";
+  const isReviewer          = selectedDispute && !isDisputeClient && !isDisputeFreelancer;
   const myVote = selectedDispute?.votes?.find(v => String(v.reviewer?._id || v.reviewer) === String(uid));
   const isResolved = selectedDispute && ["RESOLVED_RELEASE", "RESOLVED_REFUND"].includes(selectedDispute.status);
 
