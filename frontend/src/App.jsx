@@ -838,7 +838,14 @@ const ESCROW_ABI = [
   "function uploadDefense(bytes32 contractId, string defenseURI)",
   "function castDisputeVote(bytes32 contractId, bool deliverablesMatch, bool acceptanceCriteriaMet, bool deadlineMet, bool revisionHistoryReviewed, bool submissionHistoryReviewed, bool blockchainTimelineReviewed, bool evidenceReviewed, bool voteForFreelancer, string reason)",
   "function cancelContract(bytes32 contractId)",
+  "function isReviewer(address) view returns (bool)",
   "function paymentToken() view returns (address)",
+  "error NotAReviewer()",
+  "error AlreadyVoted()",
+  "error DeadlineExpired()",
+  "error MaxReviewersReached()",
+  "error AlreadyFinalized()",
+  "error InvalidStatus(uint8 current)",
   // getContract trả về struct → dùng JSON ABI format với type:"tuple" để ethers.js decode đúng
   {
     name: "getContract", type: "function", stateMutability: "view",
@@ -1031,6 +1038,15 @@ function friendlyTxError(err) {
   if (err?.code === "ACTION_REJECTED") return "Bạn đã hủy giao dịch trong ví.";
   if (err?.code === "INSUFFICIENT_FUNDS") return "Số dư ví không đủ để thực hiện giao dịch (cần thêm POL để trả phí gas).";
   if (err?.code === "NETWORK_ERROR" || err?.code === "TIMEOUT") return "Không thể kết nối tới mạng blockchain. Vui lòng thử lại.";
+
+  // Decode custom contract errors (ethers v6: err.revert.name)
+  const revertName = err?.revert?.name || "";
+  if (revertName === "NotAReviewer") return "Ví của bạn chưa được đăng ký là reviewer on-chain. Liên hệ admin để được cấp quyền.";
+  if (revertName === "AlreadyVoted") return "Bạn đã bỏ phiếu cho tranh chấp này rồi.";
+  if (revertName === "DeadlineExpired") return "Thời hạn bỏ phiếu 3 ngày đã hết, không thể bỏ phiếu thêm.";
+  if (revertName === "MaxReviewersReached") return "Đã đủ 9 reviewer bỏ phiếu, không thể bỏ phiếu thêm.";
+  if (revertName === "AlreadyFinalized") return "Tranh chấp đã được giải quyết xong.";
+  if (revertName === "InvalidStatus") return "Hợp đồng không ở trạng thái phù hợp để thực hiện hành động này.";
 
   const raw = err?.reason || err?.shortMessage || err?.message || "";
   if (/user rejected/i.test(raw)) return "Bạn đã hủy giao dịch trong ví.";
@@ -3368,10 +3384,32 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
 
   async function handleVote() {
     if (!selectedDispute || !decision || confirmedReasons.length === 0) return;
+
+    // Pre-check: freelancer phải đã nộp defense trước (dispute status phải là REVIEWING)
+    if (selectedDispute.status !== "REVIEWING") {
+      setStatus({ loading: false, message: "Freelancer chưa nộp bằng chứng phản bác. Chờ freelancer upload defense trước khi bỏ phiếu." });
+      return;
+    }
+
     const voteForFreelancer = decision === "release";
     setStatus({ loading: true, message: "" });
     try {
       const { signer } = await getSignerAndDecimals();
+
+      // Pre-check on-chain: ví phải được đăng ký là reviewer
+      try {
+        const readProvider = new JsonRpcProvider(AMOY_RPC);
+        const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+        const walletAddr = await signer.getAddress();
+        const isReviewerOnChain = await escrowRead.isReviewer(walletAddr);
+        if (!isReviewerOnChain) {
+          setStatus({ loading: false, message: "Ví của bạn chưa được đăng ký là reviewer on-chain. Liên hệ admin để được cấp quyền." });
+          return;
+        }
+      } catch (_) {
+        // Nếu không đọc được on-chain thì bỏ qua pre-check, để contract tự revert với thông báo rõ hơn
+      }
+
       const base = voteForFreelancer ? "Bỏ phiếu giải ngân cho freelancer" : "Bỏ phiếu hoàn tiền cho khách hàng";
       const reason = `${base} — Lý do xác nhận: ${confirmedReasons.join(", ")}`;
       const tx = await sendContractTx(signer, "castDisputeVote", [
@@ -3472,7 +3510,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
   const uid = currentUser?._id || currentUser?.id;
   const isDisputeClient     = selectedDispute && String(selectedDispute.escrow?.client)     === String(uid);
   const isDisputeFreelancer = selectedDispute && String(selectedDispute.escrow?.freelancer) === String(uid);
-  const isReviewer          = selectedDispute && !isDisputeClient && !isDisputeFreelancer;
+  const isReviewer          = selectedDispute && !isDisputeClient && !isDisputeFreelancer && currentUser?.role === "reviewer";
   const myVote = selectedDispute?.votes?.find(v => String(v.reviewer?._id || v.reviewer) === String(uid));
   const isResolved = selectedDispute && ["RESOLVED_RELEASE", "RESOLVED_REFUND"].includes(selectedDispute.status);
 
