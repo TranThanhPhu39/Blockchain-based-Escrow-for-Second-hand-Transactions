@@ -1039,8 +1039,14 @@ function friendlyTxError(err) {
   if (err?.code === "INSUFFICIENT_FUNDS") return "Số dư ví không đủ để thực hiện giao dịch (cần thêm POL để trả phí gas).";
   if (err?.code === "NETWORK_ERROR" || err?.code === "TIMEOUT") return "Không thể kết nối tới mạng blockchain. Vui lòng thử lại.";
 
-  // Decode custom contract errors (ethers v6: err.revert.name)
-  const revertName = err?.revert?.name || "";
+  // Decode custom contract errors — thử err.revert.name (Contract instance) rồi fallback sang parseError(err.data) (sendTransaction raw)
+  let revertName = err?.revert?.name || "";
+  if (!revertName && err?.data && typeof err.data === "string" && err.data.length >= 10) {
+    try {
+      const iface = new Interface(ESCROW_ABI);
+      revertName = iface.parseError(err.data)?.name || "";
+    } catch (_) {}
+  }
   if (revertName === "NotAReviewer") return "Ví của bạn chưa được đăng ký là reviewer on-chain. Liên hệ admin để được cấp quyền.";
   if (revertName === "AlreadyVoted") return "Bạn đã bỏ phiếu cho tranh chấp này rồi.";
   if (revertName === "DeadlineExpired") return "Thời hạn bỏ phiếu 3 ngày đã hết, không thể bỏ phiếu thêm.";
@@ -3395,29 +3401,27 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
     setStatus({ loading: true, message: "" });
     try {
       const { signer } = await getSignerAndDecimals();
-
-      // Pre-check on-chain: ví phải được đăng ký là reviewer
-      try {
-        const readProvider = new JsonRpcProvider(AMOY_RPC);
-        const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
-        const walletAddr = await signer.getAddress();
-        const isReviewerOnChain = await escrowRead.isReviewer(walletAddr);
-        if (!isReviewerOnChain) {
-          setStatus({ loading: false, message: "Ví của bạn chưa được đăng ký là reviewer on-chain. Liên hệ admin để được cấp quyền." });
-          return;
-        }
-      } catch (_) {
-        // Nếu không đọc được on-chain thì bỏ qua pre-check, để contract tự revert với thông báo rõ hơn
-      }
-
+      const walletAddr = await signer.getAddress();
       const base = voteForFreelancer ? "Bỏ phiếu giải ngân cho freelancer" : "Bỏ phiếu hoàn tiền cho khách hàng";
       const reason = `${base} — Lý do xác nhận: ${confirmedReasons.join(", ")}`;
-      const tx = await sendContractTx(signer, "castDisputeVote", [
+      const voteArgs = [
         selectedDispute.escrowIdOnChain,
         true, true, true, true, true, true, true,
         voteForFreelancer,
         reason,
-      ], 300000);
+      ];
+
+      // Simulate trước bằng staticCall để decode lỗi contract rõ ràng, không tốn gas
+      try {
+        const readProvider = new JsonRpcProvider(AMOY_RPC);
+        const escrowRead = new Contract(CONTRACT_ADDRESS, ESCROW_ABI, readProvider);
+        await escrowRead.castDisputeVote.staticCall(...voteArgs, { from: walletAddr });
+      } catch (simErr) {
+        setStatus({ loading: false, message: friendlyTxError(simErr) });
+        return;
+      }
+
+      const tx = await sendContractTx(signer, "castDisputeVote", voteArgs, 300000);
       const receipt = await tx.wait();
       await apiRequest(`/api/disputes/${selectedDispute._id}/vote`, {
         method: "POST", token: apiToken,
