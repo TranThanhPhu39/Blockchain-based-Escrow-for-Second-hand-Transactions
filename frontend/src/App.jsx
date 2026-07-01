@@ -6,7 +6,7 @@ import {
   AlertTriangle,
   ArrowRight,
   BadgeCheck,
-  Bell,
+
   Briefcase,
   CheckCircle2,
   CircleDollarSign,
@@ -64,7 +64,7 @@ const routes = [
   "submit",
   "approval",
   "disputes",
-  "notifications",
+
   "profile",
   "admin"
 ];
@@ -89,7 +89,6 @@ const translations = {
       approval: "Approval",
       disputes: "Dispute Center",
       wallet: "Wallet",
-      notifications: "Notifications",
       profile: "User Profile",
       admin: "Admin Panel"
     },
@@ -384,9 +383,6 @@ const translations = {
       approveBiometric: "Approve with biometric"
     },
     notifications: {
-      title: "Notifications",
-      subtitle: "Stay updated on all escrow activity in real time.",
-      triggerDemo: "Trigger demo toast",
       deposit: ["Deposit Success", "650 USDT has been locked in the service escrow contract."],
       submitted: ["Work Submitted", "Deliverables were submitted for client review."],
       approved: ["Work Approved", "Client approval is ready for transaction signing."],
@@ -436,7 +432,6 @@ const translations = {
       disputes: "Trung tâm tranh chấp",
       admin: "Quản trị",
       wallet: "Ví",
-      notifications: "Thông báo",
       profile: "Hồ sơ người dùng"
     },
     common: {
@@ -730,9 +725,6 @@ const translations = {
       approveBiometric: "Duyệt bằng sinh trắc học"
     },
     notifications: {
-      title: "Thông báo",
-      subtitle: "Cập nhật tức thời mọi hoạt động ký quỹ của bạn.",
-      triggerDemo: "Kích hoạt toast mẫu",
       deposit: ["Nạp tiền thành công", "650 USDT đã được khóa trong hợp đồng ký quỹ dịch vụ."],
       submitted: ["Đã nộp sản phẩm", "Sản phẩm đã được gửi để khách hàng xem xét."],
       approved: ["Sản phẩm được phê duyệt", "Phê duyệt của khách hàng đã sẵn sàng để ký giao dịch."],
@@ -1562,12 +1554,11 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
     [UploadCloud, "submit"],
     [CheckCircle2, "approval"],
     [Gavel, "disputes"],
-    [Bell, "notifications"],
     [BadgeCheck, "profile"],
     [ShieldCheck, "admin"]
   ];
 
-  const protectedIds = new Set(["dashboard", "create", "details", "submit", "approval", "disputes", "notifications", "profile"]);
+  const protectedIds = new Set(["dashboard", "create", "details", "submit", "approval", "disputes", "profile"]);
   const adminOnly = new Set(["admin"]);
   const nav = allNav.filter(([, id]) => {
     if (adminOnly.has(id)) return isAdmin;
@@ -4103,55 +4094,6 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
   );
 }
 
-function NotificationsPage({ c, theme, addToast, apiToken }) {
-  const [notifications, setNotifications] = useState([]);
-
-  useEffect(() => {
-    if (!apiToken) return;
-    apiRequest("/api/notifications", { token: apiToken })
-      .then((data) => setNotifications(data.notifications || []))
-      .catch(() => {});
-  }, [apiToken]);
-
-  async function markRead(id) {
-    try {
-      await apiRequest(`/api/notifications/${id}/read`, { method: "PATCH", token: apiToken });
-      setNotifications((prev) => prev.map((n) => n._id === id ? { ...n, isRead: true } : n));
-    } catch {}
-  }
-
-  const demoKeys = ["deposit", "submitted", "approved", "released", "disputeOpened", "disputeResolved"];
-
-  return (
-    <div className="space-y-6">
-      <PageIntro title={c.notifications.title} subtitle={c.notifications.subtitle} theme={theme} />
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {notifications.length ? notifications.map((n) => (
-          <Card key={n._id} theme={theme} className={classNames("p-4", !n.isRead && "ring-1 ring-violet-400/30")}>
-            <Bell className={classNames("h-5 w-5", theme.accentText)} />
-            <p className={classNames("mt-3 font-black", theme.heading)}>{n.title}</p>
-            <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{n.message}</p>
-            {!n.isRead && (
-              <Button theme={theme} size="sm" variant="secondary" className="mt-4" onClick={() => markRead(n._id)}>
-                {c.common.markAsRead}
-              </Button>
-            )}
-          </Card>
-        )) : demoKeys.map((key) => {
-          const [title, message] = c.notifications[key];
-          return (
-            <Card key={key} theme={theme} className="p-4">
-              <Bell className={classNames("h-5 w-5", theme.accentText)} />
-              <p className={classNames("mt-3 font-black", theme.heading)}>{title}</p>
-              <p className={classNames("mt-2 text-sm leading-6", theme.muted)}>{message}</p>
-              <Button theme={theme} size="sm" variant="secondary" className="mt-4" onClick={() => addToast(key)}>{c.notifications.triggerDemo}</Button>
-            </Card>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function ProfilePage({ c, theme, currentUser, escrows, navigate, setSelectedEscrow, setApiToken, setCurrentUser, setWallet }) {
   const initials = currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : "NA";
@@ -4613,7 +4555,7 @@ function App() {
     };
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     setToasts((current) => [
-      { id, title: copy[0], message: copy[1], icon: iconMap[kind] || Bell },
+      { id, title: copy[0], message: copy[1], icon: iconMap[kind] || Zap },
       ...current.slice(0, 4)
     ]);
     window.setTimeout(() => {
@@ -4692,7 +4634,6 @@ function App() {
     submit: <SubmissionPage {...pageProps} />,
     approval: <ApprovalPage {...pageProps} />,
     disputes: <DisputeCenterPage {...pageProps} />,
-    notifications: <NotificationsPage {...pageProps} />,
     profile: <ProfilePage {...pageProps} />,
     admin: <AdminPage {...pageProps} />
   };
