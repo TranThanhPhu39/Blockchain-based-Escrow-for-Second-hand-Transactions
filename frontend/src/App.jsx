@@ -1246,20 +1246,64 @@ const EXTRA_STAR_LAYERS = [
 function HoloBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-      {/* Base white */}
-      <div className="absolute inset-0 bg-white" />
-      {/* Pink/rose blob — bottom-left wave */}
-      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 90% 55% at 5% 85%, rgba(255,175,200,0.72) 0%, transparent 58%)" }} />
-      {/* Soft rose flowing through center-left */}
-      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 70% 35% at 35% 65%, rgba(248,180,217,0.48) 0%, transparent 60%)" }} />
-      {/* Lavender/violet center wash */}
-      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 45% at 50% 45%, rgba(216,180,254,0.32) 0%, transparent 60%)" }} />
-      {/* Blue/indigo — top-right corner */}
-      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 45% 40% at 98% 2%, rgba(165,180,252,0.65) 0%, transparent 55%)" }} />
-      {/* Extra soft pink highlight — top center */}
-      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 55% 25% at 55% 10%, rgba(251,207,232,0.38) 0%, transparent 55%)" }} />
-      {/* Blur overlay to soften everything */}
-      <div className="absolute inset-0" style={{ backdropFilter: "blur(0px)", background: "rgba(255,255,255,0.08)" }} />
+      {/* Base */}
+      <div className="absolute inset-0 bg-[#fefefe]" />
+
+      {/* Wave 1 — pink, bottom-left, angled */}
+      <div className="absolute" style={{
+        width: "110%", height: "55%",
+        bottom: "-8%", left: "-20%",
+        background: "radial-gradient(ellipse at 40% 60%, rgba(255,182,210,0.32) 0%, transparent 68%)",
+        filter: "blur(38px)",
+        transform: "rotate(-12deg)",
+      }} />
+
+      {/* Wave 2 — rose stripe, sweeping across center-left */}
+      <div className="absolute" style={{
+        width: "85%", height: "38%",
+        bottom: "18%", left: "-8%",
+        background: "radial-gradient(ellipse at 35% 55%, rgba(249,160,205,0.22) 0%, transparent 65%)",
+        filter: "blur(52px)",
+        transform: "rotate(-6deg)",
+      }} />
+
+      {/* Wave 3 — lavender, center undulation */}
+      <div className="absolute" style={{
+        width: "75%", height: "50%",
+        top: "20%", left: "18%",
+        background: "radial-gradient(ellipse at 50% 45%, rgba(216,180,254,0.22) 0%, transparent 65%)",
+        filter: "blur(48px)",
+        transform: "rotate(4deg)",
+      }} />
+
+      {/* Wave 4 — blue/indigo top-right */}
+      <div className="absolute" style={{
+        width: "55%", height: "50%",
+        top: "-12%", right: "-12%",
+        background: "radial-gradient(ellipse at 55% 35%, rgba(165,180,252,0.40) 0%, transparent 60%)",
+        filter: "blur(40px)",
+        transform: "rotate(10deg)",
+      }} />
+
+      {/* Wave 5 — soft pink highlight top-center */}
+      <div className="absolute" style={{
+        width: "65%", height: "28%",
+        top: "-4%", left: "18%",
+        background: "radial-gradient(ellipse at 50% 40%, rgba(251,207,232,0.24) 0%, transparent 65%)",
+        filter: "blur(44px)",
+        transform: "rotate(-3deg)",
+      }} />
+
+      {/* Wave 6 — tiny violet accent, lower-center to add depth */}
+      <div className="absolute" style={{
+        width: "50%", height: "30%",
+        bottom: "5%", left: "30%",
+        background: "radial-gradient(ellipse at 50% 50%, rgba(192,132,252,0.14) 0%, transparent 65%)",
+        filter: "blur(55px)",
+      }} />
+
+      {/* White veil — lifts overall brightness */}
+      <div className="absolute inset-0" style={{ background: "rgba(255,255,255,0.22)" }} />
     </div>
   );
 }
