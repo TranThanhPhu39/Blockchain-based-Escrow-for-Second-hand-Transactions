@@ -55,18 +55,27 @@ textarea:focus-visible {
   background-size: 28px 28px;
 }
 
-@keyframes shoot-rtl {
-  0%   { transform: translate(0, 0);          opacity: 0; }
-  4%   { opacity: 1; }
-  88%  { opacity: 1; }
-  100% { transform: translate(-115vw, -72vh); opacity: 0; }
+/* Outer: horizontal movement */
+@keyframes shoot-rtl-x {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-122vw); }
 }
-
-@keyframes shoot-ltr {
-  0%   { transform: translate(0, 0);         opacity: 0; }
-  4%   { opacity: 1; }
+@keyframes shoot-ltr-x {
+  from { transform: translateX(0); }
+  to   { transform: translateX(122vw); }
+}
+/* Inner: vertical movement with different easing → creates curved arc */
+@keyframes shoot-rtl-y {
+  0%   { transform: translateY(0);    opacity: 0; }
+  5%   { opacity: 1; }
   88%  { opacity: 1; }
-  100% { transform: translate(115vw, -72vh); opacity: 0; }
+  100% { transform: translateY(-70vh); opacity: 0; }
+}
+@keyframes shoot-ltr-y {
+  0%   { transform: translateY(0);    opacity: 0; }
+  5%   { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { transform: translateY(-70vh); opacity: 0; }
 }
 
 .hero-grid {

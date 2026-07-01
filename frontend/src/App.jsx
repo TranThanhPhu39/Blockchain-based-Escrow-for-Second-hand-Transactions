@@ -1,5 +1,5 @@
 import { BrowserProvider, Contract, Interface, JsonRpcProvider, parseUnits } from "ethers";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
@@ -1245,46 +1245,55 @@ const EXTRA_STAR_LAYERS = [
 
 function ShootingStar({ direction, onDone }) {
   useEffect(() => {
-    const t = setTimeout(onDone, 1500);
+    const t = setTimeout(onDone, 1600);
     return () => clearTimeout(t);
   }, [onDone]);
 
   const isRtl = direction === "rtl";
+
+  // Outer div animates X with ease-in, inner div animates Y with ease-out
+  // Different easing on each axis creates a natural curved arc
   return (
     <div style={{
       position: "fixed",
-      ...(isRtl ? { right: "-6px" } : { left: "-6px" }),
-      top: "62%",
+      ...(isRtl ? { right: "-8px" } : { left: "-8px" }),
+      top: "65%",
       zIndex: 9999,
       pointerEvents: "none",
-      animation: `${isRtl ? "shoot-rtl" : "shoot-ltr"} 1.5s ease-in forwards`,
+      animation: `${isRtl ? "shoot-rtl-x" : "shoot-ltr-x"} 1.5s cubic-bezier(0.4, 0, 0.8, 1) forwards`,
     }}>
-      {/* Tail — points away from direction of travel */}
+      {/* Inner: Y movement with different easing = curved path */}
       <div style={{
-        position: "absolute",
-        top: "50%",
-        ...(isRtl ? { left: "6px" } : { right: "6px" }),
-        width: "180px",
-        height: "2px",
-        borderRadius: "2px",
-        transformOrigin: isRtl ? "left center" : "right center",
-        transform: `translateY(-50%) rotate(${isRtl ? "30deg" : "-30deg"})`,
-        background: isRtl
-          ? "linear-gradient(to right, rgba(255,255,255,0.95), rgba(196,181,253,0.55), transparent)"
-          : "linear-gradient(to left,  rgba(255,255,255,0.95), rgba(196,181,253,0.55), transparent)",
-      }} />
-      {/* Star dot */}
-      <div style={{
-        width: "5px",
-        height: "5px",
-        borderRadius: "50%",
-        background: "white",
-        boxShadow: [
-          "0 0 6px 3px rgba(255,255,255,0.95)",
-          "0 0 18px 7px rgba(196,181,253,0.65)",
-          "0 0 36px 14px rgba(139,92,246,0.30)",
-        ].join(", "),
-      }} />
+        animation: `${isRtl ? "shoot-rtl-y" : "shoot-ltr-y"} 1.5s cubic-bezier(0.1, 0.6, 0.5, 1) forwards`,
+        position: "relative",
+      }}>
+        {/* Tail */}
+        <div style={{
+          position: "absolute",
+          top: "50%",
+          ...(isRtl ? { left: "6px" } : { right: "6px" }),
+          width: "320px",
+          height: "2px",
+          borderRadius: "2px",
+          transformOrigin: isRtl ? "left center" : "right center",
+          transform: `translateY(-50%) rotate(${isRtl ? "28deg" : "-28deg"})`,
+          background: isRtl
+            ? "linear-gradient(to right, rgba(255,255,255,1), rgba(216,180,254,0.7), rgba(139,92,246,0.25), transparent)"
+            : "linear-gradient(to left,  rgba(255,255,255,1), rgba(216,180,254,0.7), rgba(139,92,246,0.25), transparent)",
+        }} />
+        {/* Star */}
+        <div style={{
+          width: "5px",
+          height: "5px",
+          borderRadius: "50%",
+          background: "white",
+          boxShadow: [
+            "0 0 6px 3px rgba(255,255,255,0.95)",
+            "0 0 18px 7px rgba(196,181,253,0.65)",
+            "0 0 40px 16px rgba(139,92,246,0.32)",
+          ].join(", "),
+        }} />
+      </div>
     </div>
   );
 }
@@ -4468,8 +4477,10 @@ function App() {
     status: translations.en.status.disconnected
   });
   const [walletConnecting, setWalletConnecting] = useState(false);
-  const [starQueue, setStarQueue] = useState([]);
-  const [activeStar, setActiveStar] = useState(null);
+  const [activeStar, setActiveStar] = useState(null); // null | { id, direction }
+  const starCounterRef = useRef(0);
+  const prevAvailableRef = useRef(null); // snapshot { _id, clientId }[] để detect job bị nhận
+  const prevEscrowsRef = useRef(null);   // snapshot status[] để detect client's own contract accepted
   const [walletPickerOptions, setWalletPickerOptions] = useState([]);
   const [walletError, setWalletError] = useState("");
   const [toasts, setToasts] = useState([]);
@@ -4480,19 +4491,54 @@ function App() {
   const theme = useMemo(() => getTheme(themeName), [themeName]);
   const c = translations[language];
 
-  // ── Shooting star queue ──────────────────────────────────────────────────
+  // ── Shooting star ────────────────────────────────────────────────────────
   const triggerShootingStar = useCallback((direction) => {
-    setStarQueue((q) => [...q, direction]);
+    setActiveStar((cur) => {
+      if (cur !== null) return cur; // already running, skip
+      return { id: ++starCounterRef.current, direction };
+    });
   }, []);
 
-  useEffect(() => {
-    if (activeStar === null && starQueue.length > 0) {
-      setActiveStar(starQueue[0]);
-      setStarQueue((q) => q.slice(1));
-    }
-  }, [activeStar, starQueue]);
-
   const handleStarDone = useCallback(() => setActiveStar(null), []);
+
+  // Client thấy ltr khi contract của mình chuyển CREATED → ACCEPTED
+  useEffect(() => {
+    const uid = currentUser ? String(currentUser._id || currentUser.id) : null;
+    const prev = prevEscrowsRef.current;
+    if (uid && prev !== null) {
+      const prevMap = {};
+      prev.forEach((e) => { prevMap[String(e._id)] = e.status; });
+      for (const e of escrows) {
+        const clientId = String(e.client?._id || e.client);
+        if (clientId === uid && e.status === "ACCEPTED" && prevMap[String(e._id)] && prevMap[String(e._id)] !== "ACCEPTED") {
+          triggerShootingStar("ltr");
+          break;
+        }
+      }
+    }
+    prevEscrowsRef.current = escrows;
+  }, [escrows, currentUser, triggerShootingStar]);
+
+  // Detect khi job biến mất khỏi availableEscrows = có freelancer vừa nhận việc
+  // → trigger ltr cho tất cả user trừ client của hợp đồng đó
+  // (freelancer tự trigger từ handleLock, và star vẫn đang chạy khi effect này fire → tự bị skip)
+  useEffect(() => {
+    const uid = currentUser ? String(currentUser._id || currentUser.id) : null;
+    const prev = prevAvailableRef.current;
+    if (uid && prev !== null) {
+      const currentIds = new Set(availableEscrows.map((e) => String(e._id)));
+      for (const snap of prev) {
+        if (!currentIds.has(snap.id)) {
+          triggerShootingStar("ltr");
+          break; // chỉ trigger 1 lần dù nhiều job biến mất cùng lúc
+        }
+      }
+    }
+    prevAvailableRef.current = availableEscrows.map((e) => ({
+      id: String(e._id),
+      clientId: String(e.client?._id || e.client),
+    }));
+  }, [availableEscrows, currentUser, triggerShootingStar]);
 
   useEffect(() => {
     function syncRoute() {
@@ -4665,7 +4711,7 @@ function App() {
         <>
           <GalaxyBackground />
           <div className="app-grid pointer-events-none fixed inset-0 -z-10 opacity-70" />
-          {activeStar && <ShootingStar key={activeStar + Date.now()} direction={activeStar} onDone={handleStarDone} />}
+          {activeStar && <ShootingStar key={activeStar.id} direction={activeStar.direction} onDone={handleStarDone} />}
         </>
       ) : (
         <HoloBackground />
