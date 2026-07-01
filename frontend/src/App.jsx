@@ -864,7 +864,8 @@ const ESCROW_ABI = [
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
   "function decimals() view returns (uint8)",
-  "function balanceOf(address account) view returns (uint256)"
+  "function balanceOf(address account) view returns (uint256)",
+  "function allowance(address owner, address spender) view returns (uint256)"
 ];
 
 let _tokenAddress = null;
@@ -3217,10 +3218,15 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
       }
 
       const feeParams = getGasParams();
-      console.log("[deposit] calling approve...");
-      const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig,
-        { ...feeParams, gasLimit: 100000n });
-      await approveTx.wait();
+      const allowance = await token.allowance(signerAddress, CONTRACT_ADDRESS);
+      if (allowance < amountBig) {
+        console.log("[deposit] calling approve...");
+        const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig,
+          { ...feeParams, gasLimit: 100000n });
+        await approveTx.wait();
+      } else {
+        console.log("[deposit] allowance sufficient, skipping approve");
+      }
       console.log("[deposit] calling deposit...");
       const depositTx = await sendContractTx(signer, "deposit", [escrow.escrowIdOnChain], 200000);
       await depositTx.wait();
