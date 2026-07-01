@@ -809,8 +809,8 @@ const AMOY_RPC_LIST = [
 // to avoid RPC fee estimation returning values below the network minimum.
 function getGasParams() {
   return {
-    maxPriorityFeePerGas: 30_000_000_000n, // 30 Gwei tip (above Amoy's 25 Gwei min)
-    maxFeePerGas:         60_000_000_000n, // 60 Gwei cap (30 base + 30 tip buffer)
+    maxPriorityFeePerGas: 500_000_000_000n, // 500 Gwei tip — đảm bảo Polygon Amoy không revert
+    maxFeePerGas:         600_000_000_000n, // 600 Gwei cap
   };
 }
 
@@ -2566,7 +2566,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
           {/* 5 · TIMELINE */}
           <Card theme={theme}>
             <FormSection title={c.create.sections.timeline} icon={Clock3} theme={theme}>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field theme={theme} label={c.create.deadline} icon={Clock3}>
                   <TextInput theme={theme} type="date" value={fd.deadline} onChange={e => set("deadline", e.target.value)} />
                   <Err field="deadline" />
@@ -3795,7 +3795,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
       const defenseURI = form.get("defenseURI") || "";
       const { signer } = await getSignerAndDecimals();
       const tx = await sendContractTx(signer, "uploadDefense",
-        [selectedDispute.escrowIdOnChain, defenseURI], 200000);
+        [selectedDispute.escrowIdOnChain, defenseURI], 300000);
       await tx.wait();
       await apiRequest(`/api/disputes/${selectedDispute._id}/defense`, {
         method: "PATCH", token: apiToken,
@@ -3841,7 +3841,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
       const evidenceURI = `${API_BASE_URL}/api/disputes/${dispute._id}`;
       const { signer } = await getSignerAndDecimals();
       const tx = await sendContractTx(signer, "raiseDispute",
-        [selectedEscrow.escrowIdOnChain, evidenceURI], 200000);
+        [selectedEscrow.escrowIdOnChain, evidenceURI], 300000);
       await tx.wait();
 
       setDisputes((prev) => [dispute, ...prev]);
