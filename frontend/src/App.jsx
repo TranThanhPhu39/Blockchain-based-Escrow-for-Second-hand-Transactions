@@ -1250,50 +1250,44 @@ function ShootingStar({ direction, onDone }) {
   }, [onDone]);
 
   const isRtl = direction === "rtl";
+  const dur = "1.5s";
+  const ease = "cubic-bezier(0.4, 0, 0.6, 1)";
 
-  // Outer div animates X with ease-in, inner div animates Y with ease-out
-  // Different easing on each axis creates a natural curved arc
   return (
     <div style={{
       position: "fixed",
       ...(isRtl ? { right: "-8px" } : { left: "-8px" }),
-      top: "65%",
+      top: "70%",
       zIndex: 9999,
       pointerEvents: "none",
-      animation: `${isRtl ? "shoot-rtl-x" : "shoot-ltr-x"} 1.5s cubic-bezier(0.4, 0, 0.8, 1) forwards`,
+      animation: `${isRtl ? "shoot-rtl" : "shoot-ltr"} ${dur} ${ease} forwards`,
     }}>
-      {/* Inner: Y movement with different easing = curved path */}
+      {/* Tail — xoay theo tiếp tuyến bezier */}
       <div style={{
-        animation: `${isRtl ? "shoot-rtl-y" : "shoot-ltr-y"} 1.5s cubic-bezier(0.1, 0.6, 0.5, 1) forwards`,
-        position: "relative",
-      }}>
-        {/* Tail */}
-        <div style={{
-          position: "absolute",
-          top: "50%",
-          ...(isRtl ? { left: "6px" } : { right: "6px" }),
-          width: "320px",
-          height: "2px",
-          borderRadius: "2px",
-          transformOrigin: isRtl ? "left center" : "right center",
-          transform: `translateY(-50%) rotate(${isRtl ? "28deg" : "-28deg"})`,
-          background: isRtl
-            ? "linear-gradient(to right, rgba(255,255,255,1), rgba(216,180,254,0.7), rgba(139,92,246,0.25), transparent)"
-            : "linear-gradient(to left,  rgba(255,255,255,1), rgba(216,180,254,0.7), rgba(139,92,246,0.25), transparent)",
-        }} />
-        {/* Star */}
-        <div style={{
-          width: "5px",
-          height: "5px",
-          borderRadius: "50%",
-          background: "white",
-          boxShadow: [
-            "0 0 6px 3px rgba(255,255,255,0.95)",
-            "0 0 18px 7px rgba(196,181,253,0.65)",
-            "0 0 40px 16px rgba(139,92,246,0.32)",
-          ].join(", "),
-        }} />
-      </div>
+        position: "absolute",
+        top: "50%",
+        ...(isRtl ? { left: "6px" } : { right: "6px" }),
+        width: "320px",
+        height: "2px",
+        borderRadius: "2px",
+        transformOrigin: isRtl ? "left center" : "right center",
+        animation: `${isRtl ? "tail-rtl" : "tail-ltr"} ${dur} ${ease} forwards`,
+        background: isRtl
+          ? "linear-gradient(to right, rgba(255,255,255,1), rgba(216,180,254,0.75), rgba(139,92,246,0.28), transparent)"
+          : "linear-gradient(to left,  rgba(255,255,255,1), rgba(216,180,254,0.75), rgba(139,92,246,0.28), transparent)",
+      }} />
+      {/* Star */}
+      <div style={{
+        width: "5px",
+        height: "5px",
+        borderRadius: "50%",
+        background: "white",
+        boxShadow: [
+          "0 0 6px 3px rgba(255,255,255,0.95)",
+          "0 0 18px 7px rgba(196,181,253,0.65)",
+          "0 0 40px 16px rgba(139,92,246,0.32)",
+        ].join(", "),
+      }} />
     </div>
   );
 }

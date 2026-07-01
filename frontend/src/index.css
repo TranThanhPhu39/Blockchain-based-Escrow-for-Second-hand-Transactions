@@ -55,27 +55,40 @@ textarea:focus-visible {
   background-size: 28px 28px;
 }
 
-/* Outer: horizontal movement */
-@keyframes shoot-rtl-x {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-122vw); }
-}
-@keyframes shoot-ltr-x {
-  from { transform: translateX(0); }
-  to   { transform: translateX(122vw); }
-}
-/* Inner: vertical movement with different easing → creates curved arc */
-@keyframes shoot-rtl-y {
-  0%   { transform: translateY(0);    opacity: 0; }
+/* Path được tính từ bezier bậc 2: P0=(0,0) P1=(-60vw,15vh) P2=(-120vw,-70vh)
+   → star đi xuống nhẹ trước rồi vòng lên, tạo đường cong giống quỹ đạo */
+@keyframes shoot-rtl {
+  0%   { transform: translate(0, 0);          opacity: 0; }
   5%   { opacity: 1; }
-  88%  { opacity: 1; }
-  100% { transform: translateY(-70vh); opacity: 0; }
+  20%  { transform: translate(-24vw,  2vh);  }
+  40%  { transform: translate(-48vw, -4vh);  }
+  60%  { transform: translate(-72vw, -18vh); }
+  80%  { transform: translate(-96vw, -40vh); }
+  90%  { opacity: 1; }
+  100% { transform: translate(-120vw,-70vh);  opacity: 0; }
 }
-@keyframes shoot-ltr-y {
-  0%   { transform: translateY(0);    opacity: 0; }
+@keyframes shoot-ltr {
+  0%   { transform: translate(0, 0);         opacity: 0; }
   5%   { opacity: 1; }
-  88%  { opacity: 1; }
-  100% { transform: translateY(-70vh); opacity: 0; }
+  20%  { transform: translate( 24vw,  2vh); }
+  40%  { transform: translate( 48vw, -4vh); }
+  60%  { transform: translate( 72vw,-18vh); }
+  80%  { transform: translate( 96vw,-40vh); }
+  90%  { opacity: 1; }
+  100% { transform: translate( 120vw,-70vh); opacity: 0; }
+}
+/* Đuôi xoay theo tiếp tuyến của bezier tại từng điểm */
+@keyframes tail-rtl {
+  0%   { transform: translateY(-50%) rotate( 14deg); }
+  15%  { transform: translateY(-50%) rotate(  0deg); }
+  50%  { transform: translateY(-50%) rotate(-30deg); }
+  100% { transform: translateY(-50%) rotate(-55deg); }
+}
+@keyframes tail-ltr {
+  0%   { transform: translateY(-50%) rotate(-14deg); }
+  15%  { transform: translateY(-50%) rotate(  0deg); }
+  50%  { transform: translateY(-50%) rotate( 30deg); }
+  100% { transform: translateY(-50%) rotate( 55deg); }
 }
 
 .hero-grid {
