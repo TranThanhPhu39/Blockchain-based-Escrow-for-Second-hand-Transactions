@@ -2121,8 +2121,8 @@ function JobsTable({ type, rows, c, theme, language, navigate, setSelectedEscrow
                   <div className="h-full rounded-full bg-rose-500 transition-all" style={{ width: `${rdClientPct}%` }} />
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-emerald-500">{rdFreelancerPct}% freelancer</span>
-                  <span className="text-rose-500">{rdClientPct}% khách hàng</span>
+                  <span className="text-emerald-500">{rdFreelancer}/{rdTotal} freelancer ({rdFreelancerPct}%)</span>
+                  <span className="text-rose-500">{rdTotal - rdFreelancer}/{rdTotal} khách hàng ({rdClientPct}%)</span>
                 </div>
               </div>
             )}
@@ -3318,7 +3318,7 @@ function ApprovalPage({ c, theme, navigate, addToast, apiToken, currentUser, esc
   );
 }
 
-function DisputeResultSummary({ dispute, theme, c }) {
+function DisputeResultSummary({ dispute, theme, c, hideVoteCount = false }) {
   const votes = dispute.votes || [];
   const total = votes.length;
   const freelancerVotes = votes.filter((v) => v.voteForFreelancer).length;
@@ -3333,17 +3333,23 @@ function DisputeResultSummary({ dispute, theme, c }) {
         <p className={classNames("text-sm font-bold", theme.text)}>
           {c.dispute.result}: {releasedToFreelancer ? c.dispute.releasedToFreelancer : c.dispute.refundedToClient}
         </p>
-        <p className={classNames("mt-1 text-xs", theme.faint)}>{total} {c.dispute.reviewersVoted}</p>
+        {!hideVoteCount && (
+          <p className={classNames("mt-1 text-xs", theme.faint)}>{total} {c.dispute.reviewersVoted}</p>
+        )}
       </div>
       <div className={classNames("rounded-2xl border p-4", theme.soft)}>
         <div className="mb-2 flex justify-between text-sm">
           <span className={theme.text}>{c.dispute.releaseLabel}</span>
-          <span className={theme.accentText}>{freelancerPct}% ({freelancerVotes}/{total})</span>
+          <span className={theme.accentText}>
+            {hideVoteCount ? `${freelancerPct}%` : `${freelancerPct}% (${freelancerVotes}/${total})`}
+          </span>
         </div>
         <ProgressBar value={freelancerPct} theme={theme} />
         <div className="mb-2 mt-4 flex justify-between text-sm">
           <span className={theme.text}>{c.dispute.refundLabel}</span>
-          <span className={theme.accentText}>{clientPct}% ({clientVotes}/{total})</span>
+          <span className={theme.accentText}>
+            {hideVoteCount ? `${clientPct}%` : `${clientPct}% (${clientVotes}/${total})`}
+          </span>
         </div>
         <ProgressBar value={clientPct} theme={theme} />
       </div>
@@ -3660,7 +3666,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
           {/* ── Freelancer: nộp bằng chứng phản bác ── */}
           {isDisputeFreelancer && (
             isResolved ? (
-              <DisputeResultSummary dispute={selectedDispute} theme={theme} c={c} />
+              <DisputeResultSummary dispute={selectedDispute} theme={theme} c={c} hideVoteCount />
             ) : (
               <form onSubmit={handleUploadDefense} className="grid gap-4">
                 <div className={classNames("rounded-2xl border p-4", theme.soft)}>
@@ -3681,7 +3687,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
           {/* ── Client: xem trạng thái dispute đã mở ── */}
           {isDisputeClient && (
             isResolved ? (
-              <DisputeResultSummary dispute={selectedDispute} theme={theme} c={c} />
+              <DisputeResultSummary dispute={selectedDispute} theme={theme} c={c} hideVoteCount />
             ) : (
               <div className="grid gap-4">
                 <div className={classNames("rounded-2xl border p-4", theme.soft)}>
