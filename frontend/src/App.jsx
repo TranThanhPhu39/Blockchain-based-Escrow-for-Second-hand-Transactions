@@ -3421,7 +3421,7 @@ function DisputeCenterPage({ c, theme, addToast, apiToken, currentUser, selected
         return;
       }
 
-      const tx = await sendContractTx(signer, "castDisputeVote", voteArgs, 800000);
+      const tx = await sendContractTx(signer, "castDisputeVote", voteArgs, 500000);
       const receipt = await tx.wait();
       await apiRequest(`/api/disputes/${selectedDispute._id}/vote`, {
         method: "POST", token: apiToken,
