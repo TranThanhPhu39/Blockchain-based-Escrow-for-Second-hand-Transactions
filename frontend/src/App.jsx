@@ -37,6 +37,8 @@ import {
   Radio,
   ReceiptText,
   Rocket,
+  Scale,
+  ScrollText,
   Send,
   ShieldCheck,
   Sparkles,
@@ -2176,8 +2178,18 @@ function CheckboxRow({ label, checked, onChange, theme }) {
   );
 }
 
+function PreviewRow({ label, value, highlight, theme }) {
+  return (
+    <div>
+      <p className={classNames("text-xs mb-0.5", theme.faint)}>{label}</p>
+      <p className={classNames("text-sm font-semibold", highlight ? theme.accentText : theme.text)}>{value}</p>
+    </div>
+  );
+}
+
 function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows, setSelectedEscrow, currentUser, escrows, availableEscrows, refreshAvailableEscrows }) {
   const [tab, setTab] = useState("post");
+  const [previewJob, setPreviewJob] = useState(null);
   // ── Controlled form state (all sections) ─────────────────────────────────
   const [fd, setFd] = useState({
     // Job Information
@@ -2645,15 +2657,178 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
                       <span className={theme.faint}>{c.details.client}: <span className={classNames("font-bold", theme.text)}>{job.client?.name || "—"}</span></span>
                     </div>
                   </div>
-                  <Button theme={theme} icon={LockKeyhole} variant="primary" disabled={status.loading && status.lockingId === job._id} onClick={() => handleLock(job._id)}>
-                    {status.loading && status.lockingId === job._id ? c.create.accepting : c.create.lockBtn}
-                  </Button>
+                  <div className="flex shrink-0 flex-col gap-2">
+                    <Button theme={theme} icon={LockKeyhole} variant="primary" disabled={status.loading && status.lockingId === job._id} onClick={() => handleLock(job._id)}>
+                      {status.loading && status.lockingId === job._id ? c.create.accepting : c.create.lockBtn}
+                    </Button>
+                    <Button theme={theme} icon={ScrollText} variant="secondary" onClick={() => setPreviewJob(job)}>
+                      Xem trước hợp đồng
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
           </div>
         )}
       </>}
+
+      {/* ── Contract Preview Modal ── */}
+      {previewJob && (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) setPreviewJob(null); }}
+        >
+          <div className={classNames("fixed inset-0 backdrop-blur-md", theme.isDark ? "bg-slate-950/75" : "bg-slate-700/40")} />
+          <div className="relative flex min-h-full items-start justify-center p-4 pt-10 pb-16">
+            <div className={classNames(
+              "relative w-full max-w-3xl rounded-3xl border shadow-2xl",
+              theme.isDark ? "border-white/12 bg-[#1c1530]" : "border-slate-200 bg-white"
+            )}>
+              {/* Sticky header */}
+              <div className={classNames(
+                "sticky top-0 z-10 flex items-center justify-between gap-4 rounded-t-3xl border-b px-6 py-5",
+                theme.isDark ? "border-white/10 bg-[#1c1530]" : "border-slate-200 bg-white"
+              )}>
+                <div className="min-w-0">
+                  <p className={classNames("text-xs font-black uppercase tracking-[0.18em]", theme.accentText)}>Xem trước hợp đồng</p>
+                  <h2 className={classNames("mt-0.5 truncate text-xl font-black", theme.heading)}>{previewJob.serviceName}</h2>
+                </div>
+                <button
+                  className={classNames(
+                    "shrink-0 rounded-xl border p-2.5 transition",
+                    theme.isDark ? "border-white/15 bg-white/8 text-slate-300 hover:bg-white/15" : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                  )}
+                  onClick={() => setPreviewJob(null)}
+                  aria-label="Đóng"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="space-y-5 p-6">
+
+                {/* 1. Thông tin công việc */}
+                <div className={classNames("rounded-2xl border p-4 space-y-3", theme.soft, theme.border)}>
+                  <p className={classNames("text-xs font-black uppercase tracking-[0.18em] flex items-center gap-2", theme.accentText)}>
+                    <Briefcase className="h-3.5 w-3.5" />{c.create.sections.jobInfo}
+                  </p>
+                  {previewJob.serviceCategory && <PreviewRow label={c.create.fields.serviceCategory} value={previewJob.serviceCategory} theme={theme} />}
+                  {previewJob.skillRequirements && <PreviewRow label={c.create.fields.skillRequirements} value={previewJob.skillRequirements} theme={theme} />}
+                  {previewJob.jobDescription && (
+                    <div>
+                      <p className={classNames("text-xs mb-1", theme.faint)}>{c.create.description}</p>
+                      <p className={classNames("text-sm leading-relaxed whitespace-pre-wrap", theme.muted)}>{previewJob.jobDescription}</p>
+                    </div>
+                  )}
+                  <PreviewRow label={c.details.client} value={previewJob.client?.name || "—"} theme={theme} />
+                </div>
+
+                {/* 2. Điều khoản tài chính */}
+                <div className={classNames("rounded-2xl border p-4 space-y-3", theme.soft, theme.border)}>
+                  <p className={classNames("text-xs font-black uppercase tracking-[0.18em] flex items-center gap-2", theme.accentText)}>
+                    <CircleDollarSign className="h-3.5 w-3.5" />{c.create.sections.financial}
+                  </p>
+                  <PreviewRow label={c.create.budget} value={formatEscrowAmount(previewJob.amount)} highlight theme={theme} />
+                  {previewJob.deadline && <PreviewRow label={c.common.deadline} value={new Date(previewJob.deadline).toLocaleDateString("vi-VN")} theme={theme} />}
+                </div>
+
+                {/* 3. Sản phẩm bàn giao */}
+                <div className={classNames("rounded-2xl border p-4 space-y-3", theme.soft, theme.border)}>
+                  <p className={classNames("text-xs font-black uppercase tracking-[0.18em] flex items-center gap-2", theme.accentText)}>
+                    <FileCheck2 className="h-3.5 w-3.5" />{c.create.sections.deliverables}
+                  </p>
+                  {previewJob.expectedDeliverables && <PreviewRow label={c.create.fields.expectedDeliverables} value={previewJob.expectedDeliverables} theme={theme} />}
+                  {previewJob.deliverableFormat?.length > 0 && (
+                    <div>
+                      <p className={classNames("text-xs mb-2", theme.faint)}>{c.create.fields.deliverableFormat}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {previewJob.deliverableFormat.map((f) => (
+                          <span key={f} className={classNames("rounded-lg border px-2.5 py-1 text-xs font-semibold", theme.soft, theme.border, theme.muted)}>{f}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Tiêu chí nghiệm thu */}
+                {(previewJob.acceptanceChecklist?.length > 0 || previewJob.qualityStandard) && (
+                  <div className={classNames("rounded-2xl border p-4 space-y-3", theme.soft, theme.border)}>
+                    <p className={classNames("text-xs font-black uppercase tracking-[0.18em] flex items-center gap-2", theme.accentText)}>
+                      <BadgeCheck className="h-3.5 w-3.5" />{c.create.sections.acceptance}
+                    </p>
+                    {previewJob.acceptanceChecklist?.length > 0 && (
+                      <div>
+                        <p className={classNames("text-xs mb-2", theme.faint)}>{c.create.fields.acceptanceChecklist}</p>
+                        <ul className="space-y-1">
+                          {previewJob.acceptanceChecklist.map((item) => (
+                            <li key={item} className={classNames("flex items-start gap-2 text-sm", theme.muted)}>
+                              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />{item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {previewJob.qualityStandard && <PreviewRow label={c.create.fields.qualityStandard} value={previewJob.qualityStandard} theme={theme} />}
+                  </div>
+                )}
+
+                {/* 5. Thời gian */}
+                <div className={classNames("rounded-2xl border p-4 space-y-3", theme.soft, theme.border)}>
+                  <p className={classNames("text-xs font-black uppercase tracking-[0.18em] flex items-center gap-2", theme.accentText)}>
+                    <Clock3 className="h-3.5 w-3.5" />{c.create.sections.timeline}
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <PreviewRow label={c.create.fields.gracePeriod} value={`${previewJob.gracePeriod ?? 1} ${c.create.summary.days}`} theme={theme} />
+                    <PreviewRow label={c.create.fields.reviewPeriod} value={`${previewJob.reviewPeriod ?? 3} ${c.create.summary.days}`} theme={theme} />
+                    <PreviewRow label={c.create.fields.autoReleasePeriod} value={`${previewJob.autoReleasePeriod ?? 5} ${c.create.summary.days}`} theme={theme} />
+                  </div>
+                  {previewJob.numberOfRevisions && <PreviewRow label={c.create.fields.numberOfRevisions} value={previewJob.numberOfRevisions === "unlimited" ? c.create.options.revisionsUnlimited : previewJob.numberOfRevisions} theme={theme} />}
+                  {previewJob.revisionScope && <PreviewRow label={c.create.fields.revisionScope} value={previewJob.revisionScope} theme={theme} />}
+                </div>
+
+                {/* 6. Chính sách hủy & hoàn tiền */}
+                {(previewJob.clientCancellationRule || previewJob.freelancerWithdrawalRule || previewJob.refundRule) && (
+                  <div className={classNames("rounded-2xl border p-4 space-y-3", theme.soft, theme.border)}>
+                    <p className={classNames("text-xs font-black uppercase tracking-[0.18em] flex items-center gap-2", theme.accentText)}>
+                      <ShieldCheck className="h-3.5 w-3.5" />{c.create.sections.cancellation}
+                    </p>
+                    {previewJob.clientCancellationRule && <PreviewRow label={c.create.fields.clientCancellationRule} value={previewJob.clientCancellationRule} theme={theme} />}
+                    {previewJob.freelancerWithdrawalRule && <PreviewRow label={c.create.fields.freelancerWithdrawalRule} value={previewJob.freelancerWithdrawalRule} theme={theme} />}
+                    {previewJob.refundRule && <PreviewRow label={c.create.fields.refundRule} value={previewJob.refundRule} theme={theme} />}
+                  </div>
+                )}
+
+                {/* 7. Điều khoản pháp lý */}
+                {(previewJob.intellectualPropertyTransfer || previewJob.confidentialityRequirement || previewJob.commercialUsageRights) && (
+                  <div className={classNames("rounded-2xl border p-4 space-y-3", theme.soft, theme.border)}>
+                    <p className={classNames("text-xs font-black uppercase tracking-[0.18em] flex items-center gap-2", theme.accentText)}>
+                      <Scale className="h-3.5 w-3.5" />{c.create.sections.legal}
+                    </p>
+                    {previewJob.intellectualPropertyTransfer && (
+                      <PreviewRow label={c.create.fields.ipTransfer} value={c.create.options.ipTransfer[previewJob.intellectualPropertyTransfer] || previewJob.intellectualPropertyTransfer} theme={theme} />
+                    )}
+                    {previewJob.confidentialityRequirement && (
+                      <PreviewRow label={c.create.fields.confidentiality} value={c.create.options.confidentiality[previewJob.confidentialityRequirement] || previewJob.confidentialityRequirement} theme={theme} />
+                    )}
+                    {previewJob.commercialUsageRights && (
+                      <PreviewRow label={c.create.fields.commercialUsage} value={c.create.options.commercialUsage[previewJob.commercialUsageRights] || previewJob.commercialUsageRights} theme={theme} />
+                    )}
+                  </div>
+                )}
+
+                {/* Footer action */}
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button theme={theme} variant="secondary" onClick={() => setPreviewJob(null)}>Đóng</Button>
+                  <Button theme={theme} icon={LockKeyhole} variant="primary" disabled={status.loading && status.lockingId === previewJob._id} onClick={() => { setPreviewJob(null); handleLock(previewJob._id); }}>
+                    {status.loading && status.lockingId === previewJob._id ? c.create.accepting : c.create.lockBtn}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
