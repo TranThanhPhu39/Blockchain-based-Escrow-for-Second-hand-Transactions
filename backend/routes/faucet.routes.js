@@ -28,7 +28,7 @@ router.post('/', faucetLimiter, async (req, res) => {
     const token = new ethers.Contract(MOCK_USDC_ADDRESS, MOCK_USDC_ABI, signer);
 
     const currentBalance = await token.balanceOf(address);
-    const threshold = ethers.parseUnits("100", 6);
+    const threshold = ethers.parseUnits("1000", 6);
     if (currentBalance >= threshold) {
       return res.json({ message: 'Already has sufficient balance', minted: false });
     }

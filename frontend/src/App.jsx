@@ -863,7 +863,8 @@ const ESCROW_ABI = [
 ];
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
-  "function decimals() view returns (uint8)"
+  "function decimals() view returns (uint8)",
+  "function balanceOf(address account) view returns (uint256)"
 ];
 
 let _tokenAddress = null;
@@ -3203,6 +3204,18 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
         .catch(e => console.warn("[faucet]", e.message));
 
       const amountBig = parseUnits(String(escrow.amount), decimals);
+
+      // Kiểm tra balance trước để tránh approve rồi deposit fail on-chain
+      const balance = await token.balanceOf(signerAddress);
+      if (balance < amountBig) {
+        setTxStatus({
+          loading: false,
+          message: `Số dư ví không đủ. Cần ${escrow.amount} USDT nhưng ví chỉ có ${(Number(balance) / 10 ** decimals).toFixed(2)} USDT. Hãy thử lại sau để faucet nạp thêm.`,
+          tone: "danger"
+        });
+        return;
+      }
+
       const feeParams = getGasParams();
       console.log("[deposit] calling approve...");
       const approveTx = await token.approve(CONTRACT_ADDRESS, amountBig,
