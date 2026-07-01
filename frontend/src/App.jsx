@@ -1243,6 +1243,27 @@ const EXTRA_STAR_LAYERS = [
   makeStarField(18, 91, 1.3, [0.5, 0.85], "255,255,255"),
 ];
 
+function HoloBackground() {
+  return (
+    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+      {/* Base white */}
+      <div className="absolute inset-0 bg-white" />
+      {/* Pink/rose blob — bottom-left wave */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 90% 55% at 5% 85%, rgba(255,175,200,0.72) 0%, transparent 58%)" }} />
+      {/* Soft rose flowing through center-left */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 70% 35% at 35% 65%, rgba(248,180,217,0.48) 0%, transparent 60%)" }} />
+      {/* Lavender/violet center wash */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 45% at 50% 45%, rgba(216,180,254,0.32) 0%, transparent 60%)" }} />
+      {/* Blue/indigo — top-right corner */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 45% 40% at 98% 2%, rgba(165,180,252,0.65) 0%, transparent 55%)" }} />
+      {/* Extra soft pink highlight — top center */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 55% 25% at 55% 10%, rgba(251,207,232,0.38) 0%, transparent 55%)" }} />
+      {/* Blur overlay to soften everything */}
+      <div className="absolute inset-0" style={{ backdropFilter: "blur(0px)", background: "rgba(255,255,255,0.08)" }} />
+    </div>
+  );
+}
+
 function GalaxyBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
@@ -4526,12 +4547,12 @@ function App() {
   return (
     <div className={classNames("min-h-screen overflow-hidden", theme.page)}>
       {theme.isDark ? (
-        <GalaxyBackground />
-      ) : (
         <>
-          <div className={classNames("fixed inset-0 -z-10", theme.background)} />
+          <GalaxyBackground />
           <div className="app-grid pointer-events-none fixed inset-0 -z-10 opacity-70" />
         </>
+      ) : (
+        <HoloBackground />
       )}
       <Sidebar c={c} theme={theme} route={route} navigate={navigate} open={mobileOpen} setOpen={setMobileOpen} currentUser={currentUser} />
       <div className="lg:pl-72">
