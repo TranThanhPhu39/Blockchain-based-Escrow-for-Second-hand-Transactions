@@ -1874,16 +1874,136 @@ function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, 
         {tab === "disputes" ? <JobsTable type="disputes" rows={disputeRows} c={c} theme={theme} language={language} navigate={navigate} setSelectedEscrow={setSelectedEscrow} onViewDetails={setViewEscrowId} activeId={viewEscrowId} /> : null}
       </Card>
       {viewEscrow && (
-        <EscrowDetailsPage
-          c={c}
-          theme={theme}
-          navigate={navigate}
-          selectedEscrow={viewEscrow}
-          addToast={addToast}
-          refreshEscrows={refreshEscrows}
-          currentUser={currentUser}
-          onClose={() => setViewEscrowId(null)}
-        />
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) setViewEscrowId(null); }}
+        >
+          <div className={classNames("fixed inset-0", theme.isDark ? "bg-slate-950/80 backdrop-blur-sm" : "bg-slate-900/55 backdrop-blur-sm")} />
+          <div className="relative flex min-h-full items-start justify-center p-4 pt-8 pb-16">
+            <div className={classNames("relative w-full max-w-4xl rounded-3xl border", theme.card, theme.border)}>
+              {/* Modal sticky header */}
+              <div className={classNames("sticky top-0 z-10 flex items-center justify-between gap-4 rounded-t-3xl border-b px-6 py-5", theme.card, theme.border)}>
+                <div className="min-w-0">
+                  <p className={classNames("text-xs font-black uppercase tracking-[0.18em]", theme.accentText)}>{c.details.title}</p>
+                  <h2 className={classNames("mt-0.5 truncate text-xl font-black", theme.heading)}>{text(viewEscrow.serviceName, language)}</h2>
+                </div>
+                <button
+                  className={classNames("shrink-0 rounded-xl border p-2.5 transition", theme.soft, theme.border)}
+                  onClick={() => setViewEscrowId(null)}
+                  aria-label="Close"
+                >
+                  <X className={classNames("h-5 w-5", theme.muted)} />
+                </button>
+              </div>
+              {/* Modal content */}
+              <div className="space-y-6 p-6">
+                {/* Stat row */}
+                <div className="grid gap-4 md:grid-cols-4">
+                  <StatCard theme={theme} icon={Briefcase} label={c.details.jobId} value={viewEscrow._id.slice(-8)} detail={text(viewEscrow.serviceName, language)} tone="cyan" />
+                  <StatCard theme={theme} icon={CircleDollarSign} label={c.details.escrowAmount} value={formatEscrowAmount(viewEscrow.amount || "0")} detail="Polygon" tone="emerald" />
+                  <StatCard theme={theme} icon={Clock3} label={c.common.deadline} value={viewEscrow.deadline ? new Date(viewEscrow.deadline).toLocaleDateString() : "—"} detail="Escrow deadline" tone="amber" />
+                  <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status[escrowStatusKey(viewEscrow.status)] || viewEscrow.status} detail="On-chain record" tone="violet" />
+                </div>
+                {/* Contract terms summary */}
+                {(viewEscrow.jobDescription || viewEscrow.skillRequirements || viewEscrow.expectedDeliverables || viewEscrow.acceptanceChecklist?.length > 0 || viewEscrow.serviceCategory) && (
+                  <Card theme={theme}>
+                    <SectionTitle theme={theme} eyebrow={language === "vi" ? "Nội dung hợp đồng" : "Contract Terms"} title={language === "vi" ? "Yêu cầu & Điều khoản" : "Requirements & Terms"} />
+                    <div className="space-y-4">
+                      {viewEscrow.jobDescription && (
+                        <div className={classNames("rounded-2xl border p-4", theme.soft, theme.border)}>
+                          <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{language === "vi" ? "Mô tả công việc" : "Job Description"}</p>
+                          <p className={classNames("mt-2 text-sm leading-6", theme.text)}>{viewEscrow.jobDescription}</p>
+                        </div>
+                      )}
+                      {(viewEscrow.skillRequirements || viewEscrow.serviceCategory) && (
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {viewEscrow.serviceCategory && (
+                            <div className={classNames("rounded-2xl border p-4", theme.soft, theme.border)}>
+                              <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{language === "vi" ? "Danh mục dịch vụ" : "Service Category"}</p>
+                              <p className={classNames("mt-2 text-sm font-bold", theme.text)}>{viewEscrow.serviceCategory}</p>
+                            </div>
+                          )}
+                          {viewEscrow.skillRequirements && (
+                            <div className={classNames("rounded-2xl border p-4", theme.soft, theme.border)}>
+                              <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{language === "vi" ? "Yêu cầu kỹ năng" : "Skill Requirements"}</p>
+                              <p className={classNames("mt-2 text-sm font-bold", theme.text)}>{viewEscrow.skillRequirements}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {viewEscrow.expectedDeliverables && (
+                        <div className={classNames("rounded-2xl border p-4", theme.soft, theme.border)}>
+                          <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{language === "vi" ? "Sản phẩm bàn giao" : "Expected Deliverables"}</p>
+                          <p className={classNames("mt-2 text-sm leading-6", theme.text)}>{viewEscrow.expectedDeliverables}</p>
+                        </div>
+                      )}
+                      {viewEscrow.acceptanceChecklist?.length > 0 && (
+                        <div className={classNames("rounded-2xl border p-4", theme.soft, theme.border)}>
+                          <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{language === "vi" ? "Tiêu chí chấp nhận" : "Acceptance Checklist"}</p>
+                          <ul className={classNames("mt-2 space-y-1 text-sm", theme.text)}>
+                            {viewEscrow.acceptanceChecklist.map((item, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <span className={classNames("mt-0.5 shrink-0 text-xs", theme.accentText)}>✓</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <div className="grid gap-4 md:grid-cols-3">
+                        {viewEscrow.numberOfRevisions && viewEscrow.numberOfRevisions !== "0" && (
+                          <div className={classNames("rounded-2xl border p-4", theme.soft, theme.border)}>
+                            <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{language === "vi" ? "Số lần sửa" : "Revisions"}</p>
+                            <p className={classNames("mt-2 text-sm font-bold", theme.text)}>{viewEscrow.numberOfRevisions}x</p>
+                          </div>
+                        )}
+                        {viewEscrow.reviewPeriod && (
+                          <div className={classNames("rounded-2xl border p-4", theme.soft, theme.border)}>
+                            <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{language === "vi" ? "Thời gian phản hồi" : "Review Period"}</p>
+                            <p className={classNames("mt-2 text-sm font-bold", theme.text)}>{viewEscrow.reviewPeriod} {language === "vi" ? "ngày" : "days"}</p>
+                          </div>
+                        )}
+                        {viewEscrow.gracePeriod && (
+                          <div className={classNames("rounded-2xl border p-4", theme.soft, theme.border)}>
+                            <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{language === "vi" ? "Thời gian ân hạn" : "Grace Period"}</p>
+                            <p className={classNames("mt-2 text-sm font-bold", theme.text)}>{viewEscrow.gracePeriod} {language === "vi" ? "ngày" : "days"}</p>
+                          </div>
+                        )}
+                      </div>
+                      {(viewEscrow.confidentialityRequirement && viewEscrow.confidentialityRequirement !== "public") || (viewEscrow.commercialUsageRights && viewEscrow.commercialUsageRights !== "commercial") ? (
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {viewEscrow.confidentialityRequirement && viewEscrow.confidentialityRequirement !== "public" && (
+                            <div className={classNames("rounded-2xl border p-4", theme.soft, theme.border)}>
+                              <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{language === "vi" ? "Bảo mật" : "Confidentiality"}</p>
+                              <p className={classNames("mt-2 text-sm font-bold", theme.text)}>{viewEscrow.confidentialityRequirement}</p>
+                            </div>
+                          )}
+                          {viewEscrow.commercialUsageRights && viewEscrow.commercialUsageRights !== "commercial" && (
+                            <div className={classNames("rounded-2xl border p-4", theme.soft, theme.border)}>
+                              <p className={classNames("text-xs font-black uppercase tracking-[0.16em]", theme.faint)}>{language === "vi" ? "Quyền sử dụng thương mại" : "Commercial Rights"}</p>
+                              <p className={classNames("mt-2 text-sm font-bold", theme.text)}>{viewEscrow.commercialUsageRights}</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  </Card>
+                )}
+                {/* Workflow + actions (EscrowDetailsPage embedded, no stat cards/header) */}
+                <EscrowDetailsPage
+                  c={c}
+                  theme={theme}
+                  navigate={navigate}
+                  selectedEscrow={viewEscrow}
+                  addToast={addToast}
+                  refreshEscrows={refreshEscrows}
+                  currentUser={currentUser}
+                  embedded={true}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -2460,7 +2580,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
 // Map on-chain uint8 → status string (khớp với enum Status trong contract)
 const ON_CHAIN_STATUS_MAP = ["CREATED","ACCEPTED","DEPOSITED","SUBMITTED","REVISION_REQUESTED","DISPUTED","REVIEWING_DISPUTE","RELEASED","REFUNDED","CANCELLED"];
 
-function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refreshEscrows, currentUser, onClose }) {
+function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refreshEscrows, currentUser, onClose, embedded = false }) {
   const [txStatus, setTxStatus] = useState({ loading: false, message: "" });
   const [countdown, setCountdown] = useState("");
   // onChainNum: trạng thái đọc trực tiếp từ blockchain (không qua DB / event listener)
@@ -2736,20 +2856,24 @@ function EscrowDetailsPage({ c, theme, navigate, selectedEscrow, addToast, refre
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageIntro title={escrow?.serviceName ? text(escrow.serviceName) : c.details.title} subtitle={c.details.subtitle} theme={theme} />
-        {onClose && (
-          <Button theme={theme} size="sm" variant="secondary" icon={X} onClick={onClose}>
-            {c.common.close}
-          </Button>
-        )}
-      </div>
-      <div className="grid gap-4 md:grid-cols-4">
-        <StatCard theme={theme} icon={Briefcase} label={c.details.jobId} value={escrow?._id ? escrow._id.slice(-8) : "—"} detail={escrow?.serviceName || "—"} tone="cyan" />
-        <StatCard theme={theme} icon={CircleDollarSign} label={c.details.escrowAmount} value={formatEscrowAmount(escrow?.amount || "0")} detail="Polygon" tone="emerald" />
-        <StatCard theme={theme} icon={Clock3} label={c.common.deadline} value={escrow?.deadline ? new Date(escrow.deadline).toLocaleDateString() : "—"} detail="Escrow deadline" tone="amber" />
-        <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status[statusKey] || escrow?.status || "—"} detail="On-chain record" tone="violet" />
-      </div>
+      {!embedded && (
+        <>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <PageIntro title={escrow?.serviceName ? text(escrow.serviceName) : c.details.title} subtitle={c.details.subtitle} theme={theme} />
+            {onClose && (
+              <Button theme={theme} size="sm" variant="secondary" icon={X} onClick={onClose}>
+                {c.common.close}
+              </Button>
+            )}
+          </div>
+          <div className="grid gap-4 md:grid-cols-4">
+            <StatCard theme={theme} icon={Briefcase} label={c.details.jobId} value={escrow?._id ? escrow._id.slice(-8) : "—"} detail={escrow?.serviceName || "—"} tone="cyan" />
+            <StatCard theme={theme} icon={CircleDollarSign} label={c.details.escrowAmount} value={formatEscrowAmount(escrow?.amount || "0")} detail="Polygon" tone="emerald" />
+            <StatCard theme={theme} icon={Clock3} label={c.common.deadline} value={escrow?.deadline ? new Date(escrow.deadline).toLocaleDateString() : "—"} detail="Escrow deadline" tone="amber" />
+            <StatCard theme={theme} icon={ShieldCheck} label={c.common.status} value={c.status[statusKey] || escrow?.status || "—"} detail="On-chain record" tone="violet" />
+          </div>
+        </>
+      )}
       {/* Step 1: Client đăng ký hợp đồng on-chain */}
       {canRegister && (
         <Card theme={theme}>
