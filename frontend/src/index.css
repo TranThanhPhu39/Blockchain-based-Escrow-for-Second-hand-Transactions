@@ -55,6 +55,20 @@ textarea:focus-visible {
   background-size: 28px 28px;
 }
 
+@keyframes shoot-rtl {
+  0%   { transform: translate(0, 0);          opacity: 0; }
+  4%   { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { transform: translate(-115vw, -72vh); opacity: 0; }
+}
+
+@keyframes shoot-ltr {
+  0%   { transform: translate(0, 0);         opacity: 0; }
+  4%   { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { transform: translate(115vw, -72vh); opacity: 0; }
+}
+
 .hero-grid {
   background-image:
     linear-gradient(rgba(139, 92, 246, 0.09) 1px, transparent 1px),

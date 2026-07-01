@@ -1243,6 +1243,52 @@ const EXTRA_STAR_LAYERS = [
   makeStarField(18, 91, 2.8, [0.55, 0.90], "255,255,255"),
 ];
 
+function ShootingStar({ direction, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 1500);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  const isRtl = direction === "rtl";
+  return (
+    <div style={{
+      position: "fixed",
+      ...(isRtl ? { right: "-6px" } : { left: "-6px" }),
+      top: "62%",
+      zIndex: 9999,
+      pointerEvents: "none",
+      animation: `${isRtl ? "shoot-rtl" : "shoot-ltr"} 1.5s ease-in forwards`,
+    }}>
+      {/* Tail — points away from direction of travel */}
+      <div style={{
+        position: "absolute",
+        top: "50%",
+        ...(isRtl ? { left: "6px" } : { right: "6px" }),
+        width: "180px",
+        height: "2px",
+        borderRadius: "2px",
+        transformOrigin: isRtl ? "left center" : "right center",
+        transform: `translateY(-50%) rotate(${isRtl ? "30deg" : "-30deg"})`,
+        background: isRtl
+          ? "linear-gradient(to right, rgba(255,255,255,0.95), rgba(196,181,253,0.55), transparent)"
+          : "linear-gradient(to left,  rgba(255,255,255,0.95), rgba(196,181,253,0.55), transparent)",
+      }} />
+      {/* Star dot */}
+      <div style={{
+        width: "5px",
+        height: "5px",
+        borderRadius: "50%",
+        background: "white",
+        boxShadow: [
+          "0 0 6px 3px rgba(255,255,255,0.95)",
+          "0 0 18px 7px rgba(196,181,253,0.65)",
+          "0 0 36px 14px rgba(139,92,246,0.30)",
+        ].join(", "),
+      }} />
+    </div>
+  );
+}
+
 function HoloBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
@@ -1254,7 +1300,7 @@ function HoloBackground() {
         width: "75%", height: "65%",
         bottom: "-15%", left: "-15%",
         borderRadius: "60% 40% 55% 45% / 50% 60% 40% 50%",
-        background: "rgba(255,160,195,0.55)",
+        background: "rgba(255,160,195,0.25)",
         filter: "blur(22px)",
         transform: "rotate(-14deg)",
       }} />
@@ -1264,7 +1310,7 @@ function HoloBackground() {
         width: "65%", height: "40%",
         bottom: "12%", left: "5%",
         borderRadius: "45% 55% 60% 40% / 55% 45% 55% 45%",
-        background: "rgba(249,140,190,0.38)",
+        background: "rgba(249,140,190,0.17)",
         filter: "blur(28px)",
         transform: "rotate(-7deg)",
       }} />
@@ -1274,7 +1320,7 @@ function HoloBackground() {
         width: "60%", height: "50%",
         top: "18%", left: "22%",
         borderRadius: "55% 45% 40% 60% / 40% 60% 45% 55%",
-        background: "rgba(200,168,255,0.38)",
+        background: "rgba(200,168,255,0.17)",
         filter: "blur(26px)",
         transform: "rotate(5deg)",
       }} />
@@ -1284,7 +1330,7 @@ function HoloBackground() {
         width: "50%", height: "55%",
         top: "-18%", right: "-12%",
         borderRadius: "50% 50% 55% 45% / 45% 55% 50% 50%",
-        background: "rgba(150,170,255,0.52)",
+        background: "rgba(150,170,255,0.24)",
         filter: "blur(20px)",
         transform: "rotate(12deg)",
       }} />
@@ -1294,7 +1340,7 @@ function HoloBackground() {
         width: "55%", height: "28%",
         top: "-5%", left: "22%",
         borderRadius: "50% 50% 45% 55% / 60% 40% 60% 40%",
-        background: "rgba(255,192,220,0.36)",
+        background: "rgba(255,192,220,0.16)",
         filter: "blur(24px)",
         transform: "rotate(-4deg)",
       }} />
@@ -1304,7 +1350,7 @@ function HoloBackground() {
         width: "45%", height: "35%",
         bottom: "8%", left: "32%",
         borderRadius: "55% 45% 50% 50% / 45% 55% 45% 55%",
-        background: "rgba(180,120,255,0.22)",
+        background: "rgba(180,120,255,0.10)",
         filter: "blur(32px)",
       }} />
 
@@ -2258,7 +2304,7 @@ function PreviewRow({ label, value, highlight, theme }) {
   );
 }
 
-function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows, setSelectedEscrow, currentUser, escrows, availableEscrows, refreshAvailableEscrows }) {
+function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows, setSelectedEscrow, currentUser, escrows, availableEscrows, refreshAvailableEscrows, onShootingStar }) {
   const [tab, setTab] = useState("post");
   const [previewJob, setPreviewJob] = useState(null);
   // ── Controlled form state (all sections) ─────────────────────────────────
@@ -2358,6 +2404,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
       });
       setSelectedEscrow(result.escrow);
       await refreshEscrows();
+      onShootingStar?.("rtl");
       addToast("deposit");
       navigate("details");
     } catch (error) {
@@ -2377,6 +2424,7 @@ function CreateJobPage({ c, theme, navigate, addToast, apiToken, refreshEscrows,
       });
       setSelectedEscrow(result.escrow);
       await Promise.all([refreshEscrows(), refreshAvailableEscrows()]);
+      onShootingStar?.("ltr");
       addToast("locked");
       navigate("details");
     } catch (error) {
@@ -4420,6 +4468,8 @@ function App() {
     status: translations.en.status.disconnected
   });
   const [walletConnecting, setWalletConnecting] = useState(false);
+  const [starQueue, setStarQueue] = useState([]);
+  const [activeStar, setActiveStar] = useState(null);
   const [walletPickerOptions, setWalletPickerOptions] = useState([]);
   const [walletError, setWalletError] = useState("");
   const [toasts, setToasts] = useState([]);
@@ -4429,6 +4479,20 @@ function App() {
 
   const theme = useMemo(() => getTheme(themeName), [themeName]);
   const c = translations[language];
+
+  // ── Shooting star queue ──────────────────────────────────────────────────
+  const triggerShootingStar = useCallback((direction) => {
+    setStarQueue((q) => [...q, direction]);
+  }, []);
+
+  useEffect(() => {
+    if (activeStar === null && starQueue.length > 0) {
+      setActiveStar(starQueue[0]);
+      setStarQueue((q) => q.slice(1));
+    }
+  }, [activeStar, starQueue]);
+
+  const handleStarDone = useCallback(() => setActiveStar(null), []);
 
   useEffect(() => {
     function syncRoute() {
@@ -4576,7 +4640,8 @@ function App() {
     availableEscrows,
     refreshAvailableEscrows,
     selectedEscrow,
-    setSelectedEscrow
+    setSelectedEscrow,
+    onShootingStar: triggerShootingStar,
   };
 
   const pages = {
@@ -4600,6 +4665,7 @@ function App() {
         <>
           <GalaxyBackground />
           <div className="app-grid pointer-events-none fixed inset-0 -z-10 opacity-70" />
+          {activeStar && <ShootingStar key={activeStar + Date.now()} direction={activeStar} onDone={handleStarDone} />}
         </>
       ) : (
         <HoloBackground />
