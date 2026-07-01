@@ -16,7 +16,8 @@
       "Bash(netstat -ano)",
       "Bash(awk '{print $5}')",
       "Bash(xargs -I{} taskkill //F //PID {})",
-      "Bash(node -e \"require\\('dotenv'\\).config\\(\\);const mongoose=require\\('mongoose'\\);const User=require\\('./models/User'\\);const Escrow=require\\('./models/Escrow'\\);mongoose.connect\\(process.env.MONGO_URI\\).then\\(async\\(\\)=>{const u=await User.deleteMany\\({email:/^testvis_/}\\);const e=await Escrow.deleteMany\\({serviceName:'Visual Test Contract'}\\);console.log\\('cleaned',u.deletedCount,'users',e.deletedCount,'escrows'\\);await mongoose.disconnect\\(\\)}\\);\")"
+      "Bash(node -e \"require\\('dotenv'\\).config\\(\\);const mongoose=require\\('mongoose'\\);const User=require\\('./models/User'\\);const Escrow=require\\('./models/Escrow'\\);mongoose.connect\\(process.env.MONGO_URI\\).then\\(async\\(\\)=>{const u=await User.deleteMany\\({email:/^testvis_/}\\);const e=await Escrow.deleteMany\\({serviceName:'Visual Test Contract'}\\);console.log\\('cleaned',u.deletedCount,'users',e.deletedCount,'escrows'\\);await mongoose.disconnect\\(\\)}\\);\")",
+      "Bash(npm run *)"
     ]
   }
 }

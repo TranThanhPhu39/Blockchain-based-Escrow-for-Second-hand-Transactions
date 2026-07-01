@@ -1428,7 +1428,6 @@ function Sidebar({ c, theme, route, navigate, open, setOpen, currentUser }) {
     [LogIn, "login"],
     [LayoutDashboardIcon, "dashboard"],
     [Briefcase, "create"],
-    [ReceiptText, "details"],
     [UploadCloud, "submit"],
     [CheckCircle2, "approval"],
     [Gavel, "disputes"],
