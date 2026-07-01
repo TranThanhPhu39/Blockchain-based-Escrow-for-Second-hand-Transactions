@@ -1245,12 +1245,12 @@ const EXTRA_STAR_LAYERS = [
 
 function ShootingStar({ direction, onDone }) {
   useEffect(() => {
-    const t = setTimeout(onDone, 1600);
+    const t = setTimeout(onDone, 2100);
     return () => clearTimeout(t);
   }, [onDone]);
 
   const isRtl = direction === "rtl";
-  const dur = "1.5s";
+  const dur = "2s";
   const ease = "cubic-bezier(0.4, 0, 0.6, 1)";
 
   return (
@@ -1262,30 +1262,17 @@ function ShootingStar({ direction, onDone }) {
       pointerEvents: "none",
       animation: `${isRtl ? "shoot-rtl" : "shoot-ltr"} ${dur} ${ease} forwards`,
     }}>
-      {/* Tail — xoay theo tiếp tuyến bezier */}
-      <div style={{
-        position: "absolute",
-        top: "50%",
-        ...(isRtl ? { left: "6px" } : { right: "6px" }),
-        width: "320px",
-        height: "2px",
-        borderRadius: "2px",
-        transformOrigin: isRtl ? "left center" : "right center",
-        animation: `${isRtl ? "tail-rtl" : "tail-ltr"} ${dur} ${ease} forwards`,
-        background: isRtl
-          ? "linear-gradient(to right, rgba(255,255,255,1), rgba(216,180,254,0.75), rgba(139,92,246,0.28), transparent)"
-          : "linear-gradient(to left,  rgba(255,255,255,1), rgba(216,180,254,0.75), rgba(139,92,246,0.28), transparent)",
-      }} />
       {/* Star */}
       <div style={{
-        width: "5px",
-        height: "5px",
+        width: "14px",
+        height: "14px",
         borderRadius: "50%",
         background: "white",
         boxShadow: [
-          "0 0 6px 3px rgba(255,255,255,0.95)",
-          "0 0 18px 7px rgba(196,181,253,0.65)",
-          "0 0 40px 16px rgba(139,92,246,0.32)",
+          "0 0 10px 5px rgba(255,255,255,0.98)",
+          "0 0 28px 12px rgba(216,180,254,0.80)",
+          "0 0 55px 22px rgba(167,139,250,0.55)",
+          "0 0 90px 38px rgba(139,92,246,0.30)",
         ].join(", "),
       }} />
     </div>
