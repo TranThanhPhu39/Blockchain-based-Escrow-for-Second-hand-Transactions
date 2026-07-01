@@ -212,21 +212,27 @@ const getDisputes = asyncHandler(async (req, res) => {
   if (status) filter.status = status;
 
   if (req.user.role !== USER_ROLES.ADMIN) {
-    // Reviewer on-chain thấy tất cả disputes OPEN/REVIEWING để bỏ phiếu
+    const myEscrowIds = (await Escrow.find({
+      $or: [{ client: req.user._id }, { freelancer: req.user._id }],
+    }).select('_id')).map((e) => e._id);
+
     let isReviewer = false;
     if (req.user.walletAddress) {
       isReviewer = await checkIsReviewerOnChain(req.user.walletAddress).catch(() => false);
     }
 
-    if (isReviewer) {
-      // Nếu không filter theo status cụ thể, mặc định chỉ show OPEN/REVIEWING
+    if (isReviewer && myEscrowIds.length === 0) {
+      // Reviewer thuần (không phải party của escrow nào) → chỉ thấy OPEN/REVIEWING để bỏ phiếu
       if (!filter.status) filter.status = { $in: ['OPEN', 'REVIEWING'] };
+    } else if (isReviewer && myEscrowIds.length > 0) {
+      // Reviewer đồng thời là client/freelancer → thấy disputes của mình (mọi status) + disputes OPEN/REVIEWING của người khác
+      filter.$or = [
+        { escrow: { $in: myEscrowIds } },
+        { status: { $in: ['OPEN', 'REVIEWING'] } },
+      ];
     } else {
-      // Client/Freelancer: chỉ xem disputes của escrow mà họ tham gia
-      const myEscrows = await Escrow.find({
-        $or: [{ client: req.user._id }, { freelancer: req.user._id }],
-      }).select('_id');
-      filter.escrow = { $in: myEscrows.map((e) => e._id) };
+      // Không phải reviewer → chỉ thấy disputes của escrow mà họ tham gia
+      filter.escrow = { $in: myEscrowIds };
     }
   }
 

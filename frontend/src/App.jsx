@@ -1836,10 +1836,24 @@ function AuthPage({ type, c, theme, navigate, addToast, setApiToken, setCurrentU
 function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, setSelectedEscrow, apiToken, currentUser, addToast }) {
   const [tab, setTab] = useState("active");
   const [viewEscrowId, setViewEscrowId] = useState(null);
+  const [resolvedDisputes, setResolvedDisputes] = useState([]);
 
   useEffect(() => {
     if (apiToken) refreshEscrows();
   }, [apiToken, refreshEscrows]);
+
+  useEffect(() => {
+    if (!apiToken) return;
+    apiRequest("/api/disputes", { token: apiToken })
+      .then((d) => setResolvedDisputes((d.disputes || []).filter((x) => x.status === "RESOLVED_RELEASE" || x.status === "RESOLVED_REFUND")))
+      .catch(() => {});
+  }, [apiToken]);
+
+  const disputeByEscrowId = {};
+  resolvedDisputes.forEach((d) => {
+    const eid = String(d.escrow?._id || d.escrow);
+    if (eid) disputeByEscrowId[eid] = d;
+  });
 
   const uid = currentUser?._id || currentUser?.id;
   const isAdmin = currentUser?.role === "admin";
@@ -1856,7 +1870,8 @@ function DashboardPage({ c, theme, language, navigate, escrows, refreshEscrows, 
     freelancer: escrow.freelancer?.name || escrow.freelancer?.walletAddress || "Freelancer",
     amount: formatEscrowAmount(escrow.amount),
     status: escrowStatusKey(escrow.status),
-    raw: escrow
+    raw: escrow,
+    dispute: disputeByEscrowId[String(escrow._id)] || null,
   }));
   const activeRows = liveRows.filter((row) => !["released", "refunded"].includes(row.status));
   const completedRows = liveRows.filter((row) => ["released", "refunded"].includes(row.status));
@@ -2065,27 +2080,55 @@ function JobsTable({ type, rows, c, theme, language, navigate, setSelectedEscrow
         <span>{c.common.status}</span>
         <span>{c.common.action}</span>
       </div>
-      {tableRows.map((job) => (
-        <div key={job.id} className={classNames("grid gap-3 border-t px-4 py-4 md:grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr] md:items-center", theme.border, job.id === activeId && theme.soft)}>
-          <div>
-            <p className={classNames("font-black", theme.heading)}>{text(job.service, language)}</p>
-            <p className={classNames("text-xs", theme.faint)}>{job.id}</p>
+      {tableRows.map((job) => {
+        const rd = type === "completed" ? job.dispute : null;
+        const rdVotes = rd?.votes || [];
+        const rdTotal = rdVotes.length;
+        const rdFreelancer = rdVotes.filter((v) => v.voteForFreelancer).length;
+        const rdFreelancerPct = rdTotal ? Math.round((rdFreelancer / rdTotal) * 100) : 0;
+        const rdClientPct = rdTotal ? 100 - rdFreelancerPct : 0;
+        return (
+          <div key={job.id} className={classNames("border-t px-4 py-4", theme.border, job.id === activeId && theme.soft)}>
+            <div className="grid gap-3 md:grid-cols-[1fr_1fr_0.8fr_0.8fr_0.8fr] md:items-center">
+              <div>
+                <p className={classNames("font-black", theme.heading)}>{text(job.service, language)}</p>
+                <p className={classNames("text-xs", theme.faint)}>{job.id}</p>
+              </div>
+              <p className={classNames("text-sm", theme.muted)}>{job.freelancer}</p>
+              <p className={classNames("font-bold", theme.accentText)}>{job.amount}</p>
+              <Badge theme={theme} tone={type === "disputes" ? "amber" : job.status === "released" ? "emerald" : "cyan"}>{c.status[job.status || job.result]}</Badge>
+              <Button theme={theme} size="sm" variant="secondary" icon={type === "disputes" ? Gavel : ReceiptText} onClick={() => {
+                if (job.raw) setSelectedEscrow(job.raw);
+                if (type === "disputes") {
+                  navigate("disputes");
+                } else {
+                  onViewDetails(job.id);
+                }
+              }}>
+                {type === "disputes" ? c.nav.disputes : c.nav.details}
+              </Button>
+            </div>
+            {rd && rdTotal > 0 && (
+              <div className="mt-3 space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className={classNames("font-semibold", theme.muted)}>
+                    {rd.status === "RESOLVED_RELEASE" ? "✓ Giải ngân cho freelancer" : "✓ Hoàn tiền cho khách hàng"}
+                  </span>
+                  <span className={theme.faint}>{rdTotal} phiếu</span>
+                </div>
+                <div className={classNames("flex h-2 w-full overflow-hidden rounded-full", theme.isDark ? "bg-white/10" : "bg-slate-200")}>
+                  <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${rdFreelancerPct}%` }} />
+                  <div className="h-full rounded-full bg-rose-500 transition-all" style={{ width: `${rdClientPct}%` }} />
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-emerald-500">{rdFreelancerPct}% freelancer</span>
+                  <span className="text-rose-500">{rdClientPct}% khách hàng</span>
+                </div>
+              </div>
+            )}
           </div>
-          <p className={classNames("text-sm", theme.muted)}>{job.freelancer}</p>
-          <p className={classNames("font-bold", theme.accentText)}>{job.amount}</p>
-          <Badge theme={theme} tone={type === "disputes" ? "amber" : job.status === "released" ? "emerald" : "cyan"}>{c.status[job.status || job.result]}</Badge>
-          <Button theme={theme} size="sm" variant="secondary" icon={type === "disputes" ? Gavel : ReceiptText} onClick={() => {
-            if (job.raw) setSelectedEscrow(job.raw);
-            if (type === "disputes") {
-              navigate("disputes");
-            } else {
-              onViewDetails(job.id);
-            }
-          }}>
-            {type === "disputes" ? c.nav.disputes : c.nav.details}
-          </Button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
