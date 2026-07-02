@@ -4663,11 +4663,11 @@ function App() {
         <>
           <GalaxyBackground />
           <div className="app-grid pointer-events-none fixed inset-0 -z-10 opacity-70" />
-          {activeStar && <ShootingStar key={activeStar.id} direction={activeStar.direction} onDone={handleStarDone} />}
         </>
       ) : (
         <HoloBackground />
       )}
+      {activeStar && <ShootingStar key={activeStar.id} direction={activeStar.direction} onDone={handleStarDone} />}
       <Sidebar c={c} theme={theme} route={route} navigate={navigate} open={mobileOpen} setOpen={setMobileOpen} currentUser={currentUser} />
       <div className="lg:pl-72">
         <Header
